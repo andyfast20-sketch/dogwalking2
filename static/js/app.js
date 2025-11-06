@@ -8,7 +8,9 @@
 		let sid=getSID();
 		if(!sid){
 			sid=crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2);
-			document.cookie='sid='+sid+';path=/;SameSite=Lax';
+			// Persist for ~180 days so returning visitors keep the same SID
+			var maxAge = 60*60*24*180;
+			document.cookie='sid='+sid+';path=/;SameSite=Lax;max-age='+maxAge;
 		}
 		// Send view event
 		fetch('/track',{

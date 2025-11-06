@@ -1,13 +1,18 @@
 {% extends 'base.html' %}
 {% block title %}Visitors Admin{% endblock %}
 {% block content %}
-<section class="hero small">
-  <h1>Visitors</h1>
-  <p>All tracked sessions (including those who did not submit an enquiry).</p>
-  <p style="font-size:.85rem;opacity:.8;">Shows last 50+ sessions ordered by most recent activity. AI summaries are optional.</p>
-  <p><a class="link-btn" href="{{ url_for('admin_enquiries') }}">↩ Back to enquiries</a></p>
-</section>
-<div class="container" style="overflow-x:auto;">
+
+<div class="admin-bar">
+  <div class="admin-bar-left">
+    <h1 style="margin:0;">Visitors</h1>
+    <div class="sub">Tracked sessions including those who didn’t submit a form.</div>
+  </div>
+  <div class="admin-bar-right">
+    <a class="link-btn" href="{{ url_for('admin_enquiries') }}">↩ Back to enquiries</a>
+  </div>
+</div>
+
+<div class="container" style="overflow-x:auto;margin-top:10px;">
   {% if rows %}
   <table class="data-table">
     <thead>
@@ -30,8 +35,11 @@
         <td>{{ r.last_seen|uk_datetime }}</td>
         <td>{{ r.page_count }}</td>
         <td style="max-width:280px;white-space:pre-wrap;font-size:.75rem;">{% if r.summary %}{{ r.summary }}{% else %}—{% endif %}</td>
-        <td style="text-align:right;">
+        <td style="text-align:right;white-space:nowrap;">
           <button class="btn ghost analyze-btn" type="button" data-sid="{{ r.sid }}">{% if r.summary %}Refresh{% else %}Analyze{% endif %}</button>
+          <form method="post" action="{{ url_for('admin_visitors_delete', sid=r.sid) }}" style="display:inline-block;margin-left:6px;">
+            <button class="btn danger delete-visitor-btn" type="submit">Delete</button>
+          </form>
         </td>
       </tr>
     {% endfor %}
@@ -106,6 +114,15 @@
       btn.textContent = original;
     }finally{
       btn.disabled = false;
+    }
+  });
+
+  // Confirm deletes
+  document.addEventListener('click', function(e){
+    const del = e.target.closest('button.delete-visitor-btn');
+    if(!del) return;
+    if(!confirm('Delete this visitor and all recorded events?')){
+      e.preventDefault();
     }
   });
 })();

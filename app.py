@@ -532,6 +532,18 @@ def admin_visitors_analyze_all():
     return redirect(url_for('admin_visitors'))
 
 
+@app.route('/admin/visitors/delete/<sid>', methods=['POST'])
+def admin_visitors_delete(sid: str):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    init_db()
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM events WHERE sid=:sid"), {"sid": sid})
+        conn.execute(text("DELETE FROM visitor_insights WHERE sid=:sid"), {"sid": sid})
+    return redirect(url_for('admin_visitors'))
+
+
 @app.route('/admin/ai_status')
 def admin_ai_status():
     auth_result = require_admin()
