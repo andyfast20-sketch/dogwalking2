@@ -402,6 +402,45 @@ def admin_visitors_analyze(sid: str):
     return redirect(url_for('admin_visitors'))
 
 
+@app.route('/admin/visitors/analyze-all', methods=['POST'])
+def admin_visitors_analyze_all():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    init_db()
+    with engine.begin() as conn:
+        sids = [r.sid for r in conn.execute(text("SELECT DISTINCT sid FROM events WHERE sid IS NOT NULL AND sid != ''"))]
+        for sid in sids:
+            ev = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid ORDER BY id ASC"), {"sid": sid}).fetchall()
+            events = [{'path': r.path, 'referrer': r.referrer, 'event': r.event, 'created_at': to_uk(r.created_at)} for r in ev]
+            summary = _gemini_analyze(events)
+            if summary:
+                conn.execute(text("INSERT INTO visitor_insights(sid, summary) VALUES (:sid, :s) ON CONFLICT(sid) DO UPDATE SET summary = excluded.summary"), {"sid": sid, "s": summary})
+    return redirect(url_for('admin_visitors'))
+
+
+@app.route('/admin/gemini_status')
+def admin_gemini_status():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    status = {
+        'env_present': bool(os.environ.get('GEMINI_API_KEY')),
+        'module_loaded': genai is not None,
+        'model_ok': False,
+        'error': None
+    }
+    if status['env_present'] and status['module_loaded']:
+        try:
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            # very small ping to ensure we can call generate
+            resp = model.generate_content("ping")
+            status['model_ok'] = bool(getattr(resp, 'text', '') or getattr(resp, 'candidates', None))
+        except Exception as e:
+            status['error'] = str(e)
+    return jsonify(status)
+
+
 @app.route('/admin/enquiries/status/<int:enquiry_id>', methods=['POST'])
 def update_enquiry_status(enquiry_id: int):
     auth_result = require_admin()
