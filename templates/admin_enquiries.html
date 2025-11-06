@@ -76,5 +76,18 @@
     if(!box)return;
     box.hidden=!box.hidden;
   }
+  // Close modal when clicking the dimmed background
+  document.addEventListener('click', (e)=>{
+    const el = e.target;
+    if(el.classList && el.classList.contains('full-message')){
+      el.hidden = true;
+    }
+  });
+  // Close on Escape
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape'){
+      document.querySelectorAll('.full-message').forEach(m => { m.hidden = true; });
+    }
+  });
   </script>
 {% endblock %}
