@@ -5,6 +5,10 @@
 		function getSID(){
 			const m=document.cookie.match(/(?:^|; )sid=([^;]+)/);return m?decodeURIComponent(m[1]):null;
 		}
+		// Don't track admin pages
+		if(location.pathname && location.pathname.indexOf('/admin') === 0){
+			return;
+		}
 		let sid=getSID();
 		if(!sid){
 			sid=crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2);

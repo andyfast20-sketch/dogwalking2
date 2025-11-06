@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, abort, Response, jsonify
 import sqlite3
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 try:
     from zoneinfo import ZoneInfo  # Python 3.9+
 except Exception:  # pragma: no cover
@@ -216,7 +216,36 @@ def track():
         'created_at': datetime.utcnow().isoformat()
     }
     init_db()
+    # Drop admin page events entirely from analytics
+    try:
+        if (data.get('path') or '').startswith('/admin'):
+            return jsonify({'ok': True})
+    except Exception:
+        pass
     with engine.begin() as conn:
+        # If returning after inactivity threshold, insert a 'return' marker event
+        try:
+            threshold_min = int(os.environ.get('RETURN_THRESHOLD_MINUTES', '30'))
+        except Exception:
+            threshold_min = 30
+        if data['sid']:
+            last = conn.execute(text("SELECT created_at FROM events WHERE sid=:sid AND path NOT LIKE '/admin%' ORDER BY id DESC LIMIT 1"), {"sid": data['sid']}).fetchone()
+            if last:
+                try:
+                    last_dt = datetime.fromisoformat(last.created_at)
+                except Exception:
+                    last_dt = None
+                now_dt = datetime.fromisoformat(data['created_at'])
+                if last_dt and (now_dt - last_dt) > timedelta(minutes=threshold_min):
+                    conn.execute(text("INSERT INTO events (sid, path, referrer, event, user_agent, ip, created_at) VALUES (:sid,:path,:referrer,:event,:user_agent,:ip,:created_at)"), {
+                        'sid': data['sid'],
+                        'path': '/',
+                        'referrer': data['referrer'],
+                        'event': 'return',
+                        'user_agent': data['user_agent'],
+                        'ip': data['ip'],
+                        'created_at': data['created_at']
+                    })
         conn.execute(text("INSERT INTO events (sid, path, referrer, event, user_agent, ip, created_at) VALUES (:sid,:path,:referrer,:event,:user_agent,:ip,:created_at)"), data)
     return jsonify({'ok': True})
 
@@ -305,7 +334,7 @@ def admin_enquiry_activity(enquiry_id: int):
         e = conn.execute(text("SELECT sid FROM enquiries WHERE id=:id"), {"id": enquiry_id}).fetchone()
         if not e:
             abort(404)
-        rows = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid ORDER BY id DESC LIMIT 50"), {"sid": e.sid}).fetchall()
+    rows = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid AND path NOT LIKE '/admin%' ORDER BY id DESC LIMIT 50"), {"sid": e.sid}).fetchall()
     events = [{
         'path': r.path,
         'referrer': r.referrer,
@@ -408,12 +437,12 @@ def admin_enquiry_analyze(enquiry_id: int):
         e = conn.execute(text("SELECT sid FROM enquiries WHERE id=:id"), {"id": enquiry_id}).fetchone()
         if not e:
             abort(404)
-        rows = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid ORDER BY id ASC"), {"sid": e.sid}).fetchall()
+        rows = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid AND path NOT LIKE '/admin%' ORDER BY id ASC"), {"sid": e.sid}).fetchall()
         events = [{'path': r.path, 'referrer': r.referrer, 'event': r.event, 'created_at': to_uk(r.created_at)} for r in rows]
         summary = _ai_analyze(events)
         if not summary:
             # Get raw events again for heuristic (without uk formatting)
-            raw_rows = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid ORDER BY id ASC"), {"sid": e.sid}).fetchall()
+            raw_rows = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid AND path NOT LIKE '/admin%' ORDER BY id ASC"), {"sid": e.sid}).fetchall()
             raw_events = [{'path': r.path, 'referrer': r.referrer, 'event': r.event, 'created_at': r.created_at} for r in raw_rows]
             summary = _heuristic_summary(raw_events)
         if summary:
@@ -439,7 +468,7 @@ def fetch_visitors():
                    vi.summary AS summary
             FROM events e
             LEFT JOIN visitor_insights vi ON vi.sid = e.sid
-            WHERE e.sid IS NOT NULL AND e.sid != ''
+            WHERE e.sid IS NOT NULL AND e.sid != '' AND e.path NOT LIKE '/admin%'
             GROUP BY e.sid, vi.summary
             ORDER BY last_seen DESC
             """
@@ -457,13 +486,30 @@ def fetch_visitors():
     return visitors
 
 
+def fetch_visitor_stats():
+    """Compute high-level metrics excluding admin pages."""
+    init_db()
+    with engine.begin() as conn:
+        total = conn.execute(text("SELECT COUNT(DISTINCT sid) AS c FROM events WHERE sid IS NOT NULL AND sid != '' AND path NOT LIKE '/admin%'")).scalar() or 0
+        returning = conn.execute(text("SELECT COUNT(DISTINCT sid) AS c FROM events WHERE event='return'"))
+        returning = returning.scalar() if returning else 0
+        views = conn.execute(text("SELECT COUNT(*) AS c FROM events WHERE event='view' AND path NOT LIKE '/admin%'")).scalar() or 0
+    avg_pages = round(views / total, 1) if total else 0
+    return {
+        'total_visitors': int(total),
+        'returning_visitors': int(returning),
+        'avg_pages_per_visitor': avg_pages
+    }
+
+
 @app.route('/admin/visitors')
 def admin_visitors():
     auth_result = require_admin()
     if isinstance(auth_result, Response):
         return auth_result
     rows = fetch_visitors()
-    return render_template('admin_visitors.html', rows=rows)
+    stats = fetch_visitor_stats()
+    return render_template('admin_visitors.html', rows=rows, stats=stats)
 
 
 @app.route('/admin/visitors/analyze/<sid>', methods=['POST'])
@@ -473,7 +519,7 @@ def admin_visitors_analyze(sid: str):
         return auth_result
     init_db()
     with engine.begin() as conn:
-        ev = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid ORDER BY id ASC"), {"sid": sid}).fetchall()
+        ev = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid AND path NOT LIKE '/admin%' ORDER BY id ASC"), {"sid": sid}).fetchall()
         events = [{'path': r.path, 'referrer': r.referrer, 'event': r.event, 'created_at': to_uk(r.created_at)} for r in ev]
     summary = _ai_analyze(events)
     if not summary:
@@ -493,7 +539,7 @@ def admin_visitors_analyze_json(sid: str):
         return auth_result
     init_db()
     with engine.begin() as conn:
-        ev = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid ORDER BY id ASC"), {"sid": sid}).fetchall()
+        ev = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid AND path NOT LIKE '/admin%' ORDER BY id ASC"), {"sid": sid}).fetchall()
         events = [{'path': r.path, 'referrer': r.referrer, 'event': r.event, 'created_at': to_uk(r.created_at)} for r in ev]
     # Create timeline like the prompt
     timeline = "\n".join([f"- [{e['created_at']}] {e['event']} {e['path']} (ref: {e['referrer'] or '-'} )" for e in events])
@@ -524,7 +570,7 @@ def admin_visitors_analyze_all():
     with engine.begin() as conn:
         sids = [r.sid for r in conn.execute(text("SELECT DISTINCT sid FROM events WHERE sid IS NOT NULL AND sid != ''"))]
         for sid in sids:
-            ev = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid ORDER BY id ASC"), {"sid": sid}).fetchall()
+            ev = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid AND path NOT LIKE '/admin%' ORDER BY id ASC"), {"sid": sid}).fetchall()
             events = [{'path': r.path, 'referrer': r.referrer, 'event': r.event, 'created_at': to_uk(r.created_at)} for r in ev]
             summary = _ai_analyze(events)
             if summary:

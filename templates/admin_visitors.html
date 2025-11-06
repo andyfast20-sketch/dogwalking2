@@ -13,6 +13,22 @@
 </div>
 
 <div class="container" style="overflow-x:auto;margin-top:10px;">
+  {% if stats %}
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total visitors</div>
+      <div class="stat-value">{{ stats.total_visitors }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Returning visitors</div>
+      <div class="stat-value">{{ stats.returning_visitors }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg pages / visitor</div>
+      <div class="stat-value">{{ stats.avg_pages_per_visitor }}</div>
+    </div>
+  </div>
+  {% endif %}
   {% if rows %}
   <table class="data-table">
     <thead>
