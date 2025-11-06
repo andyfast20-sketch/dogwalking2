@@ -2,9 +2,33 @@
 <html>
   <head>
     <title>Happy Paws Dog Walking</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   </head>
   <body>
-    <h1>Welcome to Happy Paws!</h1>
-    <p>Professional dog walking services in your neighbourhood.</p>
+    <div class="container">
+      <h1>Welcome to Happy Paws!</h1>
+      <p>Professional dog walking services in your neighbourhood.</p>
+      
+      <div class="nav-links">
+        <a href="{{ url_for('about') }}">About Us</a>
+        <a href="#services">Services</a>
+        <a href="#contact">Contact</a>
+      </div>
+      
+      <h2>Our Services</h2>
+      <ul class="services-list">
+        <li><strong>Daily Dog Walks:</strong> 30-60 minute walks tailored to your dog's needs</li>
+        <li><strong>Pet Sitting:</strong> In-home care while you're away</li>
+        <li><strong>Puppy Visits:</strong> Special care for young dogs</li>
+        <li><strong>Emergency Services:</strong> Last-minute care when needed</li>
+      </ul>
+      
+      <div class="contact-info">
+        <h2>Contact Us</h2>
+        <p><strong>Phone:</strong> (555) 123-PAWS (7297)</p>
+        <p><strong>Email:</strong> hello@happypawswalking.com</p>
+        <p><strong>Hours:</strong> Monday - Sunday, 7 AM - 7 PM</p>
+      </div>
+    </div>
   </body>
 </html>

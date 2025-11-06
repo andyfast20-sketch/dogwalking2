@@ -2,66 +2,7 @@
 <html>
   <head>
     <title>About Us - Happy Paws Dog Walking</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        line-height: 1.6;
-        margin: 0;
-        padding: 20px;
-        background-color: #f4f4f4;
-      }
-      .container {
-        max-width: 800px;
-        margin: 0 auto;
-        background-color: white;
-        padding: 30px;
-        border-radius: 10px;
-        box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      }
-      h1 {
-        color: #2c3e50;
-        text-align: center;
-        margin-bottom: 30px;
-      }
-      h2 {
-        color: #3498db;
-        border-bottom: 2px solid #3498db;
-        padding-bottom: 5px;
-      }
-      .team-member {
-        background-color: #ecf0f1;
-        padding: 15px;
-        margin: 15px 0;
-        border-radius: 5px;
-      }
-      .services-list {
-        list-style-type: none;
-        padding: 0;
-      }
-      .services-list li {
-        background-color: #e8f5e8;
-        margin: 5px 0;
-        padding: 10px;
-        border-left: 4px solid #27ae60;
-      }
-      .contact-info {
-        background-color: #fff3cd;
-        padding: 15px;
-        border-radius: 5px;
-        border-left: 4px solid #ffc107;
-        margin-top: 20px;
-      }
-      .back-link {
-        display: inline-block;
-        margin-top: 20px;
-        color: #3498db;
-        text-decoration: none;
-        font-weight: bold;
-      }
-      .back-link:hover {
-        text-decoration: underline;
-      }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   </head>
   <body>
     <div class="container">
@@ -122,7 +63,7 @@
         <p><strong>Hours:</strong> Monday - Sunday, 7 AM - 7 PM</p>
       </div>
 
-      <a href="index.html" class="back-link">← Back to Home</a>
+      <a href="{{ url_for('home') }}" class="back-link">← Back to Home</a>
     </div>
   </body>
 </html>
