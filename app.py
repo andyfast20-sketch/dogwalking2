@@ -132,7 +132,8 @@ def require_admin():
 def admin_enquiries():
     protected = require_admin()
     rows = fetch_enquiries()
-    return render_template('admin_enquiries.html', rows=rows, protected=protected)
+    deleted = request.args.get('deleted') == '1'
+    return render_template('admin_enquiries.html', rows=rows, protected=protected, deleted=deleted)
 
 @app.route('/admin/enquiries.csv')
 def admin_enquiries_csv():
@@ -152,6 +153,23 @@ def admin_enquiries_csv():
         )
     csv = "\n".join(lines)
     return Response(csv, mimetype='text/csv', headers={'Content-Disposition': 'attachment; filename=enquiries.csv'})
+
+
+@app.route('/admin/enquiries/delete/<int:enquiry_id>', methods=['POST'])
+def delete_enquiry(enquiry_id: int):
+    # Admin auth
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result  # return 401 challenge when using Basic Auth
+    init_db()
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM enquiries WHERE id = :id"), {"id": enquiry_id})
+    # Preserve token in redirect if present so user stays authenticated
+    token = request.args.get('token')
+    args = {"deleted": "1"}
+    if token:
+        args["token"] = token
+    return redirect(url_for('admin_enquiries', **args))
 
 if __name__ == '__main__':
     app.run(debug=True)

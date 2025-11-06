@@ -8,6 +8,9 @@
   {% else %}
     <p><strong>Warning:</strong> ADMIN_TOKEN not set; this page is currently public. Set an environment variable to secure it.</p>
   {% endif %}
+  {% if deleted %}
+    <div class="notice success" style="max-width:900px;margin:10px auto;">Enquiry deleted.</div>
+  {% endif %}
 </section>
 <div class="container" style="overflow-x:auto;">
   {% if rows %}
@@ -20,6 +23,7 @@
           <th>Dog</th>
           <th>Message</th>
           <th>Created (UTC)</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -31,6 +35,11 @@
             <td>{{ r.dog or '—' }}</td>
             <td style="max-width:320px;white-space:pre-wrap;">{{ r.message }}</td>
             <td>{{ r.created_at }}</td>
+            <td style="text-align:right;">
+              <form method="post" action="{{ url_for('delete_enquiry', enquiry_id=r.id, token=request.args.get('token')) }}" onsubmit="return confirm('Delete this enquiry?');">
+                <button class="btn danger" type="submit">Delete</button>
+              </form>
+            </td>
           </tr>
         {% endfor %}
       </tbody>
