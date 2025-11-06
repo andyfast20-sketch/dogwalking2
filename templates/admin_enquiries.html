@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Enquiries Admin{% endblock %}
+{% block content %}
+<section class="hero small">
+  <h1>Enquiries</h1>
+  {% if protected %}
+    <p>Protected view (token validated).</p>
+  {% else %}
+    <p><strong>Warning:</strong> ADMIN_TOKEN not set; this page is currently public. Set an environment variable to secure it.</p>
+  {% endif %}
+</section>
+<div class="container" style="overflow-x:auto;">
+  {% if rows %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Dog</th>
+          <th>Message</th>
+          <th>Created (UTC)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          <tr>
+            <td>{{ r.id }}</td>
+            <td>{{ r.name }}</td>
+            <td><a href="mailto:{{ r.email }}">{{ r.email }}</a></td>
+            <td>{{ r.dog or '—' }}</td>
+            <td style="max-width:320px;white-space:pre-wrap;">{{ r.message }}</td>
+            <td>{{ r.created_at }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p style="margin-top:16px;font-size:.9rem;">Download: <a href="{{ url_for('admin_enquiries_csv', token=request.args.get('token')) }}">CSV export</a></p>
+  {% else %}
+    <p>No enquiries yet.</p>
+  {% endif %}
+</div>
+{% endblock %}
