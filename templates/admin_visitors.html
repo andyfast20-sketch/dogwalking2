@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Visitors Admin{% endblock %}
+{% block content %}
+<section class="hero small">
+  <h1>Visitors</h1>
+  <p>All tracked sessions (including those who did not submit an enquiry).</p>
+  <p style="font-size:.85rem;opacity:.8;">Shows last 50+ sessions ordered by most recent activity. AI summaries are optional.</p>
+  <p><a class="link-btn" href="{{ url_for('admin_enquiries') }}">↩ Back to enquiries</a></p>
+</section>
+<div class="container" style="overflow-x:auto;">
+  {% if rows %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Session ID</th>
+        <th>IP</th>
+        <th>First Seen (UK)</th>
+        <th>Last Seen (UK)</th>
+        <th>Pages</th>
+        <th>Summary</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td style="font-family:monospace;font-size:.8rem;">{{ r.sid }}</td>
+        <td>{{ r.ip or '—' }}</td>
+        <td>{{ r.first_seen|uk_datetime }}</td>
+        <td>{{ r.last_seen|uk_datetime }}</td>
+        <td>{{ r.page_count }}</td>
+        <td style="max-width:280px;white-space:pre-wrap;font-size:.75rem;">{% if r.summary %}{{ r.summary }}{% else %}—{% endif %}</td>
+        <td style="text-align:right;">
+          {% if not r.summary %}
+          <form method="post" action="{{ url_for('admin_visitors_analyze', sid=r.sid) }}">
+            <button class="btn ghost" type="submit">Analyze</button>
+          </form>
+          {% else %}
+            <form method="post" action="{{ url_for('admin_visitors_analyze', sid=r.sid) }}">
+              <button class="btn ghost" type="submit">Refresh</button>
+            </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>No visitor sessions recorded yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

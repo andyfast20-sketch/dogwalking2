@@ -123,6 +123,13 @@ def init_db():
                 created_at TEXT NOT NULL
             )
         """))
+        # Cache table for visitor-level AI insights
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS visitor_insights (
+                sid TEXT PRIMARY KEY,
+                summary TEXT
+            )
+        """))
 
 def save_enquiry(name: str, email: str, dog: str, message: str):
     init_db()
@@ -337,6 +344,62 @@ def admin_enquiry_analyze(enquiry_id: int):
     if token:
         args['token'] = token
     return redirect(url_for('admin_enquiries', **args))
+
+
+# -------- Visitors (non-enquiry) admin --------
+def fetch_visitors():
+    init_db()
+    with engine.begin() as conn:
+        rows = conn.execute(text(
+            """
+            SELECT e.sid AS sid,
+                   MIN(e.created_at) AS first_seen,
+                   MAX(e.created_at) AS last_seen,
+                   COUNT(*) AS page_count,
+                   MAX(e.ip) AS ip,
+                   vi.summary AS summary
+            FROM events e
+            LEFT JOIN visitor_insights vi ON vi.sid = e.sid
+            WHERE e.sid IS NOT NULL AND e.sid != ''
+            GROUP BY e.sid, vi.summary
+            ORDER BY last_seen DESC
+            """
+        )).fetchall()
+    visitors = []
+    for r in rows:
+        visitors.append({
+            'sid': r.sid,
+            'ip': r.ip,
+            'first_seen': r.first_seen,
+            'last_seen': r.last_seen,
+            'page_count': r.page_count,
+            'summary': r.summary or ''
+        })
+    return visitors
+
+
+@app.route('/admin/visitors')
+def admin_visitors():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    rows = fetch_visitors()
+    return render_template('admin_visitors.html', rows=rows)
+
+
+@app.route('/admin/visitors/analyze/<sid>', methods=['POST'])
+def admin_visitors_analyze(sid: str):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    init_db()
+    with engine.begin() as conn:
+        ev = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid ORDER BY id ASC"), {"sid": sid}).fetchall()
+        events = [{'path': r.path, 'referrer': r.referrer, 'event': r.event, 'created_at': to_uk(r.created_at)} for r in ev]
+        summary = _gemini_analyze(events)
+        if summary:
+            conn.execute(text("INSERT INTO visitor_insights(sid, summary) VALUES (:sid, :s) ON CONFLICT(sid) DO UPDATE SET summary = excluded.summary"), {"sid": sid, "s": summary})
+    return redirect(url_for('admin_visitors'))
 
 
 @app.route('/admin/enquiries/status/<int:enquiry_id>', methods=['POST'])
