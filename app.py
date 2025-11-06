@@ -352,6 +352,52 @@ def _ai_analyze(events: list) -> str | None:
     return None
 
 
+def _heuristic_summary(raw_events: list[dict]) -> str | None:
+    """Generate a simple rule-based summary if AI providers are unavailable or fail.
+    raw_events: list of dicts with keys: path, event, created_at (ISO string), referrer
+    """
+    if not raw_events:
+        return None
+    paths = [e['path'] for e in raw_events if e.get('path')]
+    unique_paths = list(dict.fromkeys(paths))
+    page_count = len(paths)
+    # Duration
+    from datetime import datetime
+    def parse_iso(x):
+        try:
+            return datetime.fromisoformat(x)
+        except Exception:
+            return None
+    first_dt = parse_iso(raw_events[0]['created_at'])
+    last_dt = parse_iso(raw_events[-1]['created_at']) if raw_events else first_dt
+    duration_secs = (last_dt - first_dt).total_seconds() if first_dt and last_dt else 0
+    has_services = any('/services' in p for p in paths)
+    has_contact = any('/contact' in p for p in paths)
+    has_about = any('/about' in p for p in paths)
+
+    # Buckets
+    if page_count <= 1:
+        return "Very quick visit; user viewed a single page and left."
+    if page_count == 2 and duration_secs < 30:
+        return "Brief glance at a couple of pages; low engagement so far."
+    intent_bits = []
+    if has_services:
+        intent_bits.append('looked at services')
+    if has_contact:
+        intent_bits.append('checked contact page')
+    if has_about:
+        intent_bits.append('viewed about page')
+    if duration_secs > 600 and page_count >= 5:
+        intent_phrase = 'highly engaged session'
+    elif duration_secs > 180 and page_count >= 4:
+        intent_phrase = 'engaged browsing'
+    else:
+        intent_phrase = 'moderate interest'
+    if intent_bits:
+        return f"User {intent_phrase}; {', '.join(intent_bits)} (visited {page_count} pages)."
+    return f"User showed {intent_phrase}, visited {page_count} pages across {len(unique_paths)} unique sections."
+
+
 @app.route('/admin/enquiries/analyze/<int:enquiry_id>', methods=['POST'])
 def admin_enquiry_analyze(enquiry_id: int):
     auth_result = require_admin()
@@ -365,6 +411,11 @@ def admin_enquiry_analyze(enquiry_id: int):
         rows = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid ORDER BY id ASC"), {"sid": e.sid}).fetchall()
         events = [{'path': r.path, 'referrer': r.referrer, 'event': r.event, 'created_at': to_uk(r.created_at)} for r in rows]
         summary = _ai_analyze(events)
+        if not summary:
+            # Get raw events again for heuristic (without uk formatting)
+            raw_rows = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid ORDER BY id ASC"), {"sid": e.sid}).fetchall()
+            raw_events = [{'path': r.path, 'referrer': r.referrer, 'event': r.event, 'created_at': r.created_at} for r in raw_rows]
+            summary = _heuristic_summary(raw_events)
         if summary:
             conn.execute(text("UPDATE enquiries SET visit_summary=:s WHERE id=:id"), {"s": summary, "id": enquiry_id})
     token = request.args.get('token')
@@ -425,6 +476,9 @@ def admin_visitors_analyze(sid: str):
         ev = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid ORDER BY id ASC"), {"sid": sid}).fetchall()
         events = [{'path': r.path, 'referrer': r.referrer, 'event': r.event, 'created_at': to_uk(r.created_at)} for r in ev]
     summary = _ai_analyze(events)
+    if not summary:
+        raw_events = [{'path': r.path, 'referrer': r.referrer, 'event': r.event, 'created_at': r.created_at} for r in ev]
+        summary = _heuristic_summary(raw_events)
     if summary:
         with engine.begin() as conn:
             conn.execute(text("INSERT INTO visitor_insights(sid, summary) VALUES (:sid, :s) ON CONFLICT(sid) DO UPDATE SET summary = excluded.summary"), {"sid": sid, "s": summary})
@@ -445,6 +499,9 @@ def admin_visitors_analyze_json(sid: str):
     timeline = "\n".join([f"- [{e['created_at']}] {e['event']} {e['path']} (ref: {e['referrer'] or '-'} )" for e in events])
     provider = 'openai' if openai_client else ('gemini' if genai and GEMINI_API_KEY else 'none')
     summary = _ai_analyze(events)
+    if not summary:
+        raw_events = [{'path': r.path, 'referrer': r.referrer, 'event': r.event, 'created_at': r.created_at} for r in ev]
+        summary = _heuristic_summary(raw_events)
     if summary:
         with engine.begin() as conn:
             conn.execute(text("INSERT INTO visitor_insights(sid, summary) VALUES (:sid, :s) ON CONFLICT(sid) DO UPDATE SET summary = excluded.summary"), {"sid": sid, "s": summary})
