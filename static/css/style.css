@@ -98,3 +98,4 @@ h2{color:#a5b4fc}
 .full-message-inner{background:rgba(11,18,32,.98);border:1px solid rgba(255,255,255,.08);border-radius:12px;box-shadow:var(--shadow);max-width:720px;max-height:80vh;overflow:auto;width:92%;padding:16px}
 .full-message-inner h3{margin-top:0}
 .full-message-inner p{overflow-wrap:anywhere;word-break:break-word}
+.full-message-inner .actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
