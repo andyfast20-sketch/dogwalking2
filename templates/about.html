@@ -1,10 +1,6 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>About Us - Happy Paws Dog Walking</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  </head>
-  <body>
+{% extends 'base.html' %}
+{% block title %}About - Happy Paws{% endblock %}
+{% block content %}
     <div class="container">
       <h1>About Happy Paws Dog Walking</h1>
       
@@ -65,5 +61,4 @@
 
       <a href="{{ url_for('home') }}" class="back-link">← Back to Home</a>
     </div>
-  </body>
-</html>
+{% endblock %}

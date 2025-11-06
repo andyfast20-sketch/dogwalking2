@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Gallery - Happy Paws{% endblock %}
+{% block extra_head %}
+  <style>
+    .gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin:24px auto;max-width:1100px;padding:0 16px}
+    .gallery-grid img{width:100%;height:220px;object-fit:cover;border-radius:12px;box-shadow:var(--shadow);transition:transform .3s ease}
+    .gallery-grid img:hover{transform:scale(1.02)}
+    .gallery-note{max-width:900px;margin:0 auto;color:#4a5568;text-align:center}
+  </style>
+{% endblock %}
+{% block content %}
+<section class="hero small">
+  <h1>Gallery</h1>
+  <p>AI‑generated, photo‑realistic dog images to make you smile.</p>
+</section>
+<p class="gallery-note">We fetch stunning AI‑generated dog photos from public sources at view time. If your network blocks external image APIs, you'll see our local placeholders instead. Replace with your own images by dropping files into <code>static/images/</code> and updating the filenames.</p>
+<div id="gallery" class="gallery-grid"></div>
+{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/gallery.js') }}"></script>
+{% endblock %}

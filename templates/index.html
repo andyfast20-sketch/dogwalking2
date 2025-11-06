@@ -1,34 +1,44 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Happy Paws Dog Walking</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  </head>
-  <body>
-    <div class="container">
-      <h1>Welcome to Happy Paws!</h1>
-      <p>Professional dog walking services in your neighbourhood.</p>
-      
-      <div class="nav-links">
-        <a href="{{ url_for('about') }}">About Us</a>
-        <a href="#services">Services</a>
-        <a href="#contact">Contact</a>
-      </div>
-      
-      <h2>Our Services</h2>
-      <ul class="services-list">
-        <li><strong>Daily Dog Walks:</strong> 30-60 minute walks tailored to your dog's needs</li>
-        <li><strong>Pet Sitting:</strong> In-home care while you're away</li>
-        <li><strong>Puppy Visits:</strong> Special care for young dogs</li>
-        <li><strong>Emergency Services:</strong> Last-minute care when needed</li>
-      </ul>
-      
-      <div class="contact-info">
-        <h2>Contact Us</h2>
-        <p><strong>Phone:</strong> (555) 123-PAWS (7297)</p>
-        <p><strong>Email:</strong> hello@happypawswalking.com</p>
-        <p><strong>Hours:</strong> Monday - Sunday, 7 AM - 7 PM</p>
+{% extends 'base.html' %}
+{% block title %}Happy Paws Dog Walking{% endblock %}
+{% block content %}
+  <section class="hero">
+    <div class="hero-content">
+      <h1>Happy Paws Dog Walking</h1>
+      <p>Your dog's best day, every day. Safe, loving, and reliably on time.</p>
+      <div class="hero-actions">
+        <a class="btn primary" href="{{ url_for('services') }}">See Services</a>
+        <a class="btn ghost" href="{{ url_for('about') }}">Meet the Team</a>
       </div>
     </div>
-  </body>
-</html>
+    <div class="hero-image"></div>
+  </section>
+
+  <section class="features">
+    <div class="feature"><h3>Bonded & Insured</h3><p>Your peace of mind comes first.</p></div>
+    <div class="feature"><h3>GPS Walk Tracking</h3><p>Photo and route updates after every walk.</p></div>
+    <div class="feature"><h3>Trained Walkers</h3><p>First aid and behavior‑aware team.</p></div>
+  </section>
+
+  <section class="cards-grid">
+    <div class="card">
+      <div class="card-illu">🐕‍🦺</div>
+      <h3>Tailored Walks</h3>
+      <p>From zoomies to slow sniffs, we match your pup's pace.</p>
+    </div>
+    <div class="card">
+      <div class="card-illu">🐾</div>
+      <h3>Trusted Care</h3>
+      <p>Background‑checked, trained, and dog‑obsessed humans.</p>
+    </div>
+    <div class="card">
+      <div class="card-illu">💚</div>
+      <h3>All Ages Welcome</h3>
+      <p>Puppies, adults, and seniors get the perfect experience.</p>
+    </div>
+  </section>
+
+  <section class="cta">
+    <h2>Ready to give your dog their happiest walks?</h2>
+    <a class="btn primary" href="{{ url_for('contact') }}">Get in Touch</a>
+  </section>
+{% endblock %}

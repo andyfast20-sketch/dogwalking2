@@ -1,84 +1,75 @@
-/* Happy Paws Dog Walking - Main Styles */
-body {
-    font-family: Arial, sans-serif;
-    line-height: 1.6;
-    margin: 0;
-    padding: 20px;
-    background-color: #f4f4f4;
+/* Happy Paws - Modern Styles */
+:root{
+  --bg:#0f172a;
+  --panel:#0b1220;
+  --text:#e2e8f0;
+  --muted:#94a3b8;
+  --brand:#60a5fa;
+  --brand-2:#a78bfa;
+  --accent:#34d399;
+  --shadow:0 10px 30px rgba(0,0,0,.3);
 }
 
-.container {
-    max-width: 800px;
-    margin: 0 auto;
-    background-color: white;
-    padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:'Poppins',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  color:var(--text);
+  background: radial-gradient(1200px 800px at 10% 0%, rgba(96,165,250,.14), transparent),
+              radial-gradient(1200px 800px at 90% 10%, rgba(167,139,250,.12), transparent),
+              var(--bg);
+  margin:0;
 }
 
-h1 {
-    color: #2c3e50;
-    text-align: center;
-    margin-bottom: 30px;
+.site-header{
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:20;backdrop-filter:saturate(160%) blur(8px);
+  background:rgba(11,18,32,.6);border-bottom:1px solid rgba(255,255,255,.06);
+  padding:14px 24px
+}
+.logo{font-weight:700;letter-spacing:.3px}
+.main-nav a{color:var(--text);text-decoration:none;margin:0 10px}
+.main-nav .cta-link{color:#0b1220;background:linear-gradient(135deg,var(--brand),var(--brand-2));padding:10px 14px;border-radius:10px;font-weight:600}
+
+.hero{display:grid;grid-template-columns:1.2fr .8fr;gap:24px;align-items:center;max-width:1100px;margin:40px auto;padding:0 16px}
+.hero.small{grid-template-columns:1fr;margin:24px auto;text-align:center}
+.hero-content h1{font-size:44px;margin:0 0 10px}
+.hero-content p{color:var(--muted);margin:0 0 16px}
+.hero-actions{display:flex;gap:12px}
+.btn{display:inline-block;border-radius:12px;padding:12px 16px;text-decoration:none;font-weight:600}
+.btn.primary{color:#0b1220;background:linear-gradient(135deg,var(--brand),var(--accent))}
+.btn.ghost{border:1px solid rgba(255,255,255,.18);color:var(--text)}
+
+.hero-image{height:340px;border-radius:18px;box-shadow:var(--shadow);
+  background:
+    radial-gradient(150px 100px at 20% 20%, rgba(255,255,255,.08), transparent),
+    radial-gradient(120px 100px at 80% 60%, rgba(255,255,255,.07), transparent),
+    url('https://images.placeholders.dev/?width=800&height=600&text=AI%20Dog%20Photo&bgColor=%23121a2b&textColor=%23e2e8f0') center/cover no-repeat;
 }
 
-h2 {
-    color: #3498db;
-    border-bottom: 2px solid #3498db;
-    padding-bottom: 5px;
-}
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;max-width:1100px;margin:10px auto 30px;padding:0 16px}
+.feature{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
 
-.nav-links {
-    text-align: center;
-    margin: 20px 0;
-}
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;max-width:1100px;margin:10px auto 30px;padding:0 16px}
+.card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;box-shadow:var(--shadow)}
+.card-illu{height:150px;border-radius:12px;margin-bottom:10px;display:flex;align-items:center;justify-content:center;font-size:64px;background:linear-gradient(135deg, rgba(96,165,250,.2), rgba(167,139,250,.2))}
 
-.nav-links a {
-    color: #3498db;
-    text-decoration: none;
-    margin: 0 15px;
-    font-weight: bold;
-}
+.cta{text-align:center;margin:40px auto}
 
-.nav-links a:hover {
-    text-decoration: underline;
-}
+.site-footer{border-top:1px solid rgba(255,255,255,.08);padding:20px;text-align:center;color:var(--muted)}
 
-.team-member {
-    background-color: #ecf0f1;
-    padding: 15px;
-    margin: 15px 0;
-    border-radius: 5px;
-}
+.container{max-width:1100px;margin:0 auto;padding:0 16px}
+h1{text-align:center}
+h2{color:#a5b4fc}
+.team-member{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);padding:15px;border-radius:10px;margin:12px 0}
+.services-list{list-style:none;padding:0}
+.services-list li{background:rgba(34,197,94,.12);margin:6px 0;padding:10px;border-left:4px solid var(--accent);border-radius:8px}
+.contact-info{background:rgba(255,193,7,.15);padding:15px;border-left:4px solid #ffc107;border-radius:10px}
+.back-link{color:var(--brand)}
 
-.services-list {
-    list-style-type: none;
-    padding: 0;
-}
-
-.services-list li {
-    background-color: #e8f5e8;
-    margin: 5px 0;
-    padding: 10px;
-    border-left: 4px solid #27ae60;
-}
-
-.contact-info {
-    background-color: #fff3cd;
-    padding: 15px;
-    border-radius: 5px;
-    border-left: 4px solid #ffc107;
-    margin-top: 20px;
-}
-
-.back-link {
-    display: inline-block;
-    margin-top: 20px;
-    color: #3498db;
-    text-decoration: none;
-    font-weight: bold;
-}
-
-.back-link:hover {
-    text-decoration: underline;
-}
+.contact{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.contact-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);padding:18px;border-radius:12px}
+.contact-form{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);padding:18px;border-radius:12px}
+.contact-form label{display:block;margin:10px 0;color:var(--muted)}
+.contact-form input,.contact-form textarea{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.06);color:var(--text)}
+.contact-form button{margin-top:10px}
