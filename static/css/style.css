@@ -43,10 +43,7 @@ body{
 .btn.danger:hover{filter:brightness(1.1)}
 
 .hero-image{height:340px;border-radius:18px;box-shadow:var(--shadow);
-  background:
-    radial-gradient(150px 100px at 20% 20%, rgba(255,255,255,.08), transparent),
-    radial-gradient(120px 100px at 80% 60%, rgba(255,255,255,.07), transparent),
-    url('https://images.placeholders.dev/?width=800&height=600&text=AI%20Dog%20Photo&bgColor=%23121a2b&textColor=%23e2e8f0') center/cover no-repeat;
+  background-size:cover;background-position:center;background-repeat:no-repeat;
 }
 
 .features{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;max-width:1100px;margin:10px auto 30px;padding:0 16px}
