@@ -23,6 +23,8 @@
           <th>Dog</th>
           <th>Status</th>
           <th>Created (UK)</th>
+          <th>IP</th>
+          <th>Visit Summary</th>
           <th>Message</th>
           <th></th>
         </tr>
@@ -59,6 +61,12 @@
               </form>
             </td>
             <td>{{ r.created_at|uk_datetime }}</td>
+            <td>{{ r.ip or '—' }}</td>
+            <td style="max-width:240px;white-space:pre-wrap;font-size:.8rem;">{% if r.visit_summary %}{{ r.visit_summary }}{% else %}
+              <form method="post" action="{{ url_for('admin_enquiry_analyze', enquiry_id=r.id, token=request.args.get('token')) }}" style="display:inline;">
+                <button class="btn ghost" type="submit" title="Generate AI summary">Analyze</button>
+              </form>
+            {% endif %}</td>
             <td style="max-width:320px;white-space:pre-wrap;">{{ r.message[:120] }}{% if r.message|length > 120 %}…{% endif %}</td>
             <td style="text-align:right;">
               <form method="post" action="{{ url_for('delete_enquiry', enquiry_id=r.id, token=request.args.get('token')) }}" onsubmit="return confirm('Delete this enquiry?');">

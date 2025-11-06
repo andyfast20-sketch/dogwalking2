@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, abort, Response
+from flask import Flask, render_template, request, redirect, url_for, abort, Response, jsonify
 import sqlite3
 import os
 from datetime import datetime, timezone
@@ -8,6 +8,15 @@ except Exception:  # pragma: no cover
     ZoneInfo = None
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
+
+# Optional Gemini support
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+try:
+    import google.generativeai as genai  # type: ignore
+    if GEMINI_API_KEY:
+        genai.configure(api_key=GEMINI_API_KEY)
+except Exception:
+    genai = None
 
 app = Flask(__name__)
 
@@ -53,6 +62,12 @@ Uses SQLAlchemy Core for portability and minimal overhead.
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'enquiries.db')
 
+def _client_ip():
+    xff = request.headers.get('X-Forwarded-For')
+    if xff:
+        return xff.split(',')[0].strip()
+    return request.remote_addr or ''
+
 def _make_engine():
     url = os.environ.get('DATABASE_URL')
     if url:
@@ -78,7 +93,10 @@ def init_db():
                 dog TEXT,
                 message TEXT,
                 created_at TEXT NOT NULL,
-                status TEXT NOT NULL DEFAULT 'new'
+                status TEXT NOT NULL DEFAULT 'new',
+                ip TEXT,
+                sid TEXT,
+                visit_summary TEXT
             )
         """))
         # In case the table existed before without the new columns, try to add them.
@@ -86,26 +104,47 @@ def init_db():
             conn.execute(text("ALTER TABLE enquiries ADD COLUMN status TEXT NOT NULL DEFAULT 'new'"))
         except Exception:
             pass
+        for col in ["ip TEXT", "sid TEXT", "visit_summary TEXT"]:
+            try:
+                conn.execute(text(f"ALTER TABLE enquiries ADD COLUMN {col}"))
+            except Exception:
+                pass
+
+        # Basic events table
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sid TEXT,
+                path TEXT,
+                referrer TEXT,
+                event TEXT,
+                user_agent TEXT,
+                ip TEXT,
+                created_at TEXT NOT NULL
+            )
+        """))
 
 def save_enquiry(name: str, email: str, dog: str, message: str):
     init_db()
     with engine.begin() as conn:
         conn.execute(
-            text("INSERT INTO enquiries (name, email, dog, message, created_at, status) VALUES (:name,:email,:dog,:message,:created_at,:status)"),
+            text("INSERT INTO enquiries (name, email, dog, message, created_at, status, ip, sid) VALUES (:name,:email,:dog,:message,:created_at,:status,:ip,:sid)"),
             {
                 'name': name,
                 'email': email,
                 'dog': dog,
                 'message': message,
                 'created_at': datetime.utcnow().isoformat(),
-                'status': 'new'
+                'status': 'new',
+                'ip': _client_ip(),
+                'sid': request.form.get('sid', '').strip() or None,
             }
         )
 
 def fetch_enquiries():
     init_db()
     with engine.begin() as conn:
-        result = conn.execute(text("SELECT id, name, email, dog, message, created_at, status FROM enquiries ORDER BY id DESC"))
+        result = conn.execute(text("SELECT id, name, email, dog, message, created_at, status, ip, sid, visit_summary FROM enquiries ORDER BY id DESC"))
         # Convert to list of dicts for template compatibility
         rows = []
         for r in result:
@@ -117,6 +156,9 @@ def fetch_enquiries():
                 'message': r.message,
                 'created_at': r.created_at,
                 'status': getattr(r, 'status', 'new'),
+                'ip': getattr(r, 'ip', ''),
+                'sid': getattr(r, 'sid', ''),
+                'visit_summary': getattr(r, 'visit_summary', ''),
             })
         return rows
 
@@ -142,6 +184,24 @@ def to_uk(dt_iso: str) -> str:
 @app.template_filter('uk_datetime')
 def uk_datetime_filter(s: str) -> str:
     return to_uk(s)
+
+
+@app.route('/track', methods=['POST'])
+def track():
+    payload = request.get_json(silent=True) or {}
+    data = {
+        'sid': payload.get('sid') or request.cookies.get('sid') or '',
+        'path': payload.get('path') or request.path,
+        'referrer': payload.get('referrer') or request.headers.get('Referer') or '',
+        'event': payload.get('event') or 'view',
+        'user_agent': request.headers.get('User-Agent') or '',
+        'ip': _client_ip(),
+        'created_at': datetime.utcnow().isoformat()
+    }
+    init_db()
+    with engine.begin() as conn:
+        conn.execute(text("INSERT INTO events (sid, path, referrer, event, user_agent, ip, created_at) VALUES (:sid,:path,:referrer,:event,:user_agent,:ip,:created_at)"), data)
+    return jsonify({'ok': True})
 
 def require_admin():
     # Password (basic) takes precedence over token; token kept for backward compatibility.
@@ -186,7 +246,7 @@ def admin_enquiries_csv():
         return _auth
     rows = fetch_enquiries()
     # Build a simple CSV
-    lines = ["id,name,email,dog,message,status,created_at"]
+    lines = ["id,name,email,dog,message,status,ip,sid,created_at"]
     for r in rows:
         # naive CSV escaping for commas/quotes
         def esc(x):
@@ -195,7 +255,7 @@ def admin_enquiries_csv():
                 return f'"{x}"'
             return x
         lines.append(
-            f"{r['id']},{esc(r['name'])},{esc(r['email'])},{esc(r['dog'])},{esc(r['message'])},{esc(r.get('status') or 'new')},{r['created_at']}"
+            f"{r['id']},{esc(r['name'])},{esc(r['email'])},{esc(r['dog'])},{esc(r['message'])},{esc(r.get('status') or 'new')},{esc(r.get('ip') or '')},{esc(r.get('sid') or '')},{r['created_at']}"
         )
     csv = "\n".join(lines)
     return Response(csv, mimetype='text/csv', headers={'Content-Disposition': 'attachment; filename=enquiries.csv'})
@@ -215,6 +275,67 @@ def delete_enquiry(enquiry_id: int):
     args = {"deleted": "1"}
     if token:
         args["token"] = token
+    return redirect(url_for('admin_enquiries', **args))
+
+
+@app.route('/admin/enquiries/activity/<int:enquiry_id>')
+def admin_enquiry_activity(enquiry_id: int):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    init_db()
+    with engine.begin() as conn:
+        e = conn.execute(text("SELECT sid FROM enquiries WHERE id=:id"), {"id": enquiry_id}).fetchone()
+        if not e:
+            abort(404)
+        rows = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid ORDER BY id DESC LIMIT 50"), {"sid": e.sid}).fetchall()
+    events = [{
+        'path': r.path,
+        'referrer': r.referrer,
+        'event': r.event,
+        'created_at': to_uk(r.created_at)
+    } for r in rows]
+    return jsonify({'events': events})
+
+
+def _gemini_analyze(events: list) -> str | None:
+    if not GEMINI_API_KEY or genai is None:
+        return None
+    try:
+        timeline = "\n".join([f"- [{e['created_at']}] {e['event']} {e['path']} (ref: {e['referrer'] or '-'} )" for e in events])
+        prompt = (
+            "Summarise in 2-3 short sentences the visitor's interest and likely intent based on these website events. "
+            "Be concise and friendly.\n\n" + timeline
+        )
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        resp = model.generate_content(prompt)
+        txt = getattr(resp, 'text', None)
+        if not txt and getattr(resp, 'candidates', None):
+            txt = resp.candidates[0].content.parts[0].text
+        return (txt or '').strip() or None
+    except Exception:
+        return None
+
+
+@app.route('/admin/enquiries/analyze/<int:enquiry_id>', methods=['POST'])
+def admin_enquiry_analyze(enquiry_id: int):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    init_db()
+    with engine.begin() as conn:
+        e = conn.execute(text("SELECT sid FROM enquiries WHERE id=:id"), {"id": enquiry_id}).fetchone()
+        if not e:
+            abort(404)
+        rows = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid ORDER BY id ASC"), {"sid": e.sid}).fetchall()
+        events = [{'path': r.path, 'referrer': r.referrer, 'event': r.event, 'created_at': to_uk(r.created_at)} for r in rows]
+        summary = _gemini_analyze(events)
+        if summary:
+            conn.execute(text("UPDATE enquiries SET visit_summary=:s WHERE id=:id"), {"s": summary, "id": enquiry_id})
+    token = request.args.get('token')
+    args = {}
+    if token:
+        args['token'] = token
     return redirect(url_for('admin_enquiries', **args))
 
 

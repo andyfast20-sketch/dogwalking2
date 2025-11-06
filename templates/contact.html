@@ -18,6 +18,7 @@
     {% endif %}
   </div>
   <form class="contact-form" method="post" action="{{ url_for('contact') }}">
+    <input type="hidden" name="sid" id="sid-field" />
     <label>Name<input required name="name" placeholder="Your name" value="{{ form.name if form }}" /></label>
     <label>Email<input required type="email" name="email" placeholder="you@example.com" value="{{ form.email if form }}" /></label>
     <label>Dog's Name<input name="dog" placeholder="Your dog's name" value="{{ form.dog if form }}" /></label>
@@ -25,4 +26,21 @@
     <button class="btn primary" type="submit">Send</button>
   </form>
 </section>
+{% endblock %}
+{% block extra_js %}
+<script>
+// Assign a simple session id for tracking if not present
+function getSID(){
+  const m=document.cookie.match(/(?:^|; )sid=([^;]+)/);return m?decodeURIComponent(m[1]):null;
+}
+function setSID(){
+  let sid=getSID();
+  if(!sid){
+    sid=crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2);
+    document.cookie='sid='+sid+';path=/;SameSite=Lax';
+  }
+  document.getElementById('sid-field').value=sid;
+}
+setSID();
+</script>
 {% endblock %}
