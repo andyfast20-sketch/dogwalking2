@@ -9,14 +9,24 @@ except Exception:  # pragma: no cover
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
-# Optional Gemini support
+# Optional AI providers
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+
+# Gemini
 try:
     import google.generativeai as genai  # type: ignore
     if GEMINI_API_KEY:
         genai.configure(api_key=GEMINI_API_KEY)
 except Exception:
     genai = None
+
+# OpenAI
+try:
+    from openai import OpenAI  # type: ignore
+    openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+except Exception:
+    openai_client = None
 
 app = Flask(__name__)
 
@@ -305,23 +315,41 @@ def admin_enquiry_activity(enquiry_id: int):
     return jsonify({'events': events})
 
 
-def _gemini_analyze(events: list) -> str | None:
-    if not GEMINI_API_KEY or genai is None:
-        return None
-    try:
-        timeline = "\n".join([f"- [{e['created_at']}] {e['event']} {e['path']} (ref: {e['referrer'] or '-'} )" for e in events])
-        prompt = (
-            "Summarise in 2-3 short sentences the visitor's interest and likely intent based on these website events. "
-            "Be concise and friendly.\n\n" + timeline
-        )
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        resp = model.generate_content(prompt)
-        txt = getattr(resp, 'text', None)
-        if not txt and getattr(resp, 'candidates', None):
-            txt = resp.candidates[0].content.parts[0].text
-        return (txt or '').strip() or None
-    except Exception:
-        return None
+def _ai_analyze(events: list) -> str | None:
+    """Use OpenAI if configured, else Gemini, to summarise events."""
+    timeline = "\n".join([f"- [{e['created_at']}] {e['event']} {e['path']} (ref: {e['referrer'] or '-'} )" for e in events])
+    prompt = (
+        "Summarise in 2-3 short sentences the visitor's interest and likely intent based on these website events. "
+        "Be concise and friendly.\n\n" + timeline
+    )
+    # OpenAI first
+    if openai_client:
+        try:
+            resp = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a helpful analytics assistant."},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=180,
+                temperature=0.2,
+            )
+            txt = resp.choices[0].message.content if resp and resp.choices else None
+            return (txt or '').strip() or None
+        except Exception:
+            pass
+    # Gemini fallback
+    if GEMINI_API_KEY and genai is not None:
+        try:
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            resp = model.generate_content(prompt)
+            txt = getattr(resp, 'text', None)
+            if not txt and getattr(resp, 'candidates', None):
+                txt = resp.candidates[0].content.parts[0].text
+            return (txt or '').strip() or None
+        except Exception:
+            return None
+    return None
 
 
 @app.route('/admin/enquiries/analyze/<int:enquiry_id>', methods=['POST'])
@@ -336,7 +364,7 @@ def admin_enquiry_analyze(enquiry_id: int):
             abort(404)
         rows = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid ORDER BY id ASC"), {"sid": e.sid}).fetchall()
         events = [{'path': r.path, 'referrer': r.referrer, 'event': r.event, 'created_at': to_uk(r.created_at)} for r in rows]
-        summary = _gemini_analyze(events)
+        summary = _ai_analyze(events)
         if summary:
             conn.execute(text("UPDATE enquiries SET visit_summary=:s WHERE id=:id"), {"s": summary, "id": enquiry_id})
     token = request.args.get('token')
@@ -396,10 +424,38 @@ def admin_visitors_analyze(sid: str):
     with engine.begin() as conn:
         ev = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid ORDER BY id ASC"), {"sid": sid}).fetchall()
         events = [{'path': r.path, 'referrer': r.referrer, 'event': r.event, 'created_at': to_uk(r.created_at)} for r in ev]
-        summary = _gemini_analyze(events)
-        if summary:
+    summary = _ai_analyze(events)
+    if summary:
+        with engine.begin() as conn:
             conn.execute(text("INSERT INTO visitor_insights(sid, summary) VALUES (:sid, :s) ON CONFLICT(sid) DO UPDATE SET summary = excluded.summary"), {"sid": sid, "s": summary})
     return redirect(url_for('admin_visitors'))
+
+
+@app.route('/admin/visitors/analyze/<sid>.json', methods=['POST'])
+def admin_visitors_analyze_json(sid: str):
+    """Analyze a visitor session and return details for a popup modal (AJAX)."""
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    init_db()
+    with engine.begin() as conn:
+        ev = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid ORDER BY id ASC"), {"sid": sid}).fetchall()
+        events = [{'path': r.path, 'referrer': r.referrer, 'event': r.event, 'created_at': to_uk(r.created_at)} for r in ev]
+    # Create timeline like the prompt
+    timeline = "\n".join([f"- [{e['created_at']}] {e['event']} {e['path']} (ref: {e['referrer'] or '-'} )" for e in events])
+    provider = 'openai' if openai_client else ('gemini' if genai and GEMINI_API_KEY else 'none')
+    summary = _ai_analyze(events)
+    if summary:
+        with engine.begin() as conn:
+            conn.execute(text("INSERT INTO visitor_insights(sid, summary) VALUES (:sid, :s) ON CONFLICT(sid) DO UPDATE SET summary = excluded.summary"), {"sid": sid, "s": summary})
+    return jsonify({
+        'ok': bool(summary),
+        'provider': provider,
+        'events': events,
+        'timeline': timeline,
+        'summary': summary,
+        'error': None if summary else ('No summary generated' if events else 'No events for this session')
+    })
 
 
 @app.route('/admin/visitors/analyze-all', methods=['POST'])
@@ -413,31 +469,51 @@ def admin_visitors_analyze_all():
         for sid in sids:
             ev = conn.execute(text("SELECT path, referrer, event, created_at FROM events WHERE sid=:sid ORDER BY id ASC"), {"sid": sid}).fetchall()
             events = [{'path': r.path, 'referrer': r.referrer, 'event': r.event, 'created_at': to_uk(r.created_at)} for r in ev]
-            summary = _gemini_analyze(events)
+            summary = _ai_analyze(events)
             if summary:
                 conn.execute(text("INSERT INTO visitor_insights(sid, summary) VALUES (:sid, :s) ON CONFLICT(sid) DO UPDATE SET summary = excluded.summary"), {"sid": sid, "s": summary})
     return redirect(url_for('admin_visitors'))
 
 
-@app.route('/admin/gemini_status')
-def admin_gemini_status():
+@app.route('/admin/ai_status')
+def admin_ai_status():
     auth_result = require_admin()
     if isinstance(auth_result, Response):
         return auth_result
     status = {
-        'env_present': bool(os.environ.get('GEMINI_API_KEY')),
-        'module_loaded': genai is not None,
-        'model_ok': False,
-        'error': None
+        'provider': 'openai' if openai_client else ('gemini' if genai and GEMINI_API_KEY else 'none'),
+        'openai': {
+            'env_present': bool(OPENAI_API_KEY),
+            'client_loaded': openai_client is not None,
+            'model_ok': False,
+            'error': None,
+        },
+        'gemini': {
+            'env_present': bool(GEMINI_API_KEY),
+            'module_loaded': genai is not None,
+            'model_ok': False,
+            'error': None,
+        }
     }
-    if status['env_present'] and status['module_loaded']:
+    # OpenAI ping
+    if openai_client:
         try:
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            # very small ping to ensure we can call generate
-            resp = model.generate_content("ping")
-            status['model_ok'] = bool(getattr(resp, 'text', '') or getattr(resp, 'candidates', None))
+            r = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role":"user","content":"ping"}],
+                max_tokens=5
+            )
+            status['openai']['model_ok'] = bool(r and r.choices)
         except Exception as e:
-            status['error'] = str(e)
+            status['openai']['error'] = str(e)
+    # Gemini ping
+    if genai and GEMINI_API_KEY:
+        try:
+            m = genai.GenerativeModel('gemini-1.5-flash')
+            r = m.generate_content("ping")
+            status['gemini']['model_ok'] = bool(getattr(r, 'text', '') or getattr(r, 'candidates', None))
+        except Exception as e:
+            status['gemini']['error'] = str(e)
     return jsonify(status)
 
 

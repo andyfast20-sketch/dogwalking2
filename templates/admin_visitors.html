@@ -31,15 +31,7 @@
         <td>{{ r.page_count }}</td>
         <td style="max-width:280px;white-space:pre-wrap;font-size:.75rem;">{% if r.summary %}{{ r.summary }}{% else %}—{% endif %}</td>
         <td style="text-align:right;">
-          {% if not r.summary %}
-          <form method="post" action="{{ url_for('admin_visitors_analyze', sid=r.sid) }}">
-            <button class="btn ghost" type="submit">Analyze</button>
-          </form>
-          {% else %}
-            <form method="post" action="{{ url_for('admin_visitors_analyze', sid=r.sid) }}">
-              <button class="btn ghost" type="submit">Refresh</button>
-            </form>
-          {% endif %}
+          <button class="btn ghost analyze-btn" type="button" data-sid="{{ r.sid }}">{% if r.summary %}Refresh{% else %}Analyze{% endif %}</button>
         </td>
       </tr>
     {% endfor %}
@@ -49,4 +41,74 @@
     <p>No visitor sessions recorded yet.</p>
   {% endif %}
 </div>
+
+<!-- Visitor Analysis Modal -->
+<div class="full-message" id="visitorModal" hidden>
+  <div class="full-message-inner">
+    <h3 style="margin-bottom:6px;">Visitor analysis</h3>
+    <div style="color:var(--muted);font-size:.85rem;margin-bottom:10px;">
+      <span id="vm-provider">Provider: —</span> · <span id="vm-events-count">0</span> events
+    </div>
+    <h4 style="margin:8px 0 6px">What we sent</h4>
+    <pre id="vm-timeline" style="white-space:pre-wrap;font-size:.8rem;background:rgba(255,255,255,.04);padding:10px;border-radius:8px;max-height:260px;overflow:auto"></pre>
+    <h4 style="margin:12px 0 6px">Summary</h4>
+    <p id="vm-summary" style="white-space:pre-wrap"></p>
+    <div class="actions">
+      <button class="btn ghost" id="vm-close" type="button">Close</button>
+    </div>
+  </div>
+  </div>
+
+{% block extra_js %}
+<script>
+(function(){
+  const modal = document.getElementById('visitorModal');
+  if(!modal) return;
+  const elProvider = document.getElementById('vm-provider');
+  const elCount = document.getElementById('vm-events-count');
+  const elTimeline = document.getElementById('vm-timeline');
+  const elSummary = document.getElementById('vm-summary');
+  const closeBtn = document.getElementById('vm-close');
+
+  function showModal(data){
+    elProvider.textContent = 'Provider: ' + (data.provider || 'none');
+    elCount.textContent = (data.events && data.events.length) ? data.events.length : 0;
+    elTimeline.textContent = data.timeline || '(no events)';
+    elSummary.textContent = data.summary || (data.error ? ('Error: ' + data.error) : 'No summary generated.');
+    modal.hidden = false;
+  }
+  function hideModal(){ modal.hidden = true; }
+  closeBtn.addEventListener('click', hideModal);
+  modal.addEventListener('click', function(e){ if(e.target === modal) hideModal(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && !modal.hidden) hideModal(); });
+
+  document.addEventListener('click', async function(e){
+    const btn = e.target.closest('button.analyze-btn');
+    if(!btn) return;
+    e.preventDefault();
+    const sid = btn.getAttribute('data-sid');
+    const original = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Analyzing…';
+    try{
+      const res = await fetch('/admin/visitors/analyze/' + encodeURIComponent(sid) + '.json', {method:'POST'});
+      const data = await res.json();
+      showModal(data);
+      // Update summary column in row when available
+      if(data && data.summary){
+        const td = btn.closest('tr').querySelector('td:nth-child(6)');
+        if(td) td.textContent = data.summary;
+        btn.textContent = 'Refresh';
+      }else{
+        btn.textContent = original;
+      }
+    }catch(err){
+      alert('Failed to analyze this visitor.');
+      btn.textContent = original;
+    }finally{
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+{% endblock %}
 {% endblock %}
