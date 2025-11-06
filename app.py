@@ -1,7 +1,11 @@
 from flask import Flask, render_template, request, redirect, url_for, abort, Response
 import sqlite3
 import os
-from datetime import datetime
+from datetime import datetime, timezone
+try:
+    from zoneinfo import ZoneInfo  # Python 3.9+
+except Exception:  # pragma: no cover
+    ZoneInfo = None
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -73,28 +77,35 @@ def init_db():
                 email TEXT NOT NULL,
                 dog TEXT,
                 message TEXT,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'new'
             )
         """))
+        # In case the table existed before without the new columns, try to add them.
+        try:
+            conn.execute(text("ALTER TABLE enquiries ADD COLUMN status TEXT NOT NULL DEFAULT 'new'"))
+        except Exception:
+            pass
 
 def save_enquiry(name: str, email: str, dog: str, message: str):
     init_db()
     with engine.begin() as conn:
         conn.execute(
-            text("INSERT INTO enquiries (name, email, dog, message, created_at) VALUES (:name,:email,:dog,:message,:created_at)"),
+            text("INSERT INTO enquiries (name, email, dog, message, created_at, status) VALUES (:name,:email,:dog,:message,:created_at,:status)"),
             {
                 'name': name,
                 'email': email,
                 'dog': dog,
                 'message': message,
-                'created_at': datetime.utcnow().isoformat()
+                'created_at': datetime.utcnow().isoformat(),
+                'status': 'new'
             }
         )
 
 def fetch_enquiries():
     init_db()
     with engine.begin() as conn:
-        result = conn.execute(text("SELECT id, name, email, dog, message, created_at FROM enquiries ORDER BY id DESC"))
+        result = conn.execute(text("SELECT id, name, email, dog, message, created_at, status FROM enquiries ORDER BY id DESC"))
         # Convert to list of dicts for template compatibility
         rows = []
         for r in result:
@@ -105,8 +116,32 @@ def fetch_enquiries():
                 'dog': r.dog,
                 'message': r.message,
                 'created_at': r.created_at,
+                'status': getattr(r, 'status', 'new'),
             })
         return rows
+
+
+# ---- Formatting helpers ----
+def to_uk(dt_iso: str) -> str:
+    """Convert an ISO8601 UTC string to UK local time string DD/MM/YYYY HH:MM."""
+    if not dt_iso:
+        return ''
+    try:
+        dt = datetime.fromisoformat(dt_iso)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        if ZoneInfo is not None:
+            uk = dt.astimezone(ZoneInfo('Europe/London'))
+        else:
+            # Fallback: assume UTC; no DST awareness
+            uk = dt  # better than crashing
+        return uk.strftime('%d/%m/%Y %H:%M')
+    except Exception:
+        return dt_iso
+
+@app.template_filter('uk_datetime')
+def uk_datetime_filter(s: str) -> str:
+    return to_uk(s)
 
 def require_admin():
     # Password (basic) takes precedence over token; token kept for backward compatibility.
@@ -151,7 +186,7 @@ def admin_enquiries_csv():
         return _auth
     rows = fetch_enquiries()
     # Build a simple CSV
-    lines = ["id,name,email,dog,message,created_at"]
+    lines = ["id,name,email,dog,message,status,created_at"]
     for r in rows:
         # naive CSV escaping for commas/quotes
         def esc(x):
@@ -160,7 +195,7 @@ def admin_enquiries_csv():
                 return f'"{x}"'
             return x
         lines.append(
-            f"{r['id']},{esc(r['name'])},{esc(r['email'])},{esc(r['dog'])},{esc(r['message'])},{r['created_at']}"
+            f"{r['id']},{esc(r['name'])},{esc(r['email'])},{esc(r['dog'])},{esc(r['message'])},{esc(r.get('status') or 'new')},{r['created_at']}"
         )
     csv = "\n".join(lines)
     return Response(csv, mimetype='text/csv', headers={'Content-Disposition': 'attachment; filename=enquiries.csv'})
@@ -180,6 +215,24 @@ def delete_enquiry(enquiry_id: int):
     args = {"deleted": "1"}
     if token:
         args["token"] = token
+    return redirect(url_for('admin_enquiries', **args))
+
+
+@app.route('/admin/enquiries/status/<int:enquiry_id>', methods=['POST'])
+def update_enquiry_status(enquiry_id: int):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    new_status = request.form.get('status', '').strip().lower()
+    if new_status not in {'new', 'in-progress', 'replied', 'closed'}:
+        abort(400)
+    init_db()
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE enquiries SET status = :s WHERE id = :id"), {"s": new_status, "id": enquiry_id})
+    token = request.args.get('token')
+    args = {}
+    if token:
+        args['token'] = token
     return redirect(url_for('admin_enquiries', **args))
 
 if __name__ == '__main__':

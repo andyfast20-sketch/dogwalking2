@@ -86,3 +86,13 @@ h2{color:#a5b4fc}
 .data-table th,.data-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.06);text-align:left}
 .data-table thead th{background:rgba(255,255,255,.06)}
 .data-table tbody tr:hover{background:rgba(255,255,255,.04)}
+
+/* Admin tweaks */
+.data-table td .email{color:#fff;text-decoration:underline}
+.link-btn{background:none;border:none;color:var(--brand);cursor:pointer;padding:0;font:inherit;text-decoration:underline}
+.status-form select{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:var(--text);border-radius:8px;padding:6px}
+
+/* Full message modal */
+.full-message{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:50}
+.full-message-inner{background:rgba(11,18,32,.98);border:1px solid rgba(255,255,255,.08);border-radius:12px;box-shadow:var(--shadow);max-width:720px;width:92%;padding:16px}
+.full-message-inner h3{margin-top:0}

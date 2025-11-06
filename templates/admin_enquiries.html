@@ -21,8 +21,9 @@
           <th>Name</th>
           <th>Email</th>
           <th>Dog</th>
+          <th>Status</th>
+          <th>Created (UK)</th>
           <th>Message</th>
-          <th>Created (UTC)</th>
           <th></th>
         </tr>
       </thead>
@@ -30,11 +31,31 @@
         {% for r in rows %}
           <tr>
             <td>{{ r.id }}</td>
-            <td>{{ r.name }}</td>
-            <td><a href="mailto:{{ r.email }}">{{ r.email }}</a></td>
+            <td>
+              <button type="button" class="link-btn" onclick="toggleMsg({{ r.id }})">{{ r.name }}</button>
+              <div id="msg-{{ r.id }}" class="full-message" hidden>
+                <div class="full-message-inner">
+                  <h3>Message from {{ r.name }}</h3>
+                  <p style="white-space:pre-wrap;">{{ r.message }}</p>
+                  <button type="button" class="btn ghost" onclick="toggleMsg({{ r.id }})">Close</button>
+                </div>
+              </div>
+            </td>
+            <td><a class="email" href="mailto:{{ r.email }}">{{ r.email }}</a></td>
             <td>{{ r.dog or '—' }}</td>
-            <td style="max-width:320px;white-space:pre-wrap;">{{ r.message }}</td>
-            <td>{{ r.created_at }}</td>
+            <td>
+              <form method="post" action="{{ url_for('update_enquiry_status', enquiry_id=r.id, token=request.args.get('token')) }}" class="status-form">
+                <select name="status" onchange="this.form.submit()">
+                  {% set st = r.status %}
+                  <option value="new" {{ 'selected' if st=='new' else '' }}>New</option>
+                  <option value="in-progress" {{ 'selected' if st=='in-progress' else '' }}>In progress</option>
+                  <option value="replied" {{ 'selected' if st=='replied' else '' }}>Replied</option>
+                  <option value="closed" {{ 'selected' if st=='closed' else '' }}>Closed</option>
+                </select>
+              </form>
+            </td>
+            <td>{{ r.created_at|uk_datetime }}</td>
+            <td style="max-width:320px;white-space:pre-wrap;">{{ r.message[:120] }}{% if r.message|length > 120 %}…{% endif %}</td>
             <td style="text-align:right;">
               <form method="post" action="{{ url_for('delete_enquiry', enquiry_id=r.id, token=request.args.get('token')) }}" onsubmit="return confirm('Delete this enquiry?');">
                 <button class="btn danger" type="submit">Delete</button>
@@ -49,4 +70,11 @@
     <p>No enquiries yet.</p>
   {% endif %}
 </div>
+  <script>
+  function toggleMsg(id){
+    const box=document.getElementById('msg-'+id);
+    if(!box)return;
+    box.hidden=!box.hidden;
+  }
+  </script>
 {% endblock %}
