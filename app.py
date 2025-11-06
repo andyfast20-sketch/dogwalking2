@@ -135,6 +135,11 @@ def admin_enquiries():
     deleted = request.args.get('deleted') == '1'
     return render_template('admin_enquiries.html', rows=rows, protected=protected, deleted=deleted)
 
+# Alias: some users prefer calling them "bookings".
+@app.route('/admin/bookings')
+def admin_bookings():
+    return admin_enquiries()
+
 @app.route('/admin/enquiries.csv')
 def admin_enquiries_csv():
     require_admin()
