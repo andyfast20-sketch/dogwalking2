@@ -39,7 +39,8 @@ function setSID(){
     sid=crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2);
     document.cookie='sid='+sid+';path=/;SameSite=Lax';
   }
-  document.getElementById('sid-field').value=sid;
+  const el=document.getElementById('sid-field');
+  if(el) el.value=sid;
 }
 setSID();
 </script>
