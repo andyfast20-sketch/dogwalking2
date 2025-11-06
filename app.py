@@ -130,7 +130,11 @@ def require_admin():
 
 @app.route('/admin/enquiries')
 def admin_enquiries():
-    protected = require_admin()
+    # Enforce admin auth if configured
+    _auth = require_admin()
+    if isinstance(_auth, Response):
+        return _auth  # triggers browser Basic Auth prompt when ADMIN_PASSWORD is set
+    protected = bool(_auth)
     rows = fetch_enquiries()
     deleted = request.args.get('deleted') == '1'
     return render_template('admin_enquiries.html', rows=rows, protected=protected, deleted=deleted)
@@ -142,7 +146,9 @@ def admin_bookings():
 
 @app.route('/admin/enquiries.csv')
 def admin_enquiries_csv():
-    require_admin()
+    _auth = require_admin()
+    if isinstance(_auth, Response):
+        return _auth
     rows = fetch_enquiries()
     # Build a simple CSV
     lines = ["id,name,email,dog,message,created_at"]
