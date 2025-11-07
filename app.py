@@ -314,6 +314,26 @@ def admin_dashboard():
                          new_enquiries=new_enquiries, 
                          active_visitors=active_visitors)
 
+@app.route('/admin/status.json')
+def admin_status_json():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    init_db()
+    with engine.begin() as conn:
+        open_chats = conn.execute(text("SELECT COUNT(*) FROM chats WHERE status='open'")).scalar() or 0
+        new_enquiries = conn.execute(text("SELECT COUNT(*) FROM enquiries WHERE status='new'")).scalar() or 0
+        from datetime import datetime, timedelta
+        cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
+        active_visitors = conn.execute(text("SELECT COUNT(DISTINCT sid) FROM events WHERE created_at > :cutoff"), {"cutoff": cutoff}).scalar() or 0
+    
+    return jsonify({
+        "open_chats": open_chats,
+        "new_enquiries": new_enquiries,
+        "active_visitors": active_visitors
+    })
+
 @app.route('/admin/enquiries')
 def admin_enquiries():
     # Enforce admin auth if configured

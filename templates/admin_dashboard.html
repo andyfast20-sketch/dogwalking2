@@ -83,7 +83,67 @@
 
 {% block extra_js %}
 <script>
+// Auto-refresh dashboard status
+let dashboardPollTimer;
+
+async function refreshDashboardStatus(){
+  try{
+    const r = await fetch('/admin/status.json');
+    const data = await r.json();
+    
+    // Update Live Chat card
+    const chatCard = document.querySelector('[onclick="showSection(\'chats\')"]');
+    updateCard(chatCard, data.open_chats);
+    
+    // Update Enquiries card
+    const enqCard = document.querySelector('[onclick="showSection(\'enquiries\')"]');
+    updateCard(enqCard, data.new_enquiries);
+    
+    // Update Visitors card
+    const visCard = document.querySelector('[onclick="showSection(\'visitors\')"]');
+    updateCard(visCard, data.active_visitors);
+  }catch(e){}
+}
+
+function updateCard(card, count){
+  if(!card) return;
+  
+  // Update or remove pulse class
+  if(count > 0){
+    if(!card.classList.contains('pulse')) card.classList.add('pulse');
+  } else {
+    card.classList.remove('pulse');
+  }
+  
+  // Update or remove badge
+  let badge = card.querySelector('.badge');
+  if(count > 0){
+    if(!badge){
+      badge = document.createElement('span');
+      badge.className = 'badge';
+      card.appendChild(badge);
+    }
+    badge.textContent = count;
+  } else {
+    if(badge) badge.remove();
+  }
+}
+
+// Start polling when dashboard is visible
+function startDashboardPolling(){
+  if(dashboardPollTimer) clearInterval(dashboardPollTimer);
+  dashboardPollTimer = setInterval(refreshDashboardStatus, 3000);
+}
+
+// Stop polling when navigating away
+function stopDashboardPolling(){
+  if(dashboardPollTimer) clearInterval(dashboardPollTimer);
+}
+
 async function showSection(name){
+  // Stop dashboard polling
+  stopDashboardPolling();
+  
   // Hide dashboard cards
   document.getElementById('dashboard-cards').style.display='none';
   document.querySelector('.container').style.display='none';
@@ -136,6 +196,12 @@ function showDashboard(){
   // Show dashboard
   document.getElementById('dashboard-cards').style.display='grid';
   document.querySelector('.container').style.display='block';
+  
+  // Restart dashboard polling
+  startDashboardPolling();
 }
+
+// Start polling on page load
+startDashboardPolling();
 </script>
 {% endblock %}
