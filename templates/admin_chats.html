@@ -36,3 +36,16 @@
   </div>
 </section>
 {% endblock %}
+{% block extra_js %}
+<script>
+// Auto-refresh chat list every 3 seconds to show new chats without manual reload
+(function(){
+  let timer = setInterval(()=>{
+    window.location.reload();
+  }, 3000);
+  // Stop refresh if user is interacting (typing, clicking buttons)
+  document.addEventListener('mousedown', ()=>clearInterval(timer));
+  document.addEventListener('keydown', ()=>clearInterval(timer));
+})();
+</script>
+{% endblock %}
