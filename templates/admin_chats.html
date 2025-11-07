@@ -38,14 +38,33 @@
 {% endblock %}
 {% block extra_js %}
 <script>
-// Auto-refresh chat list every 3 seconds to show new chats without manual reload
+// Smooth auto-refresh: fetch and update chat list every 3s without page reload
 (function(){
-  let timer = setInterval(()=>{
-    window.location.reload();
-  }, 3000);
-  // Stop refresh if user is interacting (typing, clicking buttons)
-  document.addEventListener('mousedown', ()=>clearInterval(timer));
-  document.addEventListener('keydown', ()=>clearInterval(timer));
+  const container = document.querySelector('.cards-grid');
+  if(!container) return;
+  
+  let timer;
+  let isInteracting = false;
+  
+  async function refresh(){
+    if(isInteracting) return;
+    try{
+      const r = await fetch(window.location.href);
+      const html = await r.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const newGrid = doc.querySelector('.cards-grid');
+      if(newGrid && newGrid.innerHTML !== container.innerHTML){
+        container.innerHTML = newGrid.innerHTML;
+      }
+    }catch(e){}
+  }
+  
+  timer = setInterval(refresh, 3000);
+  
+  // Pause refresh when user is interacting
+  document.addEventListener('mousedown', ()=>{ isInteracting=true; setTimeout(()=>isInteracting=false, 2000); });
+  document.addEventListener('keydown', ()=>{ isInteracting=true; setTimeout(()=>isInteracting=false, 2000); });
 })();
 </script>
 {% endblock %}
