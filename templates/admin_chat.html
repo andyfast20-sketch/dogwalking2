@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Chat #{{ chat_id }}{% endblock %}
+{% block content %}
+<section class="container" style="max-width:900px">
+  <h1 style="margin-bottom:10px">Chat #{{ chat_id }}</h1>
+  <p style="margin-top:0;color:var(--muted)">Reply in real time. This page auto‑refreshes messages.</p>
+  <div id="admin-chat" data-chat-id="{{ chat_id }}" class="admin-chat-box" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:12px;min-height:420px">
+    <div id="admin-chat-messages" style="flex:1;overflow:auto;display:flex;flex-direction:column;gap:10px"></div>
+    <form id="admin-chat-form" style="display:flex;gap:10px">
+      <input type="text" id="admin-chat-input" placeholder="Type a message" style="flex:1;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text)" autocomplete="off" />
+      <button class="btn primary" type="submit">Send</button>
+    </form>
+  </div>
+</section>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function(){
+  const box = document.getElementById('admin-chat'); if(!box) return;
+  const chatId = box.getAttribute('data-chat-id');
+  const list = document.getElementById('admin-chat-messages');
+  const form = document.getElementById('admin-chat-form');
+  const input = document.getElementById('admin-chat-input');
+  let lastId = 0; let timer;
+  function append(sender, text){
+    const row = document.createElement('div');
+    row.style.display='flex';
+    row.style.justifyContent = sender==='admin' ? 'flex-end' : 'flex-start';
+    const bubble = document.createElement('div');
+    bubble.textContent = text;
+    bubble.style.maxWidth='70%';
+    bubble.style.padding='10px 12px';
+    bubble.style.borderRadius='12px';
+    bubble.style.whiteSpace='pre-wrap';
+    bubble.style.wordBreak='break-word';
+    if(sender==='admin'){
+      bubble.style.background='linear-gradient(135deg,var(--brand),var(--brand-2))';
+      bubble.style.color='#fff';
+    }else{
+      bubble.style.background='rgba(255,255,255,.08)';
+      bubble.style.border='1px solid rgba(255,255,255,.12)';
+    }
+    row.appendChild(bubble);
+    list.appendChild(row);
+    list.scrollTop = list.scrollHeight;
+  }
+  async function poll(){
+    try{
+      const r = await fetch(`/chat/poll/${chatId}?after=${lastId}`);
+      const j = await r.json();
+      if(j && j.messages){
+        for(const m of j.messages){ append(m.sender, m.message); lastId = m.id; }
+      }
+    }catch(e){}
+  }
+  timer = setInterval(poll, 1500); poll();
+  form.addEventListener('submit', async (e)=>{
+    e.preventDefault(); const txt = input.value.trim(); if(!txt) return; input.value='';
+    append('admin', txt);
+    try{
+      await fetch('/chat/send',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({chat_id:chatId, sender:'admin', message:txt})});
+    }catch(e){}
+  });
+})();
+</script>
+{% endblock %}

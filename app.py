@@ -140,6 +140,26 @@ def init_db():
                 summary TEXT
             )
         """))
+        # Live chat tables
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS chats (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sid TEXT,
+                name TEXT,
+                status TEXT NOT NULL DEFAULT 'open',
+                created_at TEXT NOT NULL,
+                last_activity TEXT NOT NULL
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id INTEGER NOT NULL,
+                sender TEXT NOT NULL,
+                message TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """))
 
 def save_enquiry(name: str, email: str, dog: str, message: str):
     init_db()
@@ -510,6 +530,94 @@ def admin_visitors():
     rows = fetch_visitors()
     stats = fetch_visitor_stats()
     return render_template('admin_visitors.html', rows=rows, stats=stats)
+
+# ---------- Live Chat Endpoints (user side) ----------
+@app.post('/chat/start')
+def chat_start():
+    init_db()
+    with engine.begin() as conn:
+        sid = request.cookies.get('sid') or request.form.get('sid') or ''
+        # Reuse existing open chat for this sid if present
+        row = conn.execute(text("SELECT id FROM chats WHERE sid=:sid AND status='open' ORDER BY id DESC LIMIT 1"), {"sid": sid}).fetchone()
+        if row:
+            chat_id = row.id
+        else:
+            now = datetime.utcnow().isoformat()
+            res = conn.execute(text("INSERT INTO chats (sid, name, status, created_at, last_activity) VALUES (:sid, :name, 'open', :c, :c)"), {"sid": sid, "name": request.form.get('name') or '', "c": now})
+            chat_id = res.lastrowid if hasattr(res, 'lastrowid') else conn.execute(text("SELECT last_insert_rowid() as id")).fetchone().id
+            # Seed a welcome message from admin
+            conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :msg, :t)"), {"cid": chat_id, "msg": "Hi! How can I help with your walks today?", "t": now})
+        return jsonify({"ok": True, "chat_id": chat_id})
+
+@app.post('/chat/send')
+def chat_send():
+    init_db()
+    chat_id = request.form.get('chat_id') or (request.get_json(silent=True) or {}).get('chat_id')
+    message = request.form.get('message') or (request.get_json(silent=True) or {}).get('message')
+    sender = (request.form.get('sender') or (request.get_json(silent=True) or {}).get('sender') or 'user').lower()
+    if not chat_id or not message:
+        abort(400)
+    # Only allow 'admin' sender if authenticated
+    if sender == 'admin':
+        auth_ok = require_admin()
+        if isinstance(auth_ok, Response):
+            return auth_ok
+    else:
+        sender = 'user'
+    now = datetime.utcnow().isoformat()
+    with engine.begin() as conn:
+        conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, :s, :m, :t)"), {"cid": int(chat_id), "s": sender, "m": message.strip()[:2000], "t": now})
+        conn.execute(text("UPDATE chats SET last_activity=:t WHERE id=:cid"), {"cid": int(chat_id), "t": now})
+    return jsonify({"ok": True})
+
+@app.get('/chat/poll/<int:chat_id>')
+def chat_poll(chat_id: int):
+    init_db()
+    after = request.args.get('after')
+    q = "SELECT id, sender, message, created_at FROM chat_messages WHERE chat_id=:cid"
+    params = {"cid": chat_id}
+    if after:
+        q += " AND id > :after"
+        try:
+            params['after'] = int(after)
+        except Exception:
+            params['after'] = 0
+    q += " ORDER BY id ASC"
+    with engine.begin() as conn:
+        msgs = conn.execute(text(q), params).fetchall()
+        chat = conn.execute(text("SELECT status FROM chats WHERE id=:cid"), {"cid": chat_id}).fetchone()
+    messages = [{"id": m.id, "sender": m.sender, "message": m.message, "created_at": m.created_at} for m in msgs]
+    return jsonify({"ok": True, "messages": messages, "status": (chat.status if chat else 'open')})
+
+# ---------- Admin Chat Views ----------
+@app.get('/admin/chats')
+def admin_chats():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    init_db()
+    with engine.begin() as conn:
+        rows = conn.execute(text("SELECT id, sid, name, status, created_at, last_activity FROM chats ORDER BY CASE status WHEN 'open' THEN 0 ELSE 1 END, last_activity DESC"))
+        chats = [dict(id=r.id, sid=r.sid, name=r.name or '', status=r.status, created_at=r.created_at, last_activity=r.last_activity) for r in rows]
+    return render_template('admin_chats.html', chats=chats)
+
+@app.get('/admin/chats/<int:chat_id>')
+def admin_chat_view(chat_id: int):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    init_db()
+    return render_template('admin_chat.html', chat_id=chat_id)
+
+@app.post('/admin/chats/close/<int:chat_id>')
+def admin_chat_close(chat_id: int):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    init_db()
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE chats SET status='closed' WHERE id=:cid"), {"cid": chat_id})
+    return redirect(url_for('admin_chats'))
 
 
 @app.route('/admin/visitors/analyze/<sid>', methods=['POST'])

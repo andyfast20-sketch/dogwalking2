@@ -23,6 +23,7 @@
         <a href="{{ url_for('services') }}" class="{% if request.endpoint == 'services' %}active{% endif %}">Services</a>
         <a href="{{ url_for('gallery') }}" class="{% if request.endpoint == 'gallery' %}active{% endif %}">Gallery</a>
         <a href="{{ url_for('contact') }}" class="cta-link {% if request.endpoint == 'contact' %}active{% endif %}">Contact</a>
+        <button id="chat-launch" type="button" class="chat-launch" aria-label="Open live chat" title="Chat" style="margin-left:10px">💬</button>
       </nav>
     </div>
   </header>
@@ -33,6 +34,54 @@
     <p>&copy; {{ 2025 }} Happy Paws Dog Walking. All rights reserved.</p>
   </footer>
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script>
+  // Floating chat widget (front-end)
+  (function(){
+    const btn=document.getElementById('chat-launch');
+    if(!btn) return;
+    let panel; let chatId=null; let lastId=0; let pollTimer;
+    function buildPanel(){
+      panel=document.createElement('div');
+      panel.className='chat-panel';
+      panel.innerHTML=`<div class="chat-header"><strong>Live Chat</strong><button type="button" class="chat-close" aria-label="Close chat">×</button></div>
+      <div class="chat-messages" aria-live="polite"></div>
+      <form class="chat-form" autocomplete="off">
+        <input name="name" placeholder="Your name (optional)" class="chat-name" />
+        <div class="chat-row"><input name="message" required placeholder="Type your message" class="chat-input" /><button class="chat-send" type="submit">Send</button></div>
+      </form>`;
+      document.body.appendChild(panel);
+      panel.querySelector('.chat-close').addEventListener('click',closePanel);
+      panel.querySelector('.chat-form').addEventListener('submit',onSend);
+    }
+    async function ensureChat(name){
+      if(chatId) return chatId;
+      const data=new URLSearchParams(); if(name) data.append('name',name);
+      const r=await fetch('/chat/start',{method:'POST',body:data});
+      const j=await r.json(); if(j.ok) chatId=j.chat_id; return chatId;
+    }
+    function append(sender,text){
+      const wrap=panel.querySelector('.chat-messages');
+      const row=document.createElement('div'); row.className='msg msg-'+sender;
+      row.textContent=text; wrap.appendChild(row); wrap.scrollTop=wrap.scrollHeight;
+    }
+    async function poll(){
+      if(!chatId) return; try{
+        const r=await fetch(`/chat/poll/${chatId}?after=${lastId}`); const j=await r.json();
+        if(j && j.messages){ for(const m of j.messages){ append(m.sender,m.message); lastId=m.id; } }
+      }catch(e){}
+    }
+    async function onSend(e){
+      e.preventDefault(); const form=e.target; const name=form.querySelector('.chat-name').value.trim(); const inp=form.querySelector('.chat-input'); const msg=inp.value.trim(); if(!msg) return;
+      await ensureChat(name);
+      append('user',msg); inp.value='';
+      const data=new URLSearchParams({chat_id:String(chatId),message:msg,sender:'user'});
+      fetch('/chat/send',{method:'POST',body:data}).catch(()=>{});
+    }
+    function openPanel(){ if(!panel) buildPanel(); panel.classList.add('open'); ensureChat(panel.querySelector('.chat-name').value.trim()); if(!pollTimer){ pollTimer=setInterval(poll,1800); poll(); } }
+    function closePanel(){ if(panel){ panel.classList.remove('open'); } }
+    btn.addEventListener('click',openPanel);
+  })();
+  </script>
   {% block extra_js %}{% endblock %}
 </body>
 </html>
