@@ -1,23 +1,24 @@
 /* Happy Paws - Modern Styles */
 :root{
-  --bg:#081123;
-  --bg-secondary:#101c33;
-  --panel:#13243d;
-  --panel-alt:#182c48;
-  --text:#f1f5f9;
-  --muted:#8fa2b8;
-  --brand:#22c55e; /* brighter friendly green */
-  --brand-2:#16a34a;
+  /* Deep green / teal night palette + amber accent matching new hero */
+  --bg:#051a1d;
+  --bg-secondary:#062326;
+  --panel:#0b2d30;
+  --panel-alt:#0f3539;
+  --text:#eaf5f5;
+  --muted:#9fb5b6;
+  --brand:#22c55e;
+  --brand-2:#13894b;
   --accent:#f59e0b;
-  --accent-light:#fbbf24;
-  --shadow:0 18px 50px -12px rgba(0,0,0,.55);
-  --glow:0 0 0 1px rgba(34,197,94,.22), 0 12px 38px -8px rgba(34,197,94,.35);
-  --ring:0 0 0 3px rgba(34,197,94,.35);
+  --accent-light:#ffc94d;
+  --shadow:0 20px 55px -15px rgba(0,0,0,.6);
+  --glow:0 0 0 1px rgba(34,197,94,.25), 0 14px 42px -10px rgba(34,197,94,.40);
+  --ring:0 0 0 3px rgba(255,201,77,.45);
   --max-width:1180px;
   --section-gap:clamp(60px,9vw,110px);
-  --radius-lg:22px;
-  --radius-md:14px;
-  --radius-sm:8px;
+  --radius-lg:26px;
+  --radius-md:16px;
+  --radius-sm:9px;
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
@@ -26,9 +27,9 @@ html,body{height:100%;overflow-x:hidden}
 body{
   font-family:'Poppins',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
   color:var(--text);
-  background: 
-    radial-gradient(ellipse 800px 600px at 10% 20%, rgba(16,185,129,.08), transparent),
-    radial-gradient(ellipse 1000px 700px at 90% 80%, rgba(245,158,11,.06), transparent),
+  background:
+    radial-gradient(1200px 800px at 12% 18%, rgba(34,197,94,.10), transparent 70%),
+    radial-gradient(900px 600px at 88% 82%, rgba(245,158,11,.10), transparent 75%),
     linear-gradient(180deg, var(--bg) 0%, var(--bg-secondary) 100%);
   line-height:1.6;
   font-size:16px;
@@ -39,11 +40,11 @@ main{min-height:calc(100vh - 160px)}
 /* Header */
 .site-header{
   display:flex;align-items:center;justify-content:space-between;
-  position:sticky;top:0;z-index:20;backdrop-filter:saturate(180%) blur(16px);
-  background:rgba(26,31,58,.92);
-  border-bottom:1px solid rgba(16,185,129,.2);
-  padding:16px clamp(20px,5vw,60px);
-  box-shadow:0 4px 30px rgba(0,0,0,.3);
+  position:sticky;top:0;z-index:20;backdrop-filter:saturate(180%) blur(18px);
+  background:linear-gradient(90deg, rgba(5,26,29,.86), rgba(5,26,29,.78));
+  border-bottom:1px solid rgba(255,201,77,.18);
+  padding:14px clamp(26px,5vw,70px);
+  box-shadow:0 6px 32px -8px rgba(0,0,0,.55);
 }
 .logo{
   font-size:1.35rem;
@@ -66,7 +67,7 @@ main{min-height:calc(100vh - 160px)}
   position:relative;
   padding:8px 4px;
 }
-.main-nav a:hover{color:var(--brand)}
+.main-nav a:hover{color:var(--accent)}
 .main-nav a::after{
   content:'';
   position:absolute;
@@ -80,12 +81,12 @@ main{min-height:calc(100vh - 160px)}
 .main-nav a:hover::after{width:100%}
 .main-nav .cta-link{
   color:#fff;
-  background:linear-gradient(135deg,var(--brand),var(--brand-2));
-  padding:10px 22px;
-  border-radius:12px;
+  background:linear-gradient(135deg, var(--accent), var(--accent-light));
+  padding:10px 24px;
+  border-radius:14px;
   font-weight:600;
   transition:all .3s;
-  box-shadow:0 4px 20px rgba(16,185,129,.25);
+  box-shadow:0 4px 24px -6px rgba(245,158,11,.45);
 }
 .main-nav .cta-link::after{display:none}
 .main-nav .cta-link:hover{
@@ -144,16 +145,6 @@ main{min-height:calc(100vh - 160px)}
 }
 .hero-actions{display:flex;gap:14px;flex-wrap:wrap}
 
-.hero-image{
-  height:clamp(320px,40vw,450px);
-  border-radius:20px;
-  box-shadow:0 8px 40px rgba(16,185,129,.2),0 4px 20px rgba(0,0,0,.3);
-  background-size:cover;
-  background-position:center;
-  background-repeat:no-repeat;
-  border:1px solid rgba(16,185,129,.2);
-  transition:transform .3s,box-shadow .3s;
-}
 
 /* Hero Photo Strip */
 .hero-photos{padding:clamp(30px,6vw,50px) clamp(20px,5vw,60px) 0;position:relative}
