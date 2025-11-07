@@ -17,8 +17,8 @@
       <button class="btn" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;padding:10px 20px;white-space:nowrap" type="submit">Close Chat</button>
     </form>
   </div>
-  <div id="admin-chat" data-chat-id="{{ chat_id }}" class="admin-chat-box" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:12px;min-height:420px">
-    <div id="admin-chat-messages" style="flex:1;overflow:auto;display:flex;flex-direction:column;gap:10px"></div>
+  <div id="admin-chat" data-chat-id="{{ chat_id }}" class="admin-chat-box" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:12px;height:calc(100vh - 320px);max-height:700px">
+    <div id="admin-chat-messages" style="flex:1;overflow:auto;display:flex;flex-direction:column;gap:10px;min-height:0"></div>
     <form id="admin-chat-form" style="display:flex;gap:10px">
       <input type="text" id="admin-chat-input" placeholder="Type a message" style="flex:1;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text)" autocomplete="off" />
       <button class="btn primary" type="submit">Send</button>
