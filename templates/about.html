@@ -5,7 +5,12 @@
       <h1 style="text-align:left">About Andy</h1>
 
       <h2>Who I am</h2>
-      <p>Hi, I’m Andy — a local, independent dog walker. I’m DBS checked, fully insured with public liability cover, and trained in canine first aid. I keep walks calm, positive and tailored to your dog’s needs.</p>
+      <div style="display:flex;gap:16px;align-items:center;margin:10px 0 6px">
+        <img src="{{ url_for('static', filename='img/andy.jpg') }}" alt="Andy" width="72" height="72" style="border-radius:999px;object-fit:cover;box-shadow:0 0 0 3px rgba(34,197,94,.35)" onerror="this.onerror=null;this.src='https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%20male%20andy%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern%2C%20photorealistic?width=200&height=200&nologo=true'">
+        <div>
+          <p style="margin:0">Hi, I’m Andy — a local, independent dog walker. I’m DBS checked, fully insured with public liability cover, and trained in canine first aid. I keep walks calm, positive and tailored to your dog’s needs.</p>
+        </div>
+      </div>
 
       <h2>How I work</h2>
       <p>Every dog is different. I offer one‑to‑one walks for focus and gentle pacing, and small paired walks for well‑matched dogs who enjoy company. You’ll receive photo and GPS updates after every outing.</p>

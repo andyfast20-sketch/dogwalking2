@@ -7,6 +7,13 @@
         <p class="hero-eyebrow">DBS checked • Insured • First‑aid trained</p>
         <h1>Reliable walks, happy <span class="highlight">paws</span>.</h1>
         <p class="lead">I’m Andy — your local, DBS‑checked and fully insured dog walker. I treat your dog like family and send photo & GPS updates after every walk.</p>
+        <div class="mini-profile">
+          <img src="{{ url_for('static', filename='img/andy.jpg') }}" alt="Andy, your local dog walker" width="56" height="56" loading="eager" decoding="async" onerror="this.onerror=null;this.src='https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%20male%20andy%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern%2C%20photorealistic?width=200&height=200&nologo=true'">
+          <div class="text">
+            <strong>Andy</strong>
+            <span>DBS checked • Insured • First‑aid trained</span>
+          </div>
+        </div>
         <ul class="hero-points">
           <li>One‑to‑one walks for focused care</li>
           <li>Small paired walks when well‑matched</li>
@@ -47,7 +54,7 @@
       <div class="owner-grid">
         <aside class="profile-card">
           <div class="avatar">
-            <img src="https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%20male%20andy%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern%2C%20photorealistic?width=400&height=400&nologo=true" alt="Andy, your dog walker" width="400" height="400" loading="lazy" decoding="async">
+            <img src="{{ url_for('static', filename='img/andy.jpg') }}" alt="Andy, your dog walker" width="400" height="400" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%20male%20andy%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern%2C%20photorealistic?width=400&height=400&nologo=true'">
           </div>
           <h3>Friendly, Reliable, Local</h3>
           <p class="contact">Call me: <strong>(555) 123-PAWS</strong><br> Email: <strong>hello@happypawswalking.com</strong></p>

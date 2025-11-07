@@ -642,6 +642,11 @@ li{margin-bottom:8px;line-height:1.6}
 .hero-split h1{font-size:clamp(2.4rem,5.4vw,3.8rem);line-height:1.05;font-weight:700;margin:0 0 26px;letter-spacing:.5px;background:linear-gradient(135deg,#fff 0%,#fff 40%,var(--accent-light) 85%);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero-split h1 .highlight{background:linear-gradient(90deg,var(--brand) 0%,var(--accent-light) 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero-split .lead{font-size:1.15rem;color:#d4dae1;margin:0 0 26px;line-height:1.65}
+.mini-profile{display:flex;align-items:center;gap:12px;margin:0 0 22px}
+.mini-profile img{border-radius:999px;box-shadow:0 0 0 3px rgba(34,197,94,.35);object-fit:cover}
+.mini-profile .text{display:flex;flex-direction:column;line-height:1.2}
+.mini-profile .text strong{font-size:1rem}
+.mini-profile .text span{color:#b9c6cb;font-size:.9rem}
 .hero-points{list-style:none;padding:0;margin:0 0 30px;display:grid;gap:12px}
 .hero-points li{position:relative;padding-left:30px;font-weight:500;color:#e8edf1}
 .hero-points li::before{content:'✓';position:absolute;left:0;top:0;color:var(--brand);font-weight:700;font-size:1.1rem}
