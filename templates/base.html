@@ -23,7 +23,6 @@
         <a href="{{ url_for('services') }}" class="{% if request.endpoint == 'services' %}active{% endif %}">Services</a>
         <a href="{{ url_for('gallery') }}" class="{% if request.endpoint == 'gallery' %}active{% endif %}">Gallery</a>
         <a href="{{ url_for('contact') }}" class="cta-link {% if request.endpoint == 'contact' %}active{% endif %}">Contact</a>
-        <button id="chat-launch" type="button" class="chat-launch" aria-label="Open live chat" title="Chat" style="margin-left:10px">💬</button>
       </nav>
     </div>
   </header>
@@ -33,6 +32,10 @@
   <footer class="site-footer">
     <p>&copy; {{ 2025 }} Happy Paws Dog Walking. All rights reserved.</p>
   </footer>
+  
+  <!-- Floating chat button -->
+  <button id="chat-launch" type="button" aria-label="Open live chat" title="Live Chat" style="position:fixed;bottom:24px;right:24px;width:64px;height:64px;border-radius:50%;font-size:2rem;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#22c55e,#13894b);color:#fff;border:none;z-index:1000;box-shadow:0 8px 32px -8px rgba(34,197,94,.7);cursor:pointer;transition:transform .25s">💬</button>
+  
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
   <script>
   // Floating chat widget (front-end)
