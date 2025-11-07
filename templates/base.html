@@ -49,16 +49,15 @@
       panel.innerHTML=`<div class="chat-header"><strong>Live Chat</strong><button type="button" class="chat-close" aria-label="Close chat">×</button></div>
       <div class="chat-messages" aria-live="polite"></div>
       <form class="chat-form" autocomplete="off">
-        <input name="name" placeholder="Your name (optional)" class="chat-name" />
         <div class="chat-row"><input name="message" required placeholder="Type your message" class="chat-input" /><button class="chat-send" type="submit">Send</button></div>
       </form>`;
       document.body.appendChild(panel);
       panel.querySelector('.chat-close').addEventListener('click',closePanel);
       panel.querySelector('.chat-form').addEventListener('submit',onSend);
     }
-    async function ensureChat(name){
+    async function ensureChat(){
       if(chatId) return chatId;
-      const data=new URLSearchParams(); if(name) data.append('name',name);
+      const data=new URLSearchParams();
       const r=await fetch('/chat/start',{method:'POST',body:data});
       const j=await r.json(); if(j.ok) chatId=j.chat_id; return chatId;
     }
@@ -74,13 +73,13 @@
       }catch(e){}
     }
     async function onSend(e){
-      e.preventDefault(); const form=e.target; const name=form.querySelector('.chat-name').value.trim(); const inp=form.querySelector('.chat-input'); const msg=inp.value.trim(); if(!msg) return;
-      await ensureChat(name);
+      e.preventDefault(); const form=e.target; const inp=form.querySelector('.chat-input'); const msg=inp.value.trim(); if(!msg) return;
+      await ensureChat();
       append('user',msg); inp.value='';
       const data=new URLSearchParams({chat_id:String(chatId),message:msg,sender:'user'});
       fetch('/chat/send',{method:'POST',body:data}).catch(()=>{});
     }
-    function openPanel(){ if(!panel) buildPanel(); panel.classList.add('open'); ensureChat(panel.querySelector('.chat-name').value.trim()); if(!pollTimer){ pollTimer=setInterval(poll,1800); poll(); } }
+    function openPanel(){ if(!panel) buildPanel(); panel.classList.add('open'); ensureChat(); if(!pollTimer){ pollTimer=setInterval(poll,1800); poll(); } }
     function closePanel(){ if(panel){ panel.classList.remove('open'); } }
     btn.addEventListener('click',openPanel);
   })();
