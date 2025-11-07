@@ -289,6 +289,14 @@ def require_admin():
         abort(403)
     return True
 
+# ---------- Unified Admin Dashboard ----------
+@app.route('/admin')
+def admin_dashboard():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    return render_template('admin_dashboard.html')
+
 @app.route('/admin/enquiries')
 def admin_enquiries():
     # Enforce admin auth if configured
