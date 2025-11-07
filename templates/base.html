@@ -12,14 +12,19 @@
 </head>
 <body>
   <header class="site-header">
-    <div class="logo">🐾 Happy Paws</div>
-    <nav class="main-nav">
-      <a href="{{ url_for('home') }}">Home</a>
-      <a href="{{ url_for('about') }}">About</a>
-      <a href="{{ url_for('services') }}">Services</a>
-      <a href="{{ url_for('gallery') }}">Gallery</a>
-      <a href="{{ url_for('contact') }}" class="cta-link">Contact</a>
-    </nav>
+    <div class="header-inner">
+      <div class="logo-wrap">
+        <div class="logo">🐾 Happy Paws</div>
+        <img class="header-avatar" src="{{ url_for('static', filename='img/andy.jpg') }}" alt="Profile photo" width="44" height="44" loading="eager" decoding="async" fetchpriority="high" onerror="this.onerror=null;this.classList.add('fallback');this.src='https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%20male%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern?width=200&height=200&nologo=true'" />
+      </div>
+      <nav class="main-nav">
+        <a href="{{ url_for('home') }}" class="{% if request.endpoint == 'home' %}active{% endif %}">Home</a>
+        <a href="{{ url_for('about') }}" class="{% if request.endpoint == 'about' %}active{% endif %}">About</a>
+        <a href="{{ url_for('services') }}" class="{% if request.endpoint == 'services' %}active{% endif %}">Services</a>
+        <a href="{{ url_for('gallery') }}" class="{% if request.endpoint == 'gallery' %}active{% endif %}">Gallery</a>
+        <a href="{{ url_for('contact') }}" class="cta-link {% if request.endpoint == 'contact' %}active{% endif %}">Contact</a>
+      </nav>
+    </div>
   </header>
   <main>
     {% block content %}{% endblock %}
