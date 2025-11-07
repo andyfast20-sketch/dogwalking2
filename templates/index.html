@@ -2,6 +2,12 @@
 {% block title %}Happy Paws Dog Walking{% endblock %}
 {% block content %}
   <section class="hero">
+    <div class="hero-video-wrapper">
+        <video autoplay loop muted playsinline poster="https://image.pollinations.ai/prompt/blurry%20background%20of%20park%20with%20green%20and%20amber%20tones?width=800&height=600&nologo=true">
+            <source src="https://videos.pexels.com/video-files/3774249/3774249-hd_1280_720_25fps.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+    </div>
     <div class="hero-content">
       <h1>Happy Paws Dog Walking</h1>
       <p>Your dog's best day, every day. Safe, loving, and reliably on time.</p>
@@ -10,7 +16,7 @@
         <a class="btn ghost" href="{{ url_for('about') }}">Meet the Team</a>
       </div>
     </div>
-    <div class="hero-image" style="background: linear-gradient(135deg, rgba(16,185,129,.2), rgba(245,158,11,.15)), url('https://image.pollinations.ai/prompt/rear%20view%20from%20behind%20of%20a%20smartly%20dressed%20man%20(smart%20casual%3A%20navy%20coat%2C%20trousers)%20walking%20a%20small%20cute%20golden%20dog%20on%20a%20leash%20along%20a%20sunlit%20pavement%20(sidewalk)%2C%20modern%20park%20path%20with%20green%20trees%2C%20photorealistic%2C%20warm%20golden%20hour%20light%2C%20vibrant%20emerald%20and%20amber%20tones%2C%20cinematic%20composition?width=800&height=600&nologo=true&seed=99') center/cover no-repeat;"></div>
+    <!-- The hero-image div is removed -->
   </section>
 
   <section class="features">
