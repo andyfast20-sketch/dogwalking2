@@ -8,8 +8,15 @@
 {% endblock %}
 {% block content %}
 <section class="container" style="max-width:900px">
-  <h1 style="margin-bottom:10px">Chat #{{ chat_id }}</h1>
-  <p style="margin-top:0;color:var(--muted)">Reply in real time. This page auto‑refreshes messages.</p>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div>
+      <h1 style="margin:0">Chat #{{ chat_id }}</h1>
+      <p style="margin-top:4px;color:var(--muted)">Reply in real time. This page auto‑refreshes messages.</p>
+    </div>
+    <form method="post" action="{{ url_for('admin_chat_close', chat_id=chat_id) }}" style="margin:0">
+      <button class="btn" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;padding:10px 20px;white-space:nowrap" type="submit">Close Chat</button>
+    </form>
+  </div>
   <div id="admin-chat" data-chat-id="{{ chat_id }}" class="admin-chat-box" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:12px;min-height:420px">
     <div id="admin-chat-messages" style="flex:1;overflow:auto;display:flex;flex-direction:column;gap:10px"></div>
     <form id="admin-chat-form" style="display:flex;gap:10px">
