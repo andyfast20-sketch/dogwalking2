@@ -21,6 +21,13 @@
 			method:'POST',headers:{'Content-Type':'application/json'},
 			body:JSON.stringify({event:'view',path:location.pathname,referrer:document.referrer,sid})
 		}).catch(()=>{});
+		// Populate any hidden sid fields on forms
+		document.addEventListener('DOMContentLoaded',function(){
+			try{
+				var sidInputs=document.querySelectorAll('input[name="sid"]');
+				sidInputs.forEach(function(inp){ if(inp && !inp.value) inp.value=sid; });
+			}catch(e){}
+		});
 	}catch(e){}
 })();
 
@@ -35,7 +42,10 @@ document.addEventListener('click',function(e){
 	[...parent.querySelectorAll('.accordion-item')].forEach(i=>{
 		i.setAttribute('aria-expanded','false');
 		i.querySelector('.accordion-button')?.setAttribute('aria-expanded','false');
+		const ic=i.querySelector('.accordion-icon'); if(ic) ic.textContent='+';
 	});
 	item.setAttribute('aria-expanded',expanded?'false':'true');
 	btn.setAttribute('aria-expanded',expanded?'false':'true');
+	const icon=btn.querySelector('.accordion-icon');
+	if(icon){ icon.textContent=expanded?'+':'−'; }
 });

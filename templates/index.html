@@ -3,7 +3,7 @@
 {% block content %}
   <section class="hero">
     <div class="hero-video-wrapper">
-      <video autoplay loop muted playsinline>
+      <video autoplay loop muted playsinline preload="metadata" poster="https://images.pexels.com/photos/4587995/pexels-photo-4587995.jpeg?auto=compress&cs=tinysrgb&w=1280&h=720">
         <source src="https://videos.pexels.com/video-files/3774249/3774249-hd_1280_720_25fps.mp4" type="video/mp4">
       </video>
     </div>
@@ -20,10 +20,10 @@
   <!-- Top Photo Strip (like reference) -->
   <section class="hero-photos">
     <div class="container photos-grid">
-      <figure class="photo"><img src="https://image.pollinations.ai/prompt/professional%20dog%20walker%20rear%20view%20walking%20a%20dog%20on%20pavement%2C%20smart%20casual%2C%20emerald%20and%20amber%20tones%2C%20cinematic%2C%20wide%20angle?width=900&height=600&nologo=true" alt="Dog walker on pavement rear view" loading="lazy"></figure>
-      <figure class="photo"><img src="https://image.pollinations.ai/prompt/woman%20walking%20two%20dogs%20in%20park%2C%20sunny%20day%2C%20vibrant%20greens%2C%20friendly%20professional%20look%2C%20photorealistic%2C%20emerald%20and%20amber%20palette?width=900&height=600&nologo=true" alt="Woman walking dogs in park" loading="lazy"></figure>
-      <figure class="photo"><img src="https://image.pollinations.ai/prompt/man%20with%20small%20dog%20on%20lead%20crossing%20city%20street%2C%20rear%20view%2C%20smart%20attire%2C%20emerald%20accents%2C%20amber%20light%2C%20professional%20photography?width=900&height=600&nologo=true" alt="Smartly dressed man walking dog in city" loading="lazy"></figure>
-      <figure class="photo"><img src="https://image.pollinations.ai/prompt/dog%20paws%20on%20pavement%20close%20up%2C%20lead%20visible%2C%20soft%20bokeh%2C%20emerald%20and%20amber%20tones%2C%20cinematic?width=900&height=600&nologo=true" alt="Close-up of dog paws on pavement" loading="lazy"></figure>
+      <figure class="photo"><img src="https://image.pollinations.ai/prompt/professional%20dog%20walker%20rear%20view%20walking%20a%20dog%20on%20pavement%2C%20smart%20casual%2C%20emerald%20and%20amber%20tones%2C%20cinematic%2C%20wide%20angle?width=900&height=600&nologo=true" alt="Dog walker on pavement rear view" loading="lazy" decoding="async" fetchpriority="low" width="900" height="600" sizes="(max-width: 640px) 50vw, (max-width: 1200px) 25vw, 300px"></figure>
+      <figure class="photo"><img src="https://image.pollinations.ai/prompt/woman%20walking%20two%20dogs%20in%20park%2C%20sunny%20day%2C%20vibrant%20greens%2C%20friendly%20professional%20look%2C%20photorealistic%2C%20emerald%20and%20amber%20palette?width=900&height=600&nologo=true" alt="Woman walking dogs in park" loading="lazy" decoding="async" fetchpriority="low" width="900" height="600" sizes="(max-width: 640px) 50vw, (max-width: 1200px) 25vw, 300px"></figure>
+      <figure class="photo"><img src="https://image.pollinations.ai/prompt/man%20with%20small%20dog%20on%20lead%20crossing%20city%20street%2C%20rear%20view%2C%20smart%20attire%2C%20emerald%20accents%2C%20amber%20light%2C%20professional%20photography?width=900&height=600&nologo=true" alt="Smartly dressed man walking dog in city" loading="lazy" decoding="async" fetchpriority="low" width="900" height="600" sizes="(max-width: 640px) 50vw, (max-width: 1200px) 25vw, 300px"></figure>
+      <figure class="photo"><img src="https://image.pollinations.ai/prompt/dog%20paws%20on%20pavement%20close%20up%2C%20lead%20visible%2C%20soft%20bokeh%2C%20emerald%20and%20amber%20tones%2C%20cinematic?width=900&height=600&nologo=true" alt="Close-up of dog paws on pavement" loading="lazy" decoding="async" fetchpriority="low" width="900" height="600" sizes="(max-width: 640px) 50vw, (max-width: 1200px) 25vw, 300px"></figure>
     </div>
   </section>
 
@@ -39,7 +39,7 @@
       <div class="owner-grid">
         <aside class="profile-card">
           <div class="avatar">
-            <img src="https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern?width=400&height=400&nologo=true" alt="Your dog walker">
+            <img src="https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern?width=400&height=400&nologo=true" alt="Your dog walker" width="400" height="400" loading="lazy" decoding="async">
           </div>
           <h3>Friendly, Reliable, Local</h3>
           <p class="contact">Call us: <strong>(555) 123-PAWS</strong><br> Email: <strong>hello@happypawswalking.com</strong></p>
@@ -67,12 +67,12 @@
       <h2>Our Services & Pricing</h2>
       <div class="accordion" id="services-accordion">
         <div class="accordion-item" aria-expanded="false">
-          <h3 class="accordion-header">
-            <button class="accordion-button" type="button" aria-controls="panel-group" aria-expanded="false">
+          <h3 class="accordion-header" id="header-group">
+            <button class="accordion-button" type="button" aria-controls="panel-group" aria-expanded="false" aria-label="Toggle Group Walks panel">
               Group Walks <span class="accordion-icon">+</span>
             </button>
           </h3>
-          <div class="accordion-panel" id="panel-group">
+          <div class="accordion-panel" id="panel-group" role="region" aria-labelledby="header-group">
             <p class="price"><strong>From £14/hour</strong></p>
             <p>Professional small group walks for socialization, stimulation and exercise in safe dog-friendly areas.</p>
             <ul class="accordion-list">
@@ -83,12 +83,12 @@
           </div>
         </div>
         <div class="accordion-item" aria-expanded="false">
-          <h3 class="accordion-header">
-            <button class="accordion-button" type="button" aria-controls="panel-solo" aria-expanded="false">
+          <h3 class="accordion-header" id="header-solo">
+            <button class="accordion-button" type="button" aria-controls="panel-solo" aria-expanded="false" aria-label="Toggle Solo Walks panel">
               Solo Walks <span class="accordion-icon">+</span>
             </button>
           </h3>
-          <div class="accordion-panel" id="panel-solo">
+          <div class="accordion-panel" id="panel-solo" role="region" aria-labelledby="header-solo">
             <p class="price"><strong>£15–£20</strong></p>
             <p>One-on-one focused walks perfect for anxious, reactive or senior dogs needing tailored pacing.</p>
             <ul class="accordion-list">
@@ -99,12 +99,12 @@
           </div>
         </div>
         <div class="accordion-item" aria-expanded="false">
-          <h3 class="accordion-header">
-            <button class="accordion-button" type="button" aria-controls="panel-daycare" aria-expanded="false">
+          <h3 class="accordion-header" id="header-daycare">
+            <button class="accordion-button" type="button" aria-controls="panel-daycare" aria-expanded="false" aria-label="Toggle Dog Day Care panel">
               Dog Day Care <span class="accordion-icon">+</span>
             </button>
           </h3>
-          <div class="accordion-panel" id="panel-daycare">
+          <div class="accordion-panel" id="panel-daycare" role="region" aria-labelledby="header-daycare">
             <p class="price"><strong>£30/day</strong></p>
             <p>A full adventure day with social play, 2 group walks and supervised downtime. Pickup & drop-off included.*</p>
             <ul class="accordion-list">
@@ -115,12 +115,12 @@
           </div>
         </div>
         <div class="accordion-item" aria-expanded="false">
-          <h3 class="accordion-header">
-            <button class="accordion-button" type="button" aria-controls="panel-puppy" aria-expanded="false">
+          <h3 class="accordion-header" id="header-puppy">
+            <button class="accordion-button" type="button" aria-controls="panel-puppy" aria-expanded="false" aria-label="Toggle Puppy and Senior Care panel">
               Puppy & Senior Care <span class="accordion-icon">+</span>
             </button>
           </h3>
-          <div class="accordion-panel" id="panel-puppy">
+          <div class="accordion-panel" id="panel-puppy" role="region" aria-labelledby="header-puppy">
             <p class="price"><strong>£14/visit</strong></p>
             <p>Gentle, age-appropriate visits with toilet breaks, light exercise, socialisation or medication support.</p>
             <ul class="accordion-list">
@@ -134,18 +134,44 @@
     </div>
   </section>
 
+  <!-- Inline Enquiry Section -->
+  <section class="enquiry-section">
+    <div class="section-block">
+      <h2>Quick Enquiry</h2>
+      <p class="container" style="padding-top:0">Tell us about your pup and we’ll reply within one business day.</p>
+      <form class="contact-form" method="post" action="{{ url_for('contact') }}" aria-label="Quick enquiry form">
+        <input type="hidden" name="sid" />
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px">
+          <label>Name
+            <input required name="name" autocomplete="name" placeholder="Your name" />
+          </label>
+          <label>Email
+            <input required type="email" name="email" autocomplete="email" placeholder="you@example.com" />
+          </label>
+        </div>
+        <label>Dog's Name
+          <input name="dog" autocomplete="off" placeholder="Your dog's name" />
+        </label>
+        <label>Message
+          <textarea name="message" rows="4" placeholder="Preferred days/times, any special needs"></textarea>
+        </label>
+        <button class="btn primary" type="submit">Send Enquiry</button>
+      </form>
+    </div>
+  </section>
+
   <!-- Areas Covered Section -->
   <section class="areas-section">
     <div class="section-block">
       <h2>Service Areas</h2>
       <div class="accordion" id="areas-accordion">
         <div class="accordion-item" aria-expanded="false">
-          <h3 class="accordion-header">
-            <button class="accordion-button" type="button" aria-controls="panel-areas" aria-expanded="false">
+          <h3 class="accordion-header" id="header-areas">
+            <button class="accordion-button" type="button" aria-controls="panel-areas" aria-expanded="false" aria-label="Toggle coverage list panel">
               Coverage List <span class="accordion-icon">+</span>
             </button>
           </h3>
-          <div class="accordion-panel" id="panel-areas">
+          <div class="accordion-panel" id="panel-areas" role="region" aria-labelledby="header-areas">
             <div class="areas-grid">
               <div class="area-card">Downtown</div>
               <div class="area-card">Riverside Park District</div>
@@ -167,19 +193,19 @@
       <h2>What Dog Parents Say</h2>
       <div class="testimonials-grid">
         <div class="testimonial">
-          <img class="avatar" src="https://image.pollinations.ai/prompt/happy%20dog%20owner%20portrait%20outdoors%20soft%20light?width=400&height=400&nologo=true" alt="Dog owner portrait">
+          <img class="avatar" src="https://image.pollinations.ai/prompt/happy%20dog%20owner%20portrait%20outdoors%20soft%20light?width=400&height=400&nologo=true" alt="Dog owner portrait" width="72" height="72" loading="lazy" decoding="async">
           <div class="stars">★★★★★</div>
           <p class="testimonial-text">"My dog absolutely loves his walks with Happy Paws. He comes home content and ready for a nap. The photo updates are awesome!"</p>
           <p class="testimonial-author">— Sarah J.</p>
         </div>
         <div class="testimonial">
-          <img class="avatar" src="https://image.pollinations.ai/prompt/smiling%20person%20with%20small%20dog%20portrait%20natural%20light?width=400&height=400&nologo=true" alt="Dog owner with small dog">
+          <img class="avatar" src="https://image.pollinations.ai/prompt/smiling%20person%20with%20small%20dog%20portrait%20natural%20light?width=400&height=400&nologo=true" alt="Dog owner with small dog" width="72" height="72" loading="lazy" decoding="async">
           <div class="stars">★★★★★</div>
           <p class="testimonial-text">"Reliable, friendly, and they really understand anxious dogs. Mine is calmer and more confident thanks to their patient walks."</p>
           <p class="testimonial-author">— Mike R.</p>
         </div>
         <div class="testimonial">
-          <img class="avatar" src="https://image.pollinations.ai/prompt/happy%20dog%20with%20walker%20portrait%20vibrant%20colors?width=400&height=400&nologo=true" alt="Dog and walker portrait">
+          <img class="avatar" src="https://image.pollinations.ai/prompt/happy%20dog%20with%20walker%20portrait%20vibrant%20colors?width=400&height=400&nologo=true" alt="Dog and walker portrait" width="72" height="72" loading="lazy" decoding="async">
           <div class="stars">★★★★★</div>
           <p class="testimonial-text">"The GPS tracking and route summaries give total peace of mind. Highly recommended for busy pet parents who still want transparency."</p>
           <p class="testimonial-author">— Emma L.</p>
@@ -188,12 +214,12 @@
       <div class="gallery-section">
         <h2>Gallery</h2>
         <div class="gallery-grid">
-          <div class="shot"><img src="https://image.pollinations.ai/prompt/dog%20running%20in%20park%20sunlit%20grass%20emerald%20tones?width=800&height=600&nologo=true" alt="Dog running"></div>
-          <div class="shot"><img src="https://image.pollinations.ai/prompt/dog%20walker%20with%20group%20small%20dogs%20city%20pavement%20morning%20light?width=800&height=600&nologo=true" alt="Group walk"></div>
-          <div class="shot"><img src="https://image.pollinations.ai/prompt/happy%20senior%20dog%20on%20gentle%20walk%20soft%20light?width=800&height=600&nologo=true" alt="Senior dog"></div>
-          <div class="shot"><img src="https://image.pollinations.ai/prompt/puppy%20playing%20with%20leaf%20autumn%20path%20amber%20tones?width=800&height=600&nologo=true" alt="Puppy play"></div>
-          <div class="shot"><img src="https://image.pollinations.ai/prompt/dog%20walker%20clipping%20lead%20close%20up%20hands%20care%20emerald%20warm%20tones?width=800&height=600&nologo=true" alt="Lead clip"></div>
-          <div class="shot"><img src="https://image.pollinations.ai/prompt/dog%20looking%20back%20on%20trail%20golden%20hour%20emerald%20and%20amber?width=800&height=600&nologo=true" alt="Trail glance"></div>
+          <div class="shot"><img src="https://image.pollinations.ai/prompt/dog%20running%20in%20park%20sunlit%20grass%20emerald%20tones?width=800&height=600&nologo=true" alt="Dog running" width="800" height="600" loading="lazy" decoding="async"></div>
+          <div class="shot"><img src="https://image.pollinations.ai/prompt/dog%20walker%20with%20group%20small%20dogs%20city%20pavement%20morning%20light?width=800&height=600&nologo=true" alt="Group walk" width="800" height="600" loading="lazy" decoding="async"></div>
+          <div class="shot"><img src="https://image.pollinations.ai/prompt/happy%20senior%20dog%20on%20gentle%20walk%20soft%20light?width=800&height=600&nologo=true" alt="Senior dog" width="800" height="600" loading="lazy" decoding="async"></div>
+          <div class="shot"><img src="https://image.pollinations.ai/prompt/puppy%20playing%20with%20leaf%20autumn%20path%20amber%20tones?width=800&height=600&nologo=true" alt="Puppy play" width="800" height="600" loading="lazy" decoding="async"></div>
+          <div class="shot"><img src="https://image.pollinations.ai/prompt/dog%20walker%20clipping%20lead%20close%20up%20hands%20care%20emerald%20warm%20tones?width=800&height=600&nologo=true" alt="Lead clip" width="800" height="600" loading="lazy" decoding="async"></div>
+          <div class="shot"><img src="https://image.pollinations.ai/prompt/dog%20looking%20back%20on%20trail%20golden%20hour%20emerald%20and%20amber?width=800&height=600&nologo=true" alt="Trail glance" width="800" height="600" loading="lazy" decoding="async"></div>
         </div>
       </div>
     </div>
