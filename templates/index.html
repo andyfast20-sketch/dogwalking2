@@ -1,17 +1,27 @@
 {% extends 'base.html' %}
 {% block title %}Happy Paws Dog Walking{% endblock %}
 {% block content %}
-  <section class="hero">
-    <div class="hero-video-wrapper">
-      <img class="hero-bg" src="https://image.pollinations.ai/prompt/professional%20dog%20walker%20walking%20a%20dog%20on%20city%20pavement%2C%20natural%20light%2C%20realistic%2C%20emerald%20and%20amber%20tones%2C%20wide%20angle%2C%20photographic?width=1920&height=1080&nologo=true" alt="" width="1920" height="1080" decoding="async" fetchpriority="high">
-    </div>
-    <div class="hero-content">
-      <h1>Happy Paws Dog Walking</h1>
-      <p>Your dog's best day, every day. Safe, loving, and reliably on time.</p>
-      <div class="hero-actions">
-        <a class="btn primary" href="{{ url_for('services') }}">See Services</a>
-        <a class="btn ghost" href="{{ url_for('about') }}">Meet the Team</a>
+  <section class="hero hero-split">
+    <div class="inner">
+      <div class="hero-content">
+        <p class="hero-eyebrow">Premium dog walking • Local & insured</p>
+        <h1>Reliable walks, happy <span class="highlight">paws</span>.</h1>
+        <p class="lead">Friendly, first‑aid trained walkers who treat your dog like family — with photo & GPS updates after every walk.</p>
+        <ul class="hero-points">
+          <li>Small, well‑matched groups</li>
+          <li>One‑to‑one options for anxious pups</li>
+          <li>Flexible slots, 7 days a week</li>
+        </ul>
+        <div class="hero-actions">
+          <a class="btn primary" href="{{ url_for('services') }}">See Services</a>
+          <a class="btn ghost" href="{{ url_for('about') }}">Meet the Team</a>
+        </div>
       </div>
+      <aside class="hero-visual" aria-hidden="true">
+        <div class="image-frame">
+          <img src="https://image.pollinations.ai/prompt/professional%20dog%20walker%20with%20friendly%20medium%20dog%20on%20lead%2C%20city%20pavement%2C%20natural%20light%2C%20photorealistic%2C%20emerald%20and%20amber%20tones%2C%20magazine%20quality?width=1100&height=1400&nologo=true" alt="" width="1100" height="1400" loading="eager" decoding="async" fetchpriority="high">
+        </div>
+      </aside>
     </div>
   </section>
 
