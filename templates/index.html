@@ -8,7 +8,7 @@
         <h1>Reliable walks, happy <span class="highlight">paws</span>.</h1>
         <p class="lead">I’m Andy — your local, DBS‑checked and fully insured dog walker. I treat your dog like family and send photo & GPS updates after every walk.</p>
         <div class="mini-profile">
-          <img src="{{ url_for('static', filename='img/andy.jpg') }}" alt="Andy, your local dog walker" width="56" height="56" loading="eager" decoding="async" onerror="this.onerror=null;this.src='https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%20male%20andy%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern%2C%20photorealistic?width=200&height=200&nologo=true'">
+          <img src="{{ url_for('static', filename='img/andy.jpg') }}" alt="Profile photo" width="56" height="56" loading="eager" decoding="async" onerror="this.onerror=null;this.src='https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%20male%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern%2C%20photorealistic?width=200&height=200&nologo=true'">
           <div class="text">
             <strong>Andy</strong>
             <span>DBS checked • Insured • First‑aid trained</span>
@@ -26,7 +26,11 @@
       </div>
       <aside class="hero-visual" aria-hidden="true">
         <div class="image-frame">
-          <img src="https://image.pollinations.ai/prompt/professional%20dog%20walker%20with%20friendly%20medium%20dog%20on%20lead%2C%20city%20pavement%2C%20natural%20light%2C%20photorealistic%2C%20emerald%20and%20amber%20tones%2C%20magazine%20quality?width=1100&height=1400&nologo=true" alt="" width="1100" height="1400" loading="eager" decoding="async" fetchpriority="high">
+          <div class="slideshow">
+            <img src="https://image.pollinations.ai/prompt/rear%20view%20man%20walking%20dog%20on%20park%20path%2C%20face%20not%20visible%2C%20city%20greens%2C%20emerald%20and%20amber%20tones%2C%20photorealistic%2C%20magazine%20quality%2C%20no%20face%20shown?width=1100&height=1400&nologo=true" alt="" width="1100" height="1400" loading="eager" decoding="async" fetchpriority="high">
+            <img src="https://image.pollinations.ai/prompt/torso%20and%20hands%20of%20man%20holding%20dog%20lead%2C%20head%20out%20of%20frame%2C%20soft%20overcast%20light%2C%20emerald%20and%20amber%20color%20grade%2C%20photorealistic%2C%20no%20face%20shown?width=1100&height=1400&nologo=true" alt="" width="1100" height="1400" loading="lazy" decoding="async">
+            <img src="https://image.pollinations.ai/prompt/backlit%20silhouette%20man%20with%20dog%20at%20golden%20hour%2C%20face%20obscured%2C%20trail%20scene%2C%20emerald%20and%20amber%20tones%2C%20cinematic%2C%20photorealistic%2C%20no%20face%20shown?width=1100&height=1400&nologo=true" alt="" width="1100" height="1400" loading="lazy" decoding="async">
+          </div>
         </div>
       </aside>
     </div>
@@ -54,7 +58,7 @@
       <div class="owner-grid">
         <aside class="profile-card">
           <div class="avatar">
-            <img src="{{ url_for('static', filename='img/andy.jpg') }}" alt="Andy, your dog walker" width="400" height="400" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%20male%20andy%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern%2C%20photorealistic?width=400&height=400&nologo=true'">
+            <img src="{{ url_for('static', filename='img/andy.jpg') }}" alt="Profile photo" width="400" height="400" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%20male%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern%2C%20photorealistic?width=400&height=400&nologo=true'">
           </div>
           <h3>Friendly, Reliable, Local</h3>
           <p class="contact">Call me: <strong>(555) 123-PAWS</strong><br> Email: <strong>hello@happypawswalking.com</strong></p>
@@ -78,7 +82,7 @@
   <!-- Services & Pricing Section -->
   <section class="services-section">
     <div class="section-block">
-      <h2>Our Services & Pricing</h2>
+      <h2>My Services & Pricing</h2>
       <div class="accordion" id="services-accordion">
         <div class="accordion-item" aria-expanded="false">
           <h3 class="accordion-header" id="header-group">
@@ -243,7 +247,7 @@
     <div class="container">
       <h2>Ready to Book Your Dog's Next Adventure?</h2>
       <a class="btn primary" href="{{ url_for('contact') }}">Send Enquiry</a>
-      <p class="contact-phone">Or call us: <strong>(555) 123-PAWS (7297)</strong></p>
+      <p class="contact-phone">Or call me: <strong>(555) 123-PAWS (7297)</strong></p>
     </div>
   </section>
 {% endblock %}
