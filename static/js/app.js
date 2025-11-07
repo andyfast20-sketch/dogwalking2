@@ -23,3 +23,19 @@
 		}).catch(()=>{});
 	}catch(e){}
 })();
+
+// Simple accordion toggle (progressive enhancement)
+document.addEventListener('click',function(e){
+	const btn=e.target.closest('.accordion-button');
+	if(!btn) return;
+	const item=btn.closest('.accordion-item');
+	const expanded=item.getAttribute('aria-expanded')==='true';
+	// close others in same accordion
+	const parent=item.parentElement;
+	[...parent.querySelectorAll('.accordion-item')].forEach(i=>{
+		i.setAttribute('aria-expanded','false');
+		i.querySelector('.accordion-button')?.setAttribute('aria-expanded','false');
+	});
+	item.setAttribute('aria-expanded',expanded?'false':'true');
+	btn.setAttribute('aria-expanded',expanded?'false':'true');
+});

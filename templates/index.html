@@ -37,9 +37,14 @@
   <section class="owner-intro">
     <div class="container">
       <div class="owner-grid">
-        <div class="owner-image">
-          <div style="width:100%;height:300px;background:linear-gradient(135deg,rgba(16,185,129,.2),rgba(245,158,11,.15));border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:5rem;">🐕</div>
-        </div>
+        <aside class="profile-card">
+          <div class="avatar">
+            <img src="https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern?width=400&height=400&nologo=true" alt="Your dog walker">
+          </div>
+          <h3>Friendly, Reliable, Local</h3>
+          <p class="contact">Call us: <strong>(555) 123-PAWS</strong><br> Email: <strong>hello@happypawswalking.com</strong></p>
+          <a href="{{ url_for('contact') }}" class="btn primary" style="margin-top:10px">Enquire Now</a>
+        </aside>
         <div class="owner-content">
           <h2>Meet Your Dog's Best Friend</h2>
           <h3>Happy Paws Team</h3>
@@ -58,48 +63,72 @@
 
   <!-- Services & Pricing Section -->
   <section class="services-section">
-    <div class="container">
+    <div class="section-block">
       <h2>Our Services & Pricing</h2>
-      <div class="services-grid">
-        <div class="service-card">
-          <h3>Group Walks</h3>
-          <p class="price">From £14/hour</p>
-          <p>Professional group walks in a small, carefully managed group. Great for socialization and exercise.</p>
-          <ul class="service-features">
-            <li>Matched with compatible dogs</li>
-            <li>Safe, dog-friendly routes</li>
-            <li>Real-time updates</li>
-          </ul>
+      <div class="accordion" id="services-accordion">
+        <div class="accordion-item" aria-expanded="false">
+          <h3 class="accordion-header">
+            <button class="accordion-button" type="button" aria-controls="panel-group" aria-expanded="false">
+              Group Walks <span class="accordion-icon">+</span>
+            </button>
+          </h3>
+          <div class="accordion-panel" id="panel-group">
+            <p class="price"><strong>From £14/hour</strong></p>
+            <p>Professional small group walks for socialization, stimulation and exercise in safe dog-friendly areas.</p>
+            <ul class="accordion-list">
+              <li>Matched with compatible temperaments</li>
+              <li>Hydration & rest breaks included</li>
+              <li>GPS route & photo update</li>
+            </ul>
+          </div>
         </div>
-        <div class="service-card">
-          <h3>Solo Walks</h3>
-          <p class="price">£15–£20</p>
-          <p>One-on-one attention tailored to your dog's pace and personality. Perfect for anxious or senior dogs.</p>
-          <ul class="service-features">
-            <li>30–60 minute options</li>
-            <li>Personalized route</li>
-            <li>Photo updates included</li>
-          </ul>
+        <div class="accordion-item" aria-expanded="false">
+          <h3 class="accordion-header">
+            <button class="accordion-button" type="button" aria-controls="panel-solo" aria-expanded="false">
+              Solo Walks <span class="accordion-icon">+</span>
+            </button>
+          </h3>
+          <div class="accordion-panel" id="panel-solo">
+            <p class="price"><strong>£15–£20</strong></p>
+            <p>One-on-one focused walks perfect for anxious, reactive or senior dogs needing tailored pacing.</p>
+            <ul class="accordion-list">
+              <li>30–60 minute tailored durations</li>
+              <li>Calmer, personalized routes</li>
+              <li>Behaviour notes & progress tracking</li>
+            </ul>
+          </div>
         </div>
-        <div class="service-card">
-          <h3>Dog Day Care</h3>
-          <p class="price">£30/day</p>
-          <p>Full-day adventures with group walks, safe play, socialization, and collection & delivery.</p>
-          <ul class="service-features">
-            <li>2 group walks included</li>
-            <li>Safe-play sessions</li>
-            <li>Subject to availability</li>
-          </ul>
+        <div class="accordion-item" aria-expanded="false">
+          <h3 class="accordion-header">
+            <button class="accordion-button" type="button" aria-controls="panel-daycare" aria-expanded="false">
+              Dog Day Care <span class="accordion-icon">+</span>
+            </button>
+          </h3>
+          <div class="accordion-panel" id="panel-daycare">
+            <p class="price"><strong>£30/day</strong></p>
+            <p>A full adventure day with social play, 2 group walks and supervised downtime. Pickup & drop-off included.*</p>
+            <ul class="accordion-list">
+              <li>2 structured group walks</li>
+              <li>Play & social enrichment sessions</li>
+              <li>Collection & delivery (*availability)</li>
+            </ul>
+          </div>
         </div>
-        <div class="service-card">
-          <h3>Puppy & Senior Care</h3>
-          <p class="price">£14/visit</p>
-          <p>Specialized care for puppies needing frequent attention and senior dogs requiring gentle exercise.</p>
-          <ul class="service-features">
-            <li>Tailored attention</li>
-            <li>Socialization support</li>
-            <li>Flexible scheduling</li>
-          </ul>
+        <div class="accordion-item" aria-expanded="false">
+          <h3 class="accordion-header">
+            <button class="accordion-button" type="button" aria-controls="panel-puppy" aria-expanded="false">
+              Puppy & Senior Care <span class="accordion-icon">+</span>
+            </button>
+          </h3>
+          <div class="accordion-panel" id="panel-puppy">
+            <p class="price"><strong>£14/visit</strong></p>
+            <p>Gentle, age-appropriate visits with toilet breaks, light exercise, socialisation or medication support.</p>
+            <ul class="accordion-list">
+              <li>Age & health considerate pacing</li>
+              <li>Socialisation & routine building</li>
+              <li>Flexible scheduling options</li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
@@ -107,17 +136,28 @@
 
   <!-- Areas Covered Section -->
   <section class="areas-section">
-    <div class="container">
+    <div class="section-block">
       <h2>Service Areas</h2>
-      <div class="areas-grid">
-        <div class="area-card">Downtown</div>
-        <div class="area-card">Riverside Park District</div>
-        <div class="area-card">Northside Neighborhood</div>
-        <div class="area-card">Central Commons</div>
-        <div class="area-card">West End</div>
-        <div class="area-card">East Hills</div>
+      <div class="accordion" id="areas-accordion">
+        <div class="accordion-item" aria-expanded="false">
+          <h3 class="accordion-header">
+            <button class="accordion-button" type="button" aria-controls="panel-areas" aria-expanded="false">
+              Coverage List <span class="accordion-icon">+</span>
+            </button>
+          </h3>
+          <div class="accordion-panel" id="panel-areas">
+            <div class="areas-grid">
+              <div class="area-card">Downtown</div>
+              <div class="area-card">Riverside Park District</div>
+              <div class="area-card">Northside Neighborhood</div>
+              <div class="area-card">Central Commons</div>
+              <div class="area-card">West End</div>
+              <div class="area-card">East Hills</div>
+            </div>
+            <p class="areas-note">Expanding monthly – ask if your area is next.</p>
+          </div>
+        </div>
       </div>
-      <p class="areas-note">We're expanding! Contact us to see if your area is covered or coming soon.</p>
     </div>
   </section>
 
@@ -127,19 +167,33 @@
       <h2>What Dog Parents Say</h2>
       <div class="testimonials-grid">
         <div class="testimonial">
+          <img class="avatar" src="https://image.pollinations.ai/prompt/happy%20dog%20owner%20portrait%20outdoors%20soft%20light?width=400&height=400&nologo=true" alt="Dog owner portrait">
           <div class="stars">★★★★★</div>
-          <p class="testimonial-text">"My dog absolutely loves his walks with Happy Paws. He's always happy, tired in the best way, and I can see how much care they put into their work!"</p>
+          <p class="testimonial-text">"My dog absolutely loves his walks with Happy Paws. He comes home content and ready for a nap. The photo updates are awesome!"</p>
           <p class="testimonial-author">— Sarah J.</p>
         </div>
         <div class="testimonial">
+          <img class="avatar" src="https://image.pollinations.ai/prompt/smiling%20person%20with%20small%20dog%20portrait%20natural%20light?width=400&height=400&nologo=true" alt="Dog owner with small dog">
           <div class="stars">★★★★★</div>
-          <p class="testimonial-text">"Professional, reliable, and truly dog-focused. I trust them completely with my anxious rescue. They've done wonders for his confidence!"</p>
+          <p class="testimonial-text">"Reliable, friendly, and they really understand anxious dogs. Mine is calmer and more confident thanks to their patient walks."</p>
           <p class="testimonial-author">— Mike R.</p>
         </div>
         <div class="testimonial">
+          <img class="avatar" src="https://image.pollinations.ai/prompt/happy%20dog%20with%20walker%20portrait%20vibrant%20colors?width=400&height=400&nologo=true" alt="Dog and walker portrait">
           <div class="stars">★★★★★</div>
-          <p class="testimonial-text">"GPS tracking and photo updates are fantastic. I always know exactly where my pup is and how they're doing. Highly recommended!"</p>
+          <p class="testimonial-text">"The GPS tracking and route summaries give total peace of mind. Highly recommended for busy pet parents who still want transparency."</p>
           <p class="testimonial-author">— Emma L.</p>
+        </div>
+      </div>
+      <div class="gallery-section">
+        <h2>Gallery</h2>
+        <div class="gallery-grid">
+          <div class="shot"><img src="https://image.pollinations.ai/prompt/dog%20running%20in%20park%20sunlit%20grass%20emerald%20tones?width=800&height=600&nologo=true" alt="Dog running"></div>
+          <div class="shot"><img src="https://image.pollinations.ai/prompt/dog%20walker%20with%20group%20small%20dogs%20city%20pavement%20morning%20light?width=800&height=600&nologo=true" alt="Group walk"></div>
+          <div class="shot"><img src="https://image.pollinations.ai/prompt/happy%20senior%20dog%20on%20gentle%20walk%20soft%20light?width=800&height=600&nologo=true" alt="Senior dog"></div>
+          <div class="shot"><img src="https://image.pollinations.ai/prompt/puppy%20playing%20with%20leaf%20autumn%20path%20amber%20tones?width=800&height=600&nologo=true" alt="Puppy play"></div>
+          <div class="shot"><img src="https://image.pollinations.ai/prompt/dog%20walker%20clipping%20lead%20close%20up%20hands%20care%20emerald%20warm%20tones?width=800&height=600&nologo=true" alt="Lead clip"></div>
+          <div class="shot"><img src="https://image.pollinations.ai/prompt/dog%20looking%20back%20on%20trail%20golden%20hour%20emerald%20and%20amber?width=800&height=600&nologo=true" alt="Trail glance"></div>
         </div>
       </div>
     </div>
