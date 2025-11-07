@@ -295,7 +295,24 @@ def admin_dashboard():
     auth_result = require_admin()
     if isinstance(auth_result, Response):
         return auth_result
-    return render_template('admin_dashboard.html')
+    
+    init_db()
+    with engine.begin() as conn:
+        # Count open chats
+        open_chats = conn.execute(text("SELECT COUNT(*) FROM chats WHERE status='open'")).scalar() or 0
+        
+        # Count new enquiries (status='new')
+        new_enquiries = conn.execute(text("SELECT COUNT(*) FROM enquiries WHERE status='new'")).scalar() or 0
+        
+        # Count recent visitors (last 24 hours)
+        from datetime import datetime, timedelta
+        cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
+        active_visitors = conn.execute(text("SELECT COUNT(DISTINCT sid) FROM events WHERE created_at > :cutoff"), {"cutoff": cutoff}).scalar() or 0
+    
+    return render_template('admin_dashboard.html', 
+                         open_chats=open_chats,
+                         new_enquiries=new_enquiries, 
+                         active_visitors=active_visitors)
 
 @app.route('/admin/enquiries')
 def admin_enquiries():

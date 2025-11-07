@@ -2,13 +2,17 @@
 {% block title %}Admin Dashboard{% endblock %}
 {% block extra_head %}
 <style>
-  .admin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px;max-width:1100px;margin:40px auto;padding:0 clamp(20px,5vw,60px)}
-  .admin-card{background:linear-gradient(180deg,rgba(16,185,129,.08),rgba(16,185,129,.03));border:2px solid rgba(16,185,129,.25);border-radius:20px;padding:32px;cursor:pointer;transition:all .35s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
-  .admin-card::before{content:'';position:absolute;top:0;right:0;width:120px;height:120px;background:radial-gradient(circle,rgba(34,197,94,.2),transparent 70%);pointer-events:none}
-  .admin-card:hover{transform:translateY(-6px);box-shadow:0 20px 60px rgba(16,185,129,.3),0 8px 30px rgba(0,0,0,.5);border-color:var(--brand)}
-  .admin-card-icon{font-size:3rem;margin-bottom:16px}
-  .admin-card h2{margin:0 0 8px;font-size:1.5rem;background:linear-gradient(135deg,var(--brand),var(--accent-light));-webkit-background-clip:text;background-clip:text;color:transparent}
-  .admin-card p{color:var(--muted);margin:0;font-size:.95rem;line-height:1.6}
+  .admin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:960px;margin:30px auto;padding:0 clamp(20px,5vw,60px)}
+  @media(max-width:900px){.admin-grid{grid-template-columns:1fr}}
+  .admin-card{background:linear-gradient(180deg,rgba(16,185,129,.08),rgba(16,185,129,.03));border:2px solid rgba(16,185,129,.25);border-radius:18px;padding:24px;cursor:pointer;transition:all .35s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
+  .admin-card::before{content:'';position:absolute;top:0;right:0;width:80px;height:80px;background:radial-gradient(circle,rgba(34,197,94,.2),transparent 70%);pointer-events:none}
+  .admin-card:hover{transform:translateY(-4px);box-shadow:0 16px 50px rgba(16,185,129,.3),0 6px 24px rgba(0,0,0,.5);border-color:var(--brand)}
+  .admin-card-icon{font-size:2.5rem;margin-bottom:12px}
+  .admin-card h2{margin:0 0 6px;font-size:1.25rem;background:linear-gradient(135deg,var(--brand),var(--accent-light));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .admin-card p{color:var(--muted);margin:0;font-size:.85rem;line-height:1.5}
+  .admin-card .badge{position:absolute;top:12px;right:12px;background:var(--brand);color:#fff;padding:4px 10px;border-radius:12px;font-size:.75rem;font-weight:700;box-shadow:0 4px 12px rgba(34,197,94,.4)}
+  @keyframes pulse-glow{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.7),0 16px 50px rgba(16,185,129,.3)}50%{box-shadow:0 0 20px 8px rgba(34,197,94,.4),0 16px 50px rgba(16,185,129,.5)}}
+  .admin-card.pulse{animation:pulse-glow 2s ease-in-out infinite}
   .admin-section{display:none;max-width:1200px;margin:0 auto;padding:20px clamp(20px,5vw,60px)}
   .admin-section.active{display:block}
   .admin-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
@@ -27,22 +31,25 @@
 
 <!-- Dashboard Cards -->
 <div id="dashboard-cards" class="admin-grid">
-  <div class="admin-card" onclick="showSection('chats')">
+  <div class="admin-card {% if open_chats > 0 %}pulse{% endif %}" onclick="showSection('chats')">
+    {% if open_chats > 0 %}<span class="badge">{{ open_chats }}</span>{% endif %}
     <div class="admin-card-icon">💬</div>
     <h2>Live Chat Console</h2>
-    <p>View and respond to visitor chats in real-time. Manage active conversations and support requests.</p>
+    <p>View and respond to visitor chats in real-time.</p>
   </div>
   
-  <div class="admin-card" onclick="showSection('enquiries')">
+  <div class="admin-card {% if new_enquiries > 0 %}pulse{% endif %}" onclick="showSection('enquiries')">
+    {% if new_enquiries > 0 %}<span class="badge">{{ new_enquiries }}</span>{% endif %}
     <div class="admin-card-icon">📬</div>
     <h2>Enquiries</h2>
-    <p>Review all contact form submissions, track status, and manage customer inquiries.</p>
+    <p>Review contact form submissions and inquiries.</p>
   </div>
   
-  <div class="admin-card" onclick="showSection('visitors')">
+  <div class="admin-card {% if active_visitors > 0 %}pulse{% endif %}" onclick="showSection('visitors')">
+    {% if active_visitors > 0 %}<span class="badge">{{ active_visitors }}</span>{% endif %}
     <div class="admin-card-icon">👥</div>
     <h2>Visitors Analytics</h2>
-    <p>Track visitor activity, analyze behavior patterns, and gain insights into site traffic.</p>
+    <p>Track visitor activity and behavior patterns.</p>
   </div>
 </div>
 
