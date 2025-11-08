@@ -176,19 +176,8 @@ function reloadIPList() {
   if (typeof showSection === 'function') {
     showSection('ip-management');
   } else {
-    // Fallback: reload the entire page content
-    fetch('/admin/ip-management')
-      .then(r => r.text())
-      .then(html => {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const newContent = doc.querySelector('section');
-        if (newContent) {
-          document.querySelector('section').innerHTML = newContent.innerHTML;
-        } else {
-          location.reload();
-        }
-      });
+    // Fallback: reload the entire page
+    location.reload();
   }
 }
 </script>
