@@ -148,9 +148,15 @@ def init_db():
                 name TEXT,
                 status TEXT NOT NULL DEFAULT 'open',
                 created_at TEXT NOT NULL,
-                last_activity TEXT NOT NULL
+                last_activity TEXT NOT NULL,
+                ip TEXT
             )
         """))
+        # Add ip column if it doesn't exist (for existing databases)
+        try:
+            conn.execute(text("ALTER TABLE chats ADD COLUMN ip TEXT"))
+        except Exception:
+            pass  # column already exists
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS chat_messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -582,13 +588,14 @@ def chat_start():
     init_db()
     with engine.begin() as conn:
         sid = request.cookies.get('sid') or request.form.get('sid') or ''
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
         # Reuse existing open chat for this sid if present
         row = conn.execute(text("SELECT id FROM chats WHERE sid=:sid AND status='open' ORDER BY id DESC LIMIT 1"), {"sid": sid}).fetchone()
         if row:
             chat_id = row.id
         else:
             now = datetime.utcnow().isoformat()
-            res = conn.execute(text("INSERT INTO chats (sid, name, status, created_at, last_activity) VALUES (:sid, :name, 'open', :c, :c)"), {"sid": sid, "name": request.form.get('name') or '', "c": now})
+            res = conn.execute(text("INSERT INTO chats (sid, name, status, created_at, last_activity, ip) VALUES (:sid, :name, 'open', :c, :c, :ip)"), {"sid": sid, "name": request.form.get('name') or '', "c": now, "ip": ip})
             chat_id = res.lastrowid if hasattr(res, 'lastrowid') else conn.execute(text("SELECT last_insert_rowid() as id")).fetchone().id
             # Seed a welcome message from admin
             conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :msg, :t)"), {"cid": chat_id, "msg": "Hi! How can I help with your walks today?", "t": now})
@@ -652,7 +659,45 @@ def admin_chat_view(chat_id: int):
     if isinstance(auth_result, Response):
         return auth_result
     init_db()
-    return render_template('admin_chat.html', chat_id=chat_id)
+    
+    # Get current chat info including IP
+    with engine.begin() as conn:
+        current_chat = conn.execute(text("SELECT id, sid, name, ip, created_at FROM chats WHERE id=:cid"), {"cid": chat_id}).fetchone()
+        
+        if not current_chat:
+            abort(404)
+        
+        visitor_ip = current_chat.ip
+        is_returning = False
+        previous_chats = []
+        
+        # Check if this IP has previous chats
+        if visitor_ip:
+            prev_rows = conn.execute(text(
+                "SELECT id, name, created_at, status FROM chats WHERE ip=:ip AND id!=:cid ORDER BY created_at DESC"
+            ), {"ip": visitor_ip, "cid": chat_id}).fetchall()
+            
+            if prev_rows:
+                is_returning = True
+                # Get message history for each previous chat
+                for prev_chat in prev_rows:
+                    messages = conn.execute(text(
+                        "SELECT sender, message, created_at FROM chat_messages WHERE chat_id=:cid ORDER BY id ASC"
+                    ), {"cid": prev_chat.id}).fetchall()
+                    
+                    previous_chats.append({
+                        'id': prev_chat.id,
+                        'name': prev_chat.name or 'Visitor',
+                        'created_at': prev_chat.created_at,
+                        'status': prev_chat.status,
+                        'messages': [{'sender': m.sender, 'message': m.message, 'created_at': m.created_at} for m in messages]
+                    })
+    
+    return render_template('admin_chat.html', 
+                         chat_id=chat_id, 
+                         is_returning=is_returning, 
+                         previous_chats=previous_chats,
+                         visitor_ip=visitor_ip)
 
 @app.post('/admin/chats/close/<int:chat_id>')
 def admin_chat_close(chat_id: int):

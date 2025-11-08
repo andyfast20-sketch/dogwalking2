@@ -4,19 +4,63 @@
 <style>
   @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.7)}50%{box-shadow:0 0 0 12px rgba(34,197,94,0)}}
   .pulse{animation:pulse 1.2s ease-in-out}
+  details summary{list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  details[open] summary span{transform:rotate(90deg)}
+  details summary span{display:inline-block;transition:transform .25s}
 </style>
 {% endblock %}
 {% block content %}
 <section class="container" style="max-width:900px">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
     <div>
-      <h1 style="margin:0">Chat #{{ chat_id }}</h1>
+      <h1 style="margin:0;display:flex;align-items:center;gap:12px">
+        Chat #{{ chat_id }}
+        {% if is_returning %}
+        <span style="background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#082621;padding:6px 14px;border-radius:20px;font-size:.75rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;box-shadow:0 4px 12px rgba(245,158,11,.4)">🔄 Returning Visitor</span>
+        {% endif %}
+      </h1>
       <p style="margin-top:4px;color:var(--muted)">Reply in real time. This page auto‑refreshes messages.</p>
+      {% if visitor_ip %}
+      <p style="margin-top:2px;font-size:.8rem;color:var(--muted)">IP: {{ visitor_ip }}</p>
+      {% endif %}
     </div>
     <form method="post" action="{{ url_for('admin_chat_close', chat_id=chat_id) }}" style="margin:0">
       <button class="btn" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;padding:10px 20px;white-space:nowrap" type="submit">Close Chat</button>
     </form>
   </div>
+  
+  {% if is_returning and previous_chats %}
+  <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:16px;padding:16px;margin-bottom:20px">
+    <h3 style="margin:0 0 12px;font-size:1rem;color:var(--accent-light)">📜 Previous Chat History ({{ previous_chats|length }} chat{{ 's' if previous_chats|length != 1 else '' }})</h3>
+    <details style="cursor:pointer">
+      <summary style="font-weight:600;color:var(--text);padding:8px 0;list-style:none;display:flex;align-items:center;gap:8px">
+        <span style="font-size:1.2rem">▶</span> View Previous Conversations
+      </summary>
+      <div style="margin-top:12px;display:flex;flex-direction:column;gap:16px">
+        {% for prev in previous_chats %}
+        <div style="background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.08)">
+            <strong style="color:var(--brand)">Chat #{{ prev.id }} - {{ prev.name }}</strong>
+            <span style="font-size:.75rem;color:var(--muted)">{{ prev.created_at|uk_datetime }} · {{ prev.status }}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto">
+            {% for msg in prev.messages %}
+            <div style="display:flex;justify-content:{{ 'flex-end' if msg.sender == 'admin' else 'flex-start' }}">
+              <div style="max-width:75%;padding:8px 12px;border-radius:10px;font-size:.85rem;{{ 'background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff' if msg.sender == 'admin' else 'background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)' }}">
+                <div style="font-weight:600;font-size:.7rem;opacity:.7;margin-bottom:2px">{{ 'You' if msg.sender == 'admin' else 'Visitor' }}</div>
+                {{ msg.message }}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </details>
+  </div>
+  {% endif %}
+  
   <div id="admin-chat" data-chat-id="{{ chat_id }}" class="admin-chat-box" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:12px;height:calc(100vh - 320px);max-height:700px">
     <div id="admin-chat-messages" style="flex:1;overflow:auto;display:flex;flex-direction:column;gap:10px;min-height:0"></div>
     <form id="admin-chat-form" style="display:flex;gap:10px">
