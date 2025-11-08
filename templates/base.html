@@ -11,6 +11,16 @@
   {% block extra_head %}{% endblock %}
 </head>
 <body>
+  {% if maintenance_mode %}
+  <!-- Maintenance Mode Banner -->
+  <div style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;text-align:center;padding:16px 20px;font-weight:700;letter-spacing:.5px;font-size:1rem;box-shadow:0 4px 12px rgba(0,0,0,.3);position:relative;z-index:1000;border-bottom:3px solid #991b1b">
+    <div style="max-width:1180px;margin:0 auto;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap">
+      <span style="font-size:1.5rem">⚠️</span>
+      <span>WEBSITE IS UNDER CONSTRUCTION - DO NOT PLACE ANY BOOKINGS</span>
+      <span style="font-size:1.5rem">⚠️</span>
+    </div>
+  </div>
+  {% endif %}
   <header class="site-header">
     <div class="header-inner">
       <div class="logo-wrap">

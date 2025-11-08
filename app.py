@@ -30,6 +30,13 @@ except Exception:
 
 app = Flask(__name__)
 
+@app.context_processor
+def inject_globals():
+    """Make maintenance_mode available to all templates"""
+    return {
+        'maintenance_mode': get_maintenance_mode()
+    }
+
 @app.route('/')
 def home():
     services = fetch_services()
@@ -193,6 +200,18 @@ def init_db():
                 conn.execute(text(
                     "INSERT INTO site_content (section, key, title, price, content, sort_order) VALUES (:sec, :key, :title, :price, :content, :order)"
                 ), {"sec": "services", "key": key, "title": title, "price": price, "content": content, "order": order})
+        # Site settings table for global configurations
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS site_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        """))
+        # Initialize maintenance mode to off if not exists
+        try:
+            conn.execute(text("INSERT INTO site_settings (key, value) VALUES ('maintenance_mode', 'false')"))
+        except Exception:
+            pass  # setting already exists
 
 def save_enquiry(name: str, email: str, dog: str, message: str):
     init_db()
@@ -227,6 +246,20 @@ def fetch_services():
                 'sort_order': r.sort_order
             })
         return services
+
+def get_maintenance_mode():
+    """Get current maintenance mode status"""
+    init_db()
+    with engine.begin() as conn:
+        result = conn.execute(text("SELECT value FROM site_settings WHERE key='maintenance_mode'")).fetchone()
+        return result.value == 'true' if result else False
+
+def set_maintenance_mode(enabled: bool):
+    """Set maintenance mode on or off"""
+    init_db()
+    value = 'true' if enabled else 'false'
+    with engine.begin() as conn:
+        conn.execute(text("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('maintenance_mode', :val)"), {"val": value})
 
 def fetch_enquiries():
     init_db()
@@ -760,7 +793,8 @@ def admin_content():
     if isinstance(auth_result, Response):
         return auth_result
     services = fetch_services()
-    return render_template('admin_content.html', services=services)
+    maintenance_mode = get_maintenance_mode()
+    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode)
 
 @app.post('/admin/content/service/<int:service_id>')
 def admin_content_update(service_id: int):
@@ -780,6 +814,17 @@ def admin_content_update(service_id: int):
         conn.execute(text(
             "UPDATE site_content SET title=:title, price=:price, content=:content WHERE id=:id"
         ), {"title": title, "price": price, "content": content, "id": service_id})
+    
+    return redirect(url_for('admin_content'))
+
+@app.post('/admin/content/maintenance-mode')
+def admin_maintenance_toggle():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    enabled = request.form.get('enabled') == 'true'
+    set_maintenance_mode(enabled)
     
     return redirect(url_for('admin_content'))
 

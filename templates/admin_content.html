@@ -5,6 +5,36 @@
   <h1 style="margin-bottom:10px">Website Content Editor</h1>
   <p style="margin-top:0;color:var(--muted)">Edit the services & pricing section displayed on the home page.</p>
   
+  <!-- Maintenance Mode Toggle -->
+  <div style="background:linear-gradient(180deg,rgba(245,158,11,.12),rgba(245,158,11,.06));border:2px solid rgba(245,158,11,.3);border-radius:16px;padding:24px;margin-top:24px;margin-bottom:32px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
+      <div>
+        <h3 style="margin:0 0 8px;color:var(--accent-light);font-size:1.2rem">⚠️ Maintenance Mode</h3>
+        <p style="margin:0;color:var(--text);font-size:.9rem">Display a warning banner at the top of all pages</p>
+        <p style="margin:4px 0 0;color:var(--muted);font-size:.8rem">Message: "WEBSITE IS UNDER CONSTRUCTION - DO NOT PLACE ANY BOOKINGS"</p>
+      </div>
+      <form method="post" action="{{ url_for('admin_maintenance_toggle') }}" style="margin:0">
+        <input type="hidden" name="enabled" value="{% if maintenance_mode_enabled %}false{% else %}true{% endif %}" />
+        {% if maintenance_mode_enabled %}
+        <button class="btn" type="submit" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;padding:12px 24px;font-weight:700;white-space:nowrap">
+          Turn OFF Maintenance Mode
+        </button>
+        {% else %}
+        <button class="btn" type="submit" style="background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#082621;padding:12px 24px;font-weight:700;white-space:nowrap">
+          Turn ON Maintenance Mode
+        </button>
+        {% endif %}
+      </form>
+    </div>
+    {% if maintenance_mode_enabled %}
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(245,158,11,.2)">
+      <div style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:12px;text-align:center">
+        <strong style="color:#fca5a5;font-size:.9rem">🚨 WARNING BANNER IS CURRENTLY ACTIVE ON ALL PAGES</strong>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  
   <div style="margin-top:30px;display:flex;flex-direction:column;gap:24px">
     {% for service in services %}
     <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px">
