@@ -193,7 +193,20 @@ async function showSection(name){
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
     const content = doc.querySelector('.container') || doc.querySelector('section');
-    if(content) contentDiv.innerHTML = content.innerHTML;
+    if(content) {
+      contentDiv.innerHTML = content.innerHTML;
+      
+      // Execute scripts in the loaded content
+      const scripts = contentDiv.querySelectorAll('script');
+      scripts.forEach(oldScript => {
+        const newScript = document.createElement('script');
+        Array.from(oldScript.attributes).forEach(attr => {
+          newScript.setAttribute(attr.name, attr.value);
+        });
+        newScript.textContent = oldScript.textContent;
+        oldScript.parentNode.replaceChild(newScript, oldScript);
+      });
+    }
     
     // Start polling for chats
     if(name==='chats'){
