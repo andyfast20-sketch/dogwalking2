@@ -13,35 +13,311 @@
   <!-- Create New Booking Slot -->
   <div style="background:linear-gradient(180deg,rgba(34,197,94,.08),rgba(34,197,94,.03));border:2px solid rgba(34,197,94,.25);border-radius:16px;padding:24px;margin-bottom:32px">
     <h2 style="margin:0 0 16px;color:var(--brand);font-size:1.3rem">➕ Create New Booking Slot</h2>
-    <form method="post" action="{{ url_for('admin_create_slot') }}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;align-items:end">
-      <label style="display:flex;flex-direction:column;gap:6px">
-        <strong style="font-size:.9rem">Date (DD/MM/YYYY)</strong>
-        <input type="text" name="date" placeholder="25/12/2025" pattern="\d{2}/\d{2}/\d{4}" required
-          style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
-      </label>
-      <label style="display:flex;flex-direction:column;gap:6px">
-        <strong style="font-size:.9rem">Time (HH:MM)</strong>
-        <input type="text" name="time" placeholder="14:30" pattern="\d{2}:\d{2}" required
-          style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
-      </label>
-      <label style="display:flex;flex-direction:column;gap:6px">
-        <strong style="font-size:.9rem">Duration (minutes)</strong>
-        <input type="number" name="duration" value="60" min="15" max="480" required
-          style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
-      </label>
-      <label style="display:flex;flex-direction:column;gap:6px">
-        <strong style="font-size:.9rem">Capacity</strong>
-        <input type="number" name="capacity" value="1" min="1" max="10" required
-          style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
-      </label>
-      <label style="display:flex;flex-direction:column;gap:6px;grid-column:1/-1">
-        <strong style="font-size:.9rem">Notes (optional)</strong>
-        <input type="text" name="notes" placeholder="Group walk in park"
-          style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
-      </label>
-      <button type="submit" class="btn primary" style="padding:12px 24px;font-weight:700;white-space:nowrap">Create Slot</button>
+    <form method="post" action="{{ url_for('admin_create_slot') }}" id="slot-form">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:20px">
+        
+        <!-- Date Picker Column -->
+        <div>
+          <strong style="display:block;margin-bottom:12px;font-size:1rem">Select Date</strong>
+          <div id="calendar" style="background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:16px"></div>
+          <input type="hidden" name="date" id="selected-date" required />
+          <div id="date-display" style="margin-top:12px;padding:12px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);border-radius:10px;text-align:center;font-weight:700;color:var(--brand);display:none"></div>
+        </div>
+        
+        <!-- Time & Details Column -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div>
+            <strong style="display:block;margin-bottom:8px;font-size:1rem">Select Time</strong>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" id="time-grid">
+              <!-- Morning -->
+              <button type="button" class="time-btn" data-time="09:00">09:00</button>
+              <button type="button" class="time-btn" data-time="09:30">09:30</button>
+              <button type="button" class="time-btn" data-time="10:00">10:00</button>
+              <button type="button" class="time-btn" data-time="10:30">10:30</button>
+              <button type="button" class="time-btn" data-time="11:00">11:00</button>
+              <button type="button" class="time-btn" data-time="11:30">11:30</button>
+              <button type="button" class="time-btn" data-time="12:00">12:00</button>
+              <button type="button" class="time-btn" data-time="12:30">12:30</button>
+              <!-- Afternoon -->
+              <button type="button" class="time-btn" data-time="13:00">13:00</button>
+              <button type="button" class="time-btn" data-time="13:30">13:30</button>
+              <button type="button" class="time-btn" data-time="14:00">14:00</button>
+              <button type="button" class="time-btn" data-time="14:30">14:30</button>
+              <button type="button" class="time-btn" data-time="15:00">15:00</button>
+              <button type="button" class="time-btn" data-time="15:30">15:30</button>
+              <button type="button" class="time-btn" data-time="16:00">16:00</button>
+              <button type="button" class="time-btn" data-time="16:30">16:30</button>
+              <button type="button" class="time-btn" data-time="17:00">17:00</button>
+              <button type="button" class="time-btn" data-time="17:30">17:30</button>
+              <button type="button" class="time-btn" data-time="18:00">18:00</button>
+              <button type="button" class="time-btn" data-time="18:30">18:30</button>
+            </div>
+            <input type="hidden" name="time" id="selected-time" required />
+            <div style="margin-top:8px;text-align:center">
+              <input type="text" placeholder="Custom time (HH:MM)" id="custom-time" 
+                style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;text-align:center;width:150px" />
+            </div>
+          </div>
+          
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <label style="display:flex;flex-direction:column;gap:6px">
+              <strong style="font-size:.9rem">Duration (mins)</strong>
+              <select name="duration" style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem">
+                <option value="30">30 minutes</option>
+                <option value="45">45 minutes</option>
+                <option value="60" selected>1 hour</option>
+                <option value="90">1.5 hours</option>
+                <option value="120">2 hours</option>
+              </select>
+            </label>
+            <label style="display:flex;flex-direction:column;gap:6px">
+              <strong style="font-size:.9rem">Capacity</strong>
+              <select name="capacity" style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem">
+                <option value="1" selected>1 dog</option>
+                <option value="2">2 dogs</option>
+                <option value="3">3 dogs</option>
+                <option value="4">4 dogs</option>
+                <option value="5">5 dogs</option>
+              </select>
+            </label>
+          </div>
+          
+          <label style="display:flex;flex-direction:column;gap:6px">
+            <strong style="font-size:.9rem">Notes (optional)</strong>
+            <input type="text" name="notes" placeholder="e.g., Park walk, Beach visit"
+              style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem" />
+          </label>
+        </div>
+      </div>
+      
+      <button type="submit" class="btn primary" style="padding:14px 32px;font-weight:700;font-size:1.05rem;width:100%">
+        ➕ Create Booking Slot
+      </button>
     </form>
   </div>
+  
+  <style>
+  .calendar {
+    user-select: none;
+  }
+  .calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+  }
+  .calendar-header button {
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.16);
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all .2s;
+  }
+  .calendar-header button:hover {
+    background: rgba(34,197,94,.2);
+    border-color: var(--brand);
+  }
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .calendar-day-name {
+    text-align: center;
+    font-weight: 700;
+    font-size: .75rem;
+    color: var(--brand);
+    padding: 8px 4px;
+  }
+  .calendar-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: .9rem;
+    transition: all .2s;
+    background: rgba(255,255,255,.02);
+    border: 1px solid rgba(255,255,255,.05);
+    color: var(--text);
+  }
+  .calendar-day:hover:not(.disabled):not(.other-month) {
+    background: rgba(34,197,94,.15);
+    border-color: rgba(34,197,94,.4);
+    transform: scale(1.05);
+  }
+  .calendar-day.selected {
+    background: var(--brand) !important;
+    color: #082621 !important;
+    font-weight: 700;
+    border-color: var(--brand);
+  }
+  .calendar-day.today {
+    border: 2px solid rgba(245,158,11,.5);
+  }
+  .calendar-day.disabled {
+    opacity: .3;
+    cursor: not-allowed;
+    background: rgba(0,0,0,.2);
+  }
+  .calendar-day.other-month {
+    opacity: .3;
+    color: var(--muted);
+  }
+  .time-btn {
+    padding: 10px 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.16);
+    background: rgba(255,255,255,.04);
+    color: var(--text);
+    cursor: pointer;
+    transition: all .2s;
+    font-size: .9rem;
+    font-weight: 600;
+  }
+  .time-btn:hover {
+    background: rgba(34,197,94,.15);
+    border-color: rgba(34,197,94,.4);
+  }
+  .time-btn.selected {
+    background: var(--brand);
+    color: #082621;
+    border-color: var(--brand);
+  }
+  </style>
+  
+  <script>
+  // Calendar logic
+  let currentMonth = new Date().getMonth();
+  let currentYear = new Date().getFullYear();
+  let selectedDate = null;
+  
+  function renderCalendar() {
+    const calendar = document.getElementById('calendar');
+    const firstDay = new Date(currentYear, currentMonth, 1);
+    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+    const prevLastDay = new Date(currentYear, currentMonth, 0);
+    const startDay = firstDay.getDay();
+    const totalDays = lastDay.getDate();
+    
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+    
+    let html = '<div class="calendar-header">';
+    html += '<button type="button" onclick="changeMonth(-1)">← Prev</button>';
+    html += '<strong style="color:var(--brand);font-size:1.1rem">' + monthNames[currentMonth] + ' ' + currentYear + '</strong>';
+    html += '<button type="button" onclick="changeMonth(1)">Next →</button>';
+    html += '</div>';
+    
+    html += '<div class="calendar-grid">';
+    
+    // Day names
+    ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
+      html += '<div class="calendar-day-name">' + day + '</div>';
+    });
+    
+    // Previous month days
+    for (let i = startDay - 1; i >= 0; i--) {
+      const day = prevLastDay.getDate() - i;
+      html += '<div class="calendar-day other-month">' + day + '</div>';
+    }
+    
+    // Current month days
+    const today = new Date();
+    for (let day = 1; day <= totalDays; day++) {
+      const date = new Date(currentYear, currentMonth, day);
+      const isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const isToday = date.getDate() === today.getDate() && 
+                      date.getMonth() === today.getMonth() && 
+                      date.getFullYear() === today.getFullYear();
+      const dateStr = formatDate(date);
+      const isSelected = selectedDate === dateStr;
+      
+      html += '<div class="calendar-day ' + 
+              (isPast ? 'disabled' : '') + 
+              (isToday ? ' today' : '') + 
+              (isSelected ? ' selected' : '') + 
+              '" onclick="selectDate(\'' + dateStr + '\')">' + day + '</div>';
+    }
+    
+    // Next month days
+    const remainingDays = 42 - (startDay + totalDays);
+    for (let day = 1; day <= remainingDays; day++) {
+      html += '<div class="calendar-day other-month">' + day + '</div>';
+    }
+    
+    html += '</div>';
+    calendar.innerHTML = html;
+  }
+  
+  function formatDate(date) {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return day + '/' + month + '/' + year;
+  }
+  
+  function selectDate(dateStr) {
+    selectedDate = dateStr;
+    document.getElementById('selected-date').value = dateStr;
+    document.getElementById('date-display').textContent = '📅 Selected: ' + dateStr;
+    document.getElementById('date-display').style.display = 'block';
+    renderCalendar();
+  }
+  
+  function changeMonth(delta) {
+    currentMonth += delta;
+    if (currentMonth < 0) {
+      currentMonth = 11;
+      currentYear--;
+    } else if (currentMonth > 11) {
+      currentMonth = 0;
+      currentYear++;
+    }
+    renderCalendar();
+  }
+  
+  // Time selection
+  document.querySelectorAll('.time-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
+      this.classList.add('selected');
+      document.getElementById('selected-time').value = this.dataset.time;
+      document.getElementById('custom-time').value = '';
+    });
+  });
+  
+  // Custom time input
+  document.getElementById('custom-time').addEventListener('input', function() {
+    if (this.value.match(/^\d{2}:\d{2}$/)) {
+      document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
+      document.getElementById('selected-time').value = this.value;
+    }
+  });
+  
+  // Form validation
+  document.getElementById('slot-form').addEventListener('submit', function(e) {
+    if (!document.getElementById('selected-date').value) {
+      e.preventDefault();
+      alert('Please select a date from the calendar');
+      return;
+    }
+    if (!document.getElementById('selected-time').value) {
+      e.preventDefault();
+      alert('Please select a time slot');
+      return;
+    }
+  });
+  
+  // Initialize calendar
+  renderCalendar();
+  </script>
   
   <!-- Booking Slots Table -->
   <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px;margin-bottom:32px">
