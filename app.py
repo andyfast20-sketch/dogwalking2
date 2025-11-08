@@ -650,7 +650,7 @@ def fetch_all_ips():
         result = conn.execute(text("""
             SELECT ip_address, visit_count, is_blocked, country, city, first_visit, last_visit, user_agent
             FROM ip_tracking
-            ORDER BY visit_count DESC, last_visit DESC
+            ORDER BY last_visit DESC, visit_count DESC
         """))
         ips = []
         for r in result:
@@ -672,6 +672,12 @@ def toggle_ip_block(ip_address: str, block: bool):
     with engine.begin() as conn:
         conn.execute(text("UPDATE ip_tracking SET is_blocked = :blocked WHERE ip_address = :ip"), 
                     {"blocked": 1 if block else 0, "ip": ip_address})
+
+def delete_ip(ip_address: str):
+    """Delete an IP address from tracking"""
+    init_db()
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM ip_tracking WHERE ip_address = :ip"), {"ip": ip_address})
 
 def fetch_enquiries():
     init_db()
@@ -1449,6 +1455,20 @@ def admin_unblock_ip(ip_address: str):
     try:
         toggle_ip_block(ip_address, False)
         return jsonify({'success': True, 'message': 'IP unblocked successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/admin/delete-ip/<ip_address>', methods=['POST'])
+def admin_delete_ip(ip_address: str):
+    """Delete an IP address from tracking"""
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    try:
+        delete_ip(ip_address)
+        return jsonify({'success': True, 'message': 'IP deleted successfully'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
