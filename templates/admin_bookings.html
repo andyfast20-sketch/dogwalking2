@@ -5,8 +5,12 @@
   <h1 style="margin-bottom:24px">📅 Booking Management</h1>
   
   {% if request.args.get('error') == 'cannot_delete' %}
-    <div style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:16px;margin-bottom:24px">
-      <strong style="color:#fca5a5">⚠️ Cannot delete slot with existing bookings</strong>
+    <div style="background:rgba(239,68,68,.15);border:2px solid rgba(239,68,68,.3);border-radius:12px;padding:16px;margin-bottom:24px">
+      <strong style="color:#fca5a5;font-size:1.05rem">⚠️ Cannot delete slot with existing bookings</strong>
+    </div>
+  {% elif request.args.get('error') %}
+    <div style="background:rgba(239,68,68,.15);border:2px solid rgba(239,68,68,.3);border-radius:12px;padding:16px;margin-bottom:24px">
+      <strong style="color:#fca5a5;font-size:1.05rem">⚠️ {{ request.args.get('error') }}</strong>
     </div>
   {% endif %}
   

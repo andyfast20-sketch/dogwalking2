@@ -441,15 +441,53 @@ def fetch_booking_slots(include_past=False):
         return slots
 
 def create_booking_slot(date: str, time: str, duration: int = 60, capacity: int = 1, notes: str = ''):
-    """Create a new booking slot"""
+    """Create a new booking slot with overlap and gap validation"""
     init_db()
-    from datetime import datetime
-    created_at = datetime.utcnow().isoformat() + 'Z'
+    from datetime import datetime, timedelta
+    
+    # Parse the new slot's start time
+    day, month, year = map(int, date.split('/'))
+    hour, minute = map(int, time.split(':'))
+    new_start = datetime(year, month, day, hour, minute)
+    new_end = new_start + timedelta(minutes=duration)
+    
+    # Add 1 hour buffer after the slot ends (time to get to next customer)
+    buffer_end = new_end + timedelta(hours=1)
+    
     with engine.begin() as conn:
+        # Get all existing slots for the same date
+        existing_slots = conn.execute(text("""
+            SELECT time, duration_minutes 
+            FROM booking_slots 
+            WHERE date = :date
+        """), {"date": date}).fetchall()
+        
+        # Check for conflicts
+        for slot in existing_slots:
+            slot_hour, slot_minute = map(int, slot.time.split(':'))
+            existing_start = datetime(year, month, day, slot_hour, slot_minute)
+            existing_end = existing_start + timedelta(minutes=slot.duration_minutes)
+            
+            # Add 1 hour buffer after existing slot
+            existing_buffer_end = existing_end + timedelta(hours=1)
+            
+            # Check if new slot overlaps with existing slot OR its buffer
+            # OR if new slot's buffer overlaps with existing slot
+            if (new_start < existing_buffer_end and buffer_end > existing_start):
+                # Conflict detected
+                return {
+                    'success': False,
+                    'error': f'Conflict: This slot overlaps with or is too close to an existing slot at {slot.time}. You need at least 1 hour gap between walks.'
+                }
+        
+        # No conflicts, create the slot
+        created_at = datetime.utcnow().isoformat() + 'Z'
         conn.execute(text("""
             INSERT INTO booking_slots (date, time, duration_minutes, capacity, booked_count, is_available, notes, created_at)
             VALUES (:date, :time, :duration, :capacity, 0, 1, :notes, :created_at)
         """), {"date": date, "time": time, "duration": duration, "capacity": capacity, "notes": notes, "created_at": created_at})
+        
+        return {'success': True}
 
 def delete_booking_slot(slot_id: int):
     """Delete a booking slot (only if no bookings exist)"""
@@ -1161,7 +1199,11 @@ def admin_create_slot():
     notes = request.form.get('notes', '').strip()
     
     if date and time:
-        create_booking_slot(date, time, duration, capacity, notes)
+        result = create_booking_slot(date, time, duration, capacity, notes)
+        if not result['success']:
+            # Conflict detected, redirect with error message
+            from urllib.parse import quote
+            return redirect(url_for('admin_bookings') + '?error=' + quote(result['error']))
     
     return redirect(url_for('admin_bookings'))
 
