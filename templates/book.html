@@ -17,7 +17,7 @@
 </div>
 {% else %}
 
-<div class="container" style="max-width:1200px;padding:40px clamp(20px,5vw,60px)">
+<div class="container" style="max-width:1000px;padding:40px clamp(20px,5vw,60px)">
   
   {% if error %}
     <div style="background:rgba(239,68,68,.15);border:2px solid rgba(239,68,68,.3);border-radius:16px;padding:20px;margin-bottom:30px;text-align:center">
@@ -25,185 +25,293 @@
     </div>
   {% endif %}
   
-  <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:40px;align-items:start">
+  <h2 style="margin:0 0 24px;color:var(--brand);text-align:center;font-size:1.8rem">📅 Available Time Slots</h2>
   
-    <!-- Available Slots -->
-    <div>
-      <h2 style="margin:0 0 20px;color:var(--brand)">📅 Available Time Slots</h2>
-      {% if slots %}
-        <div style="display:flex;flex-direction:column;gap:12px">
-          {% for slot in slots %}
-            <label class="booking-slot-card {% if slot.spaces_left == 0 %}disabled{% endif %}" data-slot="{{ slot.id }}">
-              <input type="radio" name="slot_choice" value="{{ slot.id }}" {% if slot.spaces_left == 0 %}disabled{% endif %} required style="display:none">
-              <div class="slot-inner">
-                <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
-                  <div>
-                    <div style="font-weight:700;font-size:1.1rem;color:var(--text)">{{ slot.date }}</div>
-                    <div style="color:var(--muted);font-size:.95rem">{{ slot.time }} • {{ slot.duration_minutes }} minutes</div>
-                  </div>
-                  {% if slot.spaces_left > 0 %}
-                    <span style="background:rgba(34,197,94,.2);color:var(--brand);padding:4px 12px;border-radius:12px;font-size:.8rem;font-weight:700">{{ slot.spaces_left }} spot{% if slot.spaces_left != 1 %}s{% endif %} left</span>
-                  {% else %}
-                    <span style="background:rgba(239,68,68,.2);color:#fca5a5;padding:4px 12px;border-radius:12px;font-size:.8rem;font-weight:700">Fully Booked</span>
-                  {% endif %}
-                </div>
-                {% if slot.notes %}
-                  <div style="color:var(--muted);font-size:.85rem;font-style:italic">{{ slot.notes }}</div>
-                {% endif %}
-              </div>
-            </label>
-          {% endfor %}
-        </div>
-      {% else %}
-        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:40px;text-align:center">
-          <div style="font-size:3rem;margin-bottom:12px">📭</div>
-          <p style="color:var(--muted);margin:0">No booking slots available at the moment. Please check back soon or <a href="{{ url_for('contact') }}" style="color:var(--brand)">contact us</a> directly.</p>
-        </div>
-      {% endif %}
+  {% if slots %}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
+      {% for slot in slots %}
+        <button class="slot-box {% if slot.spaces_left == 0 %}full{% endif %}" 
+                data-slot-id="{{ slot.id }}"
+                data-slot-date="{{ slot.date }}"
+                data-slot-time="{{ slot.time }}"
+                data-slot-duration="{{ slot.duration_minutes }}"
+                data-slot-price="{{ slot.price or '' }}"
+                data-slot-notes="{{ slot.notes or '' }}"
+                {% if slot.spaces_left == 0 %}disabled{% endif %}
+                onclick="openBookingModal(this)">
+          <div class="slot-box-date">{{ slot.date }}</div>
+          <div class="slot-box-time">{{ slot.time }}</div>
+          <div class="slot-box-duration">{{ slot.duration_minutes }} min</div>
+          {% if slot.price %}
+            <div class="slot-box-price">{{ slot.price }}</div>
+          {% endif %}
+          {% if slot.spaces_left > 0 %}
+            <div class="slot-box-spaces">{{ slot.spaces_left }} spot{% if slot.spaces_left != 1 %}s{% endif %}</div>
+          {% else %}
+            <div class="slot-box-full">Fully Booked</div>
+          {% endif %}
+        </button>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:60px 40px;text-align:center">
+      <div style="font-size:3rem;margin-bottom:12px">📭</div>
+      <p style="color:var(--muted);margin:0;font-size:1.1rem">No booking slots available at the moment. Please check back soon or <a href="{{ url_for('contact') }}" style="color:var(--brand)">contact us</a> directly.</p>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Booking Modal -->
+<div id="booking-modal" class="modal" onclick="closeModalOnBackdrop(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeBookingModal()">&times;</button>
+    
+    <h2 style="margin:0 0 8px;color:var(--brand);font-size:1.6rem">Book This Slot</h2>
+    <div id="modal-slot-info" style="margin-bottom:24px;padding:12px;background:rgba(255,255,255,.04);border-radius:10px;text-align:center">
+      <div style="font-weight:700;font-size:1.1rem;color:var(--text)" id="modal-slot-datetime"></div>
+      <div style="color:var(--muted);font-size:.9rem;margin-top:4px" id="modal-slot-details"></div>
     </div>
     
-    <!-- Booking Form -->
-    <div>
-      <h2 style="margin:0 0 20px;color:var(--brand)">✍️ Your Details</h2>
-      <form method="post" action="{{ url_for('book') }}" id="booking-form" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:32px">
-        <input type="hidden" name="slot_id" id="slot_id" required>
+    <form method="post" action="{{ url_for('book') }}" id="booking-form">
+      <input type="hidden" name="slot_id" id="modal-slot-id" required>
+      
+      <div style="display:grid;gap:16px">
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <strong style="color:var(--text);font-size:.9rem">Your Name *</strong>
+          <input type="text" name="name" required 
+            style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem" />
+        </label>
         
-        <div id="slot-required-message" style="background:rgba(245,158,11,.15);border:2px solid rgba(245,158,11,.3);border-radius:12px;padding:16px;margin-bottom:24px;display:none">
-          <strong style="color:#fbbf24">⬅️ Please select a time slot first</strong>
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <strong style="color:var(--text);font-size:.9rem">Email Address *</strong>
+          <input type="email" name="email" required 
+            style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem" />
+        </label>
+        
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <strong style="color:var(--text);font-size:.9rem">Phone Number</strong>
+          <input type="tel" name="phone" 
+            style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem" />
+        </label>
+        
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <strong style="color:var(--text);font-size:.9rem">Dog's Name *</strong>
+          <input type="text" name="dog_name" required 
+            style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem" />
+        </label>
+        
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <strong style="color:var(--text);font-size:.9rem">Dog Info (breed, age, temperament)</strong>
+          <textarea name="dog_info" rows="2" placeholder="e.g., Labrador, 3 years old, friendly"
+            style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem;font-family:inherit;resize:vertical"></textarea>
+        </label>
+        
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <strong style="color:var(--text);font-size:.9rem">Service Type</strong>
+          <select name="service_type" 
+            style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem">
+            <option value="">Select a service...</option>
+            <option value="Group Walk">Group Walk</option>
+            <option value="Solo Walk">Solo Walk</option>
+            <option value="Puppy Visit">Puppy Visit</option>
+            <option value="Senior Care">Senior Care</option>
+          </select>
+        </label>
+        
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <strong style="color:var(--text);font-size:.9rem">Additional Message</strong>
+          <textarea name="message" rows="2" placeholder="Any special requirements?"
+            style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem;font-family:inherit;resize:vertical"></textarea>
+        </label>
+        
+        <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:10px;padding:12px">
+          <p style="margin:0;color:var(--muted);font-size:.75rem;line-height:1.5">
+            <strong style="color:var(--text)">📍 Connection:</strong> <code style="background:rgba(255,255,255,.08);padding:1px 6px;border-radius:4px;font-family:monospace;font-size:.7rem;color:var(--brand)">{{ ip }}</code>
+          </p>
         </div>
         
-        <div style="display:grid;gap:20px">
-          <label style="display:flex;flex-direction:column;gap:8px">
-            <strong style="color:var(--text)">Your Name *</strong>
-            <input type="text" name="name" required value="{{ form.name if form else '' }}"
-              style="padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
-          </label>
-          
-          <label style="display:flex;flex-direction:column;gap:8px">
-            <strong style="color:var(--text)">Email Address *</strong>
-            <input type="email" name="email" required value="{{ form.email if form else '' }}"
-              style="padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
-          </label>
-          
-          <label style="display:flex;flex-direction:column;gap:8px">
-            <strong style="color:var(--text)">Phone Number</strong>
-            <input type="tel" name="phone" value="{{ form.phone if form else '' }}"
-              style="padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
-          </label>
-          
-          <label style="display:flex;flex-direction:column;gap:8px">
-            <strong style="color:var(--text)">Dog's Name *</strong>
-            <input type="text" name="dog_name" required value="{{ form.dog_name if form else '' }}"
-              style="padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
-          </label>
-          
-          <label style="display:flex;flex-direction:column;gap:8px">
-            <strong style="color:var(--text)">Dog Info (breed, age, temperament)</strong>
-            <textarea name="dog_info" rows="3" placeholder="e.g., Labrador, 3 years old, friendly and energetic"
-              style="padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem;font-family:inherit;line-height:1.6;resize:vertical">{{ form.dog_info if form else '' }}</textarea>
-          </label>
-          
-          <label style="display:flex;flex-direction:column;gap:8px">
-            <strong style="color:var(--text)">Service Type</strong>
-            <select name="service_type" 
-              style="padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem">
-              <option value="">Select a service...</option>
-              <option value="Group Walk" {% if form and form.service_type == 'Group Walk' %}selected{% endif %}>Group Walk</option>
-              <option value="Solo Walk" {% if form and form.service_type == 'Solo Walk' %}selected{% endif %}>Solo Walk</option>
-              <option value="Puppy Visit" {% if form and form.service_type == 'Puppy Visit' %}selected{% endif %}>Puppy Visit</option>
-              <option value="Senior Care" {% if form and form.service_type == 'Senior Care' %}selected{% endif %}>Senior Care</option>
-            </select>
-          </label>
-          
-          <label style="display:flex;flex-direction:column;gap:8px">
-            <strong style="color:var(--text)">Additional Message</strong>
-            <textarea name="message" rows="3" placeholder="Any special requirements or notes?"
-              style="padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem;font-family:inherit;line-height:1.6;resize:vertical">{{ form.message if form else '' }}</textarea>
-          </label>
-          
-          <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:16px">
-            <p style="margin:0;color:var(--muted);font-size:.85rem;line-height:1.6">
-              <strong style="color:var(--text)">📍 Connection Info:</strong> Your connection is from <code style="background:rgba(255,255,255,.08);padding:2px 8px;border-radius:6px;font-family:monospace;color:var(--brand)">{{ ip }}</code>
-            </p>
-            <p style="margin:8px 0 0;color:var(--muted);font-size:.75rem">We record this to help maintain service quality and security.</p>
-          </div>
-          
-          <button type="submit" class="btn primary" style="padding:16px 32px;font-size:1.1rem;font-weight:700;margin-top:8px">
-            Submit Booking Request
-          </button>
-        </div>
-      </form>
-    </div>
-    
+        <button type="submit" class="btn primary" style="padding:14px 28px;font-size:1.05rem;font-weight:700;margin-top:8px">
+          Submit Booking Request
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 
 <style>
-.booking-slot-card {
+.slot-box {
   background: rgba(255,255,255,.04);
   border: 2px solid rgba(255,255,255,.1);
-  border-radius: 14px;
-  padding: 16px 20px;
+  border-radius: 12px;
+  padding: 20px 16px;
   cursor: pointer;
-  transition: all .3s cubic-bezier(.4,0,.2,1);
-  display: block;
+  transition: all .3s;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-.booking-slot-card:not(.disabled):hover {
+.slot-box:not(.full):hover {
   background: rgba(34,197,94,.08);
-  border-color: rgba(34,197,94,.4);
-  transform: translateX(4px);
+  border-color: var(--brand);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(34,197,94,.15);
 }
-.booking-slot-card input:checked + .slot-inner {
-  border-left: 4px solid var(--brand);
-  padding-left: 16px;
-}
-.booking-slot-card.disabled {
-  opacity: .5;
+.slot-box.full {
+  opacity: .4;
   cursor: not-allowed;
   background: rgba(255,255,255,.02);
 }
-.booking-slot-card.disabled:hover {
-  transform: none;
-  border-color: rgba(255,255,255,.1);
+.slot-box-date {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text);
 }
-.slot-inner {
-  transition: all .3s;
+.slot-box-time {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--brand);
 }
-@media (max-width: 900px) {
-  .container > div {
-    grid-template-columns: 1fr !important;
+.slot-box-duration {
+  font-size: .85rem;
+  color: var(--muted);
+}
+.slot-box-price {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--brand);
+  margin-top: 4px;
+}
+.slot-box-spaces {
+  background: rgba(34,197,94,.2);
+  color: var(--brand);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: .75rem;
+  font-weight: 700;
+  margin-top: 4px;
+}
+.slot-box-full {
+  background: rgba(239,68,68,.2);
+  color: #fca5a5;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: .75rem;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,.85);
+  backdrop-filter: blur(8px);
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn .3s;
+}
+.modal.active {
+  display: flex;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.modal-content {
+  background: var(--bg);
+  border: 2px solid rgba(255,255,255,.12);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  animation: slideUp .3s cubic-bezier(.4,0,.2,1);
+}
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(239,68,68,.2);
+  border: 1px solid rgba(239,68,68,.3);
+  color: #fca5a5;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-close:hover {
+  background: rgba(239,68,68,.3);
+  transform: rotate(90deg);
+}
+
+@media (max-width: 650px) {
+  .slot-box {
+    padding: 16px 12px;
+  }
+  .slot-box-time {
+    font-size: 1.1rem;
+  }
+  .modal-content {
+    padding: 24px;
+    width: 95%;
   }
 }
 </style>
 
 <script>
-// Handle slot selection
-document.querySelectorAll('[name="slot_choice"]').forEach(radio => {
-  radio.addEventListener('change', (e) => {
-    document.getElementById('slot_id').value = e.target.value;
-    document.getElementById('slot-required-message').style.display = 'none';
-    
-    // Remove selected class from all cards
-    document.querySelectorAll('.booking-slot-card').forEach(card => {
-      card.style.background = 'rgba(255,255,255,.04)';
-      card.style.borderColor = 'rgba(255,255,255,.1)';
-    });
-    
-    // Highlight selected card
-    const selected = e.target.closest('.booking-slot-card');
-    if (selected) {
-      selected.style.background = 'rgba(34,197,94,.12)';
-      selected.style.borderColor = 'var(--brand)';
-    }
-  });
-});
+function openBookingModal(button) {
+  const modal = document.getElementById('booking-modal');
+  const slotId = button.dataset.slotId;
+  const date = button.dataset.slotDate;
+  const time = button.dataset.slotTime;
+  const duration = button.dataset.slotDuration;
+  const price = button.dataset.slotPrice;
+  const notes = button.dataset.slotNotes;
+  
+  document.getElementById('modal-slot-id').value = slotId;
+  document.getElementById('modal-slot-datetime').textContent = `${date} at ${time}`;
+  
+  let details = `${duration} minutes`;
+  if (price) details += ` • ${price}`;
+  if (notes) details += ` • ${notes}`;
+  document.getElementById('modal-slot-details').textContent = details;
+  
+  modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
 
-// Show warning if submitting without slot selection
-document.getElementById('booking-form').addEventListener('submit', (e) => {
-  if (!document.getElementById('slot_id').value) {
-    e.preventDefault();
-    document.getElementById('slot-required-message').style.display = 'block';
-    document.getElementById('slot-required-message').scrollIntoView({ behavior: 'smooth', block: 'center' });
+function closeBookingModal() {
+  const modal = document.getElementById('booking-modal');
+  modal.classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+function closeModalOnBackdrop(event) {
+  if (event.target.id === 'booking-modal') {
+    closeBookingModal();
+  }
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeBookingModal();
   }
 });
 </script>

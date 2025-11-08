@@ -306,10 +306,16 @@ def init_db():
                 capacity INTEGER DEFAULT 1,
                 booked_count INTEGER DEFAULT 0,
                 is_available INTEGER DEFAULT 1,
+                price TEXT,
                 notes TEXT,
                 created_at TEXT NOT NULL
             )
         """))
+        # Add price column if it doesn't exist (for existing databases)
+        try:
+            conn.execute(text("ALTER TABLE booking_slots ADD COLUMN price TEXT"))
+        except Exception:
+            pass  # column already exists
         # Bookings table for customer reservations
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS bookings (
@@ -434,13 +440,14 @@ def fetch_booking_slots(include_past=False):
                 'capacity': r.capacity,
                 'booked_count': r.booked_count,
                 'is_available': r.is_available,
+                'price': getattr(r, 'price', '') or '',
                 'notes': r.notes or '',
                 'created_at': r.created_at,
                 'spaces_left': r.capacity - r.booked_count
             })
         return slots
 
-def create_booking_slot(date: str, time: str, duration: int = 60, capacity: int = 1, notes: str = ''):
+def create_booking_slot(date: str, time: str, duration: int = 60, capacity: int = 1, price: str = '', notes: str = ''):
     """Create a new booking slot with overlap and gap validation"""
     init_db()
     from datetime import datetime, timedelta
@@ -483,9 +490,9 @@ def create_booking_slot(date: str, time: str, duration: int = 60, capacity: int 
         # No conflicts, create the slot
         created_at = datetime.utcnow().isoformat() + 'Z'
         conn.execute(text("""
-            INSERT INTO booking_slots (date, time, duration_minutes, capacity, booked_count, is_available, notes, created_at)
-            VALUES (:date, :time, :duration, :capacity, 0, 1, :notes, :created_at)
-        """), {"date": date, "time": time, "duration": duration, "capacity": capacity, "notes": notes, "created_at": created_at})
+            INSERT INTO booking_slots (date, time, duration_minutes, capacity, booked_count, is_available, price, notes, created_at)
+            VALUES (:date, :time, :duration, :capacity, 0, 1, :price, :notes, :created_at)
+        """), {"date": date, "time": time, "duration": duration, "capacity": capacity, "price": price, "notes": notes, "created_at": created_at})
         
         return {'success': True}
 
@@ -1196,10 +1203,11 @@ def admin_create_slot():
     time = request.form.get('time', '').strip()
     duration = int(request.form.get('duration', '60'))
     capacity = int(request.form.get('capacity', '1'))
+    price = request.form.get('price', '').strip()
     notes = request.form.get('notes', '').strip()
     
     if date and time:
-        result = create_booking_slot(date, time, duration, capacity, notes)
+        result = create_booking_slot(date, time, duration, capacity, price, notes)
         if not result['success']:
             # Conflict detected, redirect with error message
             from urllib.parse import quote

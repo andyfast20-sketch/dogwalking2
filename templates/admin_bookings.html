@@ -1,8 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}Booking Management{% endblock %}
 {% block content %}
-<section class="container" style="max-width:1400px">
-  <h1 style="margin-bottom:24px">📅 Booking Management</h1>
+<section class="container" style="max-width:1400px;padding-top:20px">
   
   {% if request.args.get('error') == 'cannot_delete' %}
     <div style="background:rgba(239,68,68,.15);border:2px solid rgba(239,68,68,.3);border-radius:12px;padding:16px;margin-bottom:24px">
@@ -85,6 +84,12 @@
               </select>
             </label>
           </div>
+          
+          <label style="display:flex;flex-direction:column;gap:6px">
+            <strong style="font-size:.9rem">Price (optional)</strong>
+            <input type="text" name="price" placeholder="e.g., £15 or £12/hour"
+              style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem" />
+          </label>
           
           <label style="display:flex;flex-direction:column;gap:6px">
             <strong style="font-size:.9rem">Notes (optional)</strong>
@@ -346,6 +351,7 @@
               <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Capacity</th>
               <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Booked</th>
               <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Status</th>
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Price</th>
               <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Notes</th>
               <th style="padding:12px 8px;text-align:right;font-weight:700;color:var(--brand)">Actions</th>
             </tr>
@@ -369,6 +375,7 @@
                   <span style="background:rgba(239,68,68,.2);color:#fca5a5;padding:4px 10px;border-radius:8px;font-size:.8rem;font-weight:600">Full</span>
                 {% endif %}
               </td>
+              <td style="padding:12px 8px;color:var(--brand);font-weight:600;font-size:.9rem">{{ slot.price or '—' }}</td>
               <td style="padding:12px 8px;color:var(--muted);font-size:.85rem">{{ slot.notes or '—' }}</td>
               <td style="padding:12px 8px;text-align:right">
                 <form method="post" action="{{ url_for('admin_delete_slot', slot_id=slot.id) }}" style="display:inline" onsubmit="return confirm('Delete this slot? (Only works if no bookings exist)')">
