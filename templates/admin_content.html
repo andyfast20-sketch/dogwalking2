@@ -93,6 +93,72 @@
     </form>
   </div>
   
+  <!-- Meet Andy Section Editor -->
+  <div style="background:linear-gradient(180deg,rgba(59,130,246,.08),rgba(59,130,246,.03));border:2px solid rgba(59,130,246,.25);border-radius:16px;padding:24px;margin-bottom:32px">
+    <h3 style="margin:0 0 16px;color:#60a5fa;font-size:1.2rem">👤 Meet Andy Section</h3>
+    <p style="margin:0 0 20px;color:var(--muted);font-size:.9rem">Edit the heading, description paragraphs, and feature badges displayed in the About section.</p>
+    
+    <form method="post" action="{{ url_for('admin_meet_andy_update') }}">
+      <div style="display:grid;gap:16px">
+        <!-- Heading -->
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <strong style="font-size:.9rem">Section Heading</strong>
+          <input type="text" name="heading" value="{{ meet_andy.heading.content }}" required
+            style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
+          <small style="color:var(--muted);font-size:.8rem">Main title for the About section (e.g., "Meet Andy")</small>
+        </label>
+        
+        <!-- Paragraph 1 -->
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <strong style="font-size:.9rem">First Paragraph</strong>
+          <textarea name="paragraph1" rows="3" required
+            style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem;font-family:inherit;line-height:1.6;resize:vertical">{{ meet_andy.paragraph1.content }}</textarea>
+          <small style="color:var(--muted);font-size:.8rem">Introduction paragraph</small>
+        </label>
+        
+        <!-- Paragraph 2 -->
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <strong style="font-size:.9rem">Second Paragraph</strong>
+          <textarea name="paragraph2" rows="3" required
+            style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem;font-family:inherit;line-height:1.6;resize:vertical">{{ meet_andy.paragraph2.content }}</textarea>
+          <small style="color:var(--muted);font-size:.8rem">Second paragraph with additional details</small>
+        </label>
+        
+        <!-- Feature Badges -->
+        <div style="background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:16px">
+          <h4 style="margin:0 0 12px;color:var(--text);font-size:1rem">Feature Badges (4 items)</h4>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">
+            <label style="display:flex;flex-direction:column;gap:6px">
+              <strong style="font-size:.85rem">Badge 1</strong>
+              <input type="text" name="badge1" value="{{ meet_andy.badge1.content }}" required
+                style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem" />
+            </label>
+            <label style="display:flex;flex-direction:column;gap:6px">
+              <strong style="font-size:.85rem">Badge 2</strong>
+              <input type="text" name="badge2" value="{{ meet_andy.badge2.content }}" required
+                style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem" />
+            </label>
+            <label style="display:flex;flex-direction:column;gap:6px">
+              <strong style="font-size:.85rem">Badge 3</strong>
+              <input type="text" name="badge3" value="{{ meet_andy.badge3.content }}" required
+                style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem" />
+            </label>
+            <label style="display:flex;flex-direction:column;gap:6px">
+              <strong style="font-size:.85rem">Badge 4</strong>
+              <input type="text" name="badge4" value="{{ meet_andy.badge4.content }}" required
+                style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem" />
+            </label>
+          </div>
+          <small style="color:var(--muted);font-size:.8rem;display:block;margin-top:8px">Include checkmarks (✓) or emojis at the start of each badge text</small>
+        </div>
+      </div>
+      
+      <div style="margin-top:16px;text-align:right">
+        <button class="btn primary" type="submit" style="padding:12px 24px;font-weight:700">Save Meet Andy Section</button>
+      </div>
+    </form>
+  </div>
+  
   <div style="margin-top:30px;display:flex;flex-direction:column;gap:24px">
     {% for service in services %}
     <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px">

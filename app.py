@@ -32,10 +32,11 @@ app = Flask(__name__)
 
 @app.context_processor
 def inject_globals():
-    """Make maintenance_mode and hero_images available to all templates"""
+    """Make maintenance_mode, hero_images and meet_andy available to all templates"""
     return {
         'maintenance_mode': get_maintenance_mode(),
-        'hero_images': get_hero_images()
+        'hero_images': get_hero_images(),
+        'meet_andy': get_meet_andy()
     }
 
 @app.route('/')
@@ -201,6 +202,22 @@ def init_db():
                 conn.execute(text(
                     "INSERT INTO site_content (section, key, title, price, content, sort_order) VALUES (:sec, :key, :title, :price, :content, :order)"
                 ), {"sec": "services", "key": key, "title": title, "price": price, "content": content, "order": order})
+        # Seed default "Meet Andy" content if not exists
+        count = conn.execute(text("SELECT COUNT(*) FROM site_content WHERE section='about'")).scalar()
+        if count == 0:
+            about_content = [
+                ("heading", "Meet Andy", None, "Meet Andy", 1),
+                ("paragraph1", None, None, "Hi, I'm Andy — a local dog walker who's DBS checked, fully insured and first‑aid trained. I keep walks calm, positive and tailored to your dog's pace and personality.", 2),
+                ("paragraph2", None, None, "You'll get GPS routes and photo updates after each walk so you always know how it went. I treat every dog like my own and build routines they genuinely enjoy.", 3),
+                ("badge1", None, None, "✓ DBS Checked", 4),
+                ("badge2", None, None, "✓ Public Liability Insured", 5),
+                ("badge3", None, None, "✓ First‑Aid Trained", 6),
+                ("badge4", None, None, "✓ GPS & Photo Updates", 7),
+            ]
+            for key, title, price, content, order in about_content:
+                conn.execute(text(
+                    "INSERT INTO site_content (section, key, title, price, content, sort_order) VALUES (:sec, :key, :title, :price, :content, :order)"
+                ), {"sec": "about", "key": key, "title": title, "price": price, "content": content, "order": order})
         # Site settings table for global configurations
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS site_settings (
@@ -291,6 +308,25 @@ def set_hero_image(key: str, url: str):
     init_db()
     with engine.begin() as conn:
         conn.execute(text("INSERT OR REPLACE INTO site_settings (key, value) VALUES (:key, :val)"), {"key": key, "val": url})
+
+def get_meet_andy():
+    """Get Meet Andy section content"""
+    init_db()
+    with engine.begin() as conn:
+        result = conn.execute(text("SELECT key, title, content FROM site_content WHERE section='about' ORDER BY sort_order ASC"))
+        content = {}
+        for row in result:
+            content[row.key] = {'title': row.title, 'content': row.content}
+        return content
+
+def update_meet_andy(data: dict):
+    """Update Meet Andy section content"""
+    init_db()
+    with engine.begin() as conn:
+        for key, value in data.items():
+            conn.execute(text(
+                "UPDATE site_content SET content=:content WHERE section='about' AND key=:key"
+            ), {"content": value, "key": key})
 
 def fetch_enquiries():
     init_db()
@@ -826,7 +862,8 @@ def admin_content():
     services = fetch_services()
     maintenance_mode = get_maintenance_mode()
     hero_imgs = get_hero_images()
-    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, hero_imgs=hero_imgs)
+    meet_andy = get_meet_andy()
+    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, hero_imgs=hero_imgs, meet_andy=meet_andy)
 
 @app.post('/admin/content/service/<int:service_id>')
 def admin_content_update(service_id: int):
@@ -860,6 +897,27 @@ def admin_hero_images_update():
         url = request.form.get(key, '').strip()
         if url:  # Only update if URL is provided
             set_hero_image(key, url)
+    
+    return redirect(url_for('admin_content'))
+
+@app.post('/admin/content/meet-andy')
+def admin_meet_andy_update():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    # Update Meet Andy content
+    data = {
+        'heading': request.form.get('heading', '').strip(),
+        'paragraph1': request.form.get('paragraph1', '').strip(),
+        'paragraph2': request.form.get('paragraph2', '').strip(),
+        'badge1': request.form.get('badge1', '').strip(),
+        'badge2': request.form.get('badge2', '').strip(),
+        'badge3': request.form.get('badge3', '').strip(),
+        'badge4': request.form.get('badge4', '').strip(),
+    }
+    
+    update_meet_andy(data)
     
     return redirect(url_for('admin_content'))
 

@@ -64,14 +64,14 @@
           <a href="{{ url_for('contact') }}" class="btn primary" style="margin-top:10px">Enquire Now</a>
         </aside>
         <div class="owner-content">
-          <h2>Meet Andy</h2>
-          <p>Hi, I’m Andy — a local dog walker who’s DBS checked, fully insured and first‑aid trained. I keep walks calm, positive and tailored to your dog’s pace and personality.</p>
-          <p>You’ll get GPS routes and photo updates after each walk so you always know how it went. I treat every dog like my own and build routines they genuinely enjoy.</p>
+          <h2>{{ meet_andy.heading.content }}</h2>
+          <p>{{ meet_andy.paragraph1.content }}</p>
+          <p>{{ meet_andy.paragraph2.content }}</p>
           <div class="owner-features">
-            <div class="owner-feature">✓ DBS Checked</div>
-            <div class="owner-feature">✓ Public Liability Insured</div>
-            <div class="owner-feature">✓ First‑Aid Trained</div>
-            <div class="owner-feature">✓ GPS & Photo Updates</div>
+            <div class="owner-feature">{{ meet_andy.badge1.content }}</div>
+            <div class="owner-feature">{{ meet_andy.badge2.content }}</div>
+            <div class="owner-feature">{{ meet_andy.badge3.content }}</div>
+            <div class="owner-feature">{{ meet_andy.badge4.content }}</div>
           </div>
         </div>
       </div>
