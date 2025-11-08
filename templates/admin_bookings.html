@@ -14,24 +14,35 @@
   {% endif %}
   
   <!-- Create New Booking Slot -->
-  <div style="background:linear-gradient(180deg,rgba(34,197,94,.08),rgba(34,197,94,.03));border:2px solid rgba(34,197,94,.25);border-radius:16px;padding:24px;margin-bottom:32px">
-    <h2 style="margin:0 0 16px;color:var(--brand);font-size:1.3rem">➕ Create New Booking Slot</h2>
+  <div style="background:linear-gradient(135deg,rgba(34,197,94,.12) 0%,rgba(34,197,94,.04) 100%);border:2px solid rgba(34,197,94,.3);border-radius:20px;padding:32px;margin-bottom:36px;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <div style="background:linear-gradient(135deg,var(--brand),#15803d);width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;box-shadow:0 4px 12px rgba(34,197,94,.3)">➕</div>
+      <h2 style="margin:0;color:var(--brand);font-size:1.5rem;font-weight:800;letter-spacing:-.5px">Create New Booking Slot</h2>
+    </div>
+    
     <form method="post" action="{{ url_for('admin_create_slot') }}" id="slot-form">
-      <div style="display:grid;grid-template-columns:400px 1fr;gap:24px;margin-bottom:20px">
+      <div style="display:grid;grid-template-columns:420px 1fr;gap:32px;margin-bottom:24px">
         
         <!-- Date Picker Column -->
-        <div>
-          <strong style="display:block;margin-bottom:8px;font-size:.95rem">Select Date</strong>
-          <div id="calendar" style="background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px"></div>
+        <div style="background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <span style="font-size:1.2rem">📅</span>
+            <strong style="font-size:1.05rem;color:var(--text);font-weight:700">Select Date</strong>
+          </div>
+          <div id="calendar"></div>
           <input type="hidden" name="date" id="selected-date" required />
-          <div id="date-display" style="margin-top:10px;padding:10px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);border-radius:8px;text-align:center;font-weight:700;color:var(--brand);font-size:.9rem;display:none"></div>
+          <div id="date-display" style="margin-top:14px;padding:12px 16px;background:linear-gradient(135deg,rgba(34,197,94,.2),rgba(34,197,94,.1));border:2px solid rgba(34,197,94,.4);border-radius:12px;text-align:center;font-weight:700;color:var(--brand);font-size:1rem;display:none;box-shadow:0 4px 12px rgba(34,197,94,.2)"></div>
         </div>
         
         <!-- Time & Details Column -->
-        <div style="display:flex;flex-direction:column;gap:16px">
-          <div>
-            <strong style="display:block;margin-bottom:8px;font-size:1rem">Select Time</strong>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" id="time-grid">
+        <div style="display:flex;flex-direction:column;gap:20px">
+          <!-- Time Selection -->
+          <div style="background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+              <span style="font-size:1.2rem">🕐</span>
+              <strong style="font-size:1.05rem;color:var(--text);font-weight:700">Select Time</strong>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px" id="time-grid">
               <!-- Morning -->
               <button type="button" class="time-btn" data-time="09:00">09:00</button>
               <button type="button" class="time-btn" data-time="09:30">09:30</button>
@@ -56,51 +67,83 @@
               <button type="button" class="time-btn" data-time="18:30">18:30</button>
             </div>
             <input type="hidden" name="time" id="selected-time" required />
-            <div style="margin-top:8px;text-align:center">
-              <input type="text" placeholder="Custom time (HH:MM)" id="custom-time" 
-                style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem;text-align:center;width:150px" />
+            <div style="margin-top:12px;text-align:center">
+              <input type="text" placeholder="Or enter custom time (HH:MM)" id="custom-time" 
+                style="padding:10px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:var(--text);font-size:.95rem;text-align:center;width:220px;transition:all .3s" 
+                onfocus="this.style.borderColor='var(--brand)';this.style.background='rgba(255,255,255,.12)'" 
+                onblur="this.style.borderColor='rgba(255,255,255,.2)';this.style.background='rgba(255,255,255,.08)'" />
             </div>
           </div>
           
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <label style="display:flex;flex-direction:column;gap:6px">
-              <strong style="font-size:.9rem">Duration (mins)</strong>
-              <select name="duration" style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem">
-                <option value="30">30 minutes</option>
-                <option value="45">45 minutes</option>
-                <option value="60" selected>1 hour</option>
-                <option value="90">1.5 hours</option>
-                <option value="120">2 hours</option>
-              </select>
+          <!-- Walk Details -->
+          <div style="background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+              <span style="font-size:1.2rem">⚙️</span>
+              <strong style="font-size:1.05rem;color:var(--text);font-weight:700">Walk Details</strong>
+            </div>
+            
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+              <label style="display:flex;flex-direction:column;gap:8px">
+                <span style="font-size:.9rem;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px">
+                  <span style="font-size:.85rem">⏱️</span> Duration
+                </span>
+                <select name="duration" style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:var(--text);font-size:1rem;font-weight:600;cursor:pointer;transition:all .3s" 
+                  onfocus="this.style.borderColor='var(--brand)';this.style.background='rgba(255,255,255,.12)'" 
+                  onblur="this.style.borderColor='rgba(255,255,255,.2)';this.style.background='rgba(255,255,255,.08)'">
+                  <option value="30">30 minutes</option>
+                  <option value="45">45 minutes</option>
+                  <option value="60" selected>1 hour</option>
+                  <option value="90">1.5 hours</option>
+                  <option value="120">2 hours</option>
+                </select>
+              </label>
+              <label style="display:flex;flex-direction:column;gap:8px">
+                <span style="font-size:.9rem;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px">
+                  <span style="font-size:.85rem">🐕</span> Capacity
+                </span>
+                <select name="capacity" style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:var(--text);font-size:1rem;font-weight:600;cursor:pointer;transition:all .3s"
+                  onfocus="this.style.borderColor='var(--brand)';this.style.background='rgba(255,255,255,.12)'" 
+                  onblur="this.style.borderColor='rgba(255,255,255,.2)';this.style.background='rgba(255,255,255,.08)'">
+                  <option value="1" selected>1 dog</option>
+                  <option value="2">2 dogs</option>
+                  <option value="3">3 dogs</option>
+                  <option value="4">4 dogs</option>
+                  <option value="5">5 dogs</option>
+                </select>
+              </label>
+            </div>
+            
+            <label style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+              <span style="font-size:.9rem;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px">
+                <span style="font-size:.85rem">💷</span> Price <span style="color:var(--brand);font-size:.75rem">(optional)</span>
+              </span>
+              <input type="text" name="price" placeholder="e.g., £15 or £12/hour"
+                style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:var(--text);font-size:1rem;transition:all .3s" 
+                onfocus="this.style.borderColor='var(--brand)';this.style.background='rgba(255,255,255,.12)'" 
+                onblur="this.style.borderColor='rgba(255,255,255,.2)';this.style.background='rgba(255,255,255,.08)'" />
             </label>
-            <label style="display:flex;flex-direction:column;gap:6px">
-              <strong style="font-size:.9rem">Capacity</strong>
-              <select name="capacity" style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem">
-                <option value="1" selected>1 dog</option>
-                <option value="2">2 dogs</option>
-                <option value="3">3 dogs</option>
-                <option value="4">4 dogs</option>
-                <option value="5">5 dogs</option>
-              </select>
+            
+            <label style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-size:.9rem;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px">
+                <span style="font-size:.85rem">📝</span> Notes <span style="color:var(--brand);font-size:.75rem">(optional)</span>
+              </span>
+              <input type="text" name="notes" placeholder="e.g., Park walk, Beach visit, Training session"
+                style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:var(--text);font-size:1rem;transition:all .3s" 
+                onfocus="this.style.borderColor='var(--brand)';this.style.background='rgba(255,255,255,.12)'" 
+                onblur="this.style.borderColor='rgba(255,255,255,.2)';this.style.background='rgba(255,255,255,.08)'" />
             </label>
           </div>
-          
-          <label style="display:flex;flex-direction:column;gap:6px">
-            <strong style="font-size:.9rem">Price (optional)</strong>
-            <input type="text" name="price" placeholder="e.g., £15 or £12/hour"
-              style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem" />
-          </label>
-          
-          <label style="display:flex;flex-direction:column;gap:6px">
-            <strong style="font-size:.9rem">Notes (optional)</strong>
-            <input type="text" name="notes" placeholder="e.g., Park walk, Beach visit"
-              style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem" />
-          </label>
         </div>
       </div>
       
-      <button type="submit" class="btn primary" style="padding:14px 32px;font-weight:700;font-size:1.05rem;width:100%">
-        ➕ Create Booking Slot
+      <button type="submit" class="btn primary" style="padding:16px 40px;font-weight:800;font-size:1.15rem;width:100%;background:linear-gradient(135deg,var(--brand),#15803d);border:none;box-shadow:0 6px 20px rgba(34,197,94,.3);transition:all .3s;position:relative;overflow:hidden"
+        onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 28px rgba(34,197,94,.4)'"
+        onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 6px 20px rgba(34,197,94,.3)'">
+        <span style="position:relative;z-index:2;display:flex;align-items:center;justify-content:center;gap:10px">
+          <span style="font-size:1.3rem">✨</span>
+          Create Booking Slot
+          <span style="font-size:1.3rem">✨</span>
+        </span>
       </button>
     </form>
   </div>
@@ -113,95 +156,115 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid rgba(255,255,255,.1);
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid rgba(34,197,94,.2);
   }
   .calendar-header button {
-    background: rgba(255,255,255,.08);
-    border: 1px solid rgba(255,255,255,.16);
-    color: var(--text);
-    padding: 6px 12px;
-    border-radius: 6px;
+    background: linear-gradient(135deg,rgba(34,197,94,.2),rgba(34,197,94,.1));
+    border: 1px solid rgba(34,197,94,.3);
+    color: var(--brand);
+    padding: 8px 16px;
+    border-radius: 10px;
     cursor: pointer;
-    font-weight: 600;
-    font-size: .85rem;
-    transition: all .2s;
+    font-weight: 700;
+    font-size: .9rem;
+    transition: all .3s;
+    box-shadow: 0 2px 8px rgba(34,197,94,.15);
   }
   .calendar-header button:hover {
-    background: rgba(34,197,94,.2);
+    background: linear-gradient(135deg,var(--brand),#15803d);
     border-color: var(--brand);
+    color: #082621;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(34,197,94,.3);
   }
   .calendar-header strong {
-    font-size: .95rem;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--brand);
+    letter-spacing: -.3px;
   }
   .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 3px;
+    gap: 6px;
   }
   .calendar-day-name {
     text-align: center;
-    font-weight: 700;
-    font-size: .7rem;
+    font-weight: 800;
+    font-size: .75rem;
     color: var(--brand);
-    padding: 6px 2px;
+    padding: 8px 2px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
   }
   .calendar-day {
     aspect-ratio: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 6px;
+    border-radius: 10px;
     cursor: pointer;
-    font-size: .85rem;
-    transition: all .2s;
-    background: rgba(255,255,255,.02);
-    border: 1px solid rgba(255,255,255,.05);
+    font-size: .95rem;
+    font-weight: 600;
+    transition: all .3s;
+    background: rgba(255,255,255,.04);
+    border: 2px solid rgba(255,255,255,.08);
     color: var(--text);
   }
   .calendar-day:hover:not(.disabled):not(.other-month) {
-    background: rgba(34,197,94,.15);
-    border-color: rgba(34,197,94,.4);
-    transform: scale(1.05);
+    background: linear-gradient(135deg,rgba(34,197,94,.25),rgba(34,197,94,.15));
+    border-color: rgba(34,197,94,.5);
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(34,197,94,.2);
   }
   .calendar-day.selected {
-    background: var(--brand) !important;
+    background: linear-gradient(135deg,var(--brand),#15803d) !important;
     color: #082621 !important;
-    font-weight: 700;
+    font-weight: 800;
     border-color: var(--brand);
+    box-shadow: 0 4px 16px rgba(34,197,94,.4);
+    transform: scale(1.05);
   }
   .calendar-day.today {
-    border: 2px solid rgba(245,158,11,.5);
+    border: 2px solid rgba(245,158,11,.7);
+    box-shadow: 0 0 12px rgba(245,158,11,.3);
   }
   .calendar-day.disabled {
-    opacity: .3;
+    opacity: .25;
     cursor: not-allowed;
-    background: rgba(0,0,0,.2);
+    background: rgba(0,0,0,.3);
   }
   .calendar-day.other-month {
-    opacity: .3;
+    opacity: .2;
     color: var(--muted);
   }
   .time-btn {
-    padding: 8px 6px;
-    border-radius: 6px;
-    border: 1px solid rgba(255,255,255,.16);
+    padding: 12px 10px;
+    border-radius: 10px;
+    border: 2px solid rgba(255,255,255,.12);
     background: rgba(255,255,255,.04);
     color: var(--text);
     cursor: pointer;
-    transition: all .2s;
-    font-size: .85rem;
-    font-weight: 600;
+    transition: all .3s;
+    font-size: .95rem;
+    font-weight: 700;
   }
   .time-btn:hover {
-    background: rgba(34,197,94,.15);
+    background: linear-gradient(135deg,rgba(34,197,94,.2),rgba(34,197,94,.1));
     border-color: rgba(34,197,94,.4);
+    color: var(--brand);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(34,197,94,.2);
   }
   .time-btn.selected {
-    background: var(--brand);
+    background: linear-gradient(135deg,var(--brand),#15803d);
     color: #082621;
     border-color: var(--brand);
+    font-weight: 800;
+    box-shadow: 0 4px 16px rgba(34,197,94,.3);
+    transform: scale(1.05);
   }
   @media (max-width: 1100px) {
     form > div {
