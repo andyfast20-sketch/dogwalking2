@@ -41,6 +41,33 @@
     <div class="feature"><h3>First‑Aid Trained</h3><p>Safety‑first approach on every walk.</p></div>
   </section>
 
+  <!-- Owner Introduction Section -->
+  <section class="owner-intro">
+    <div class="container">
+      <div class="owner-grid">
+        <aside class="profile-card">
+          <div class="avatar">
+            <img src="{{ url_for('static', filename='img/andy.jpg') }}" alt="Profile photo" width="400" height="400" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%20male%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern%2C%20photorealistic?width=400&height=400&nologo=true'">
+          </div>
+          <h3>Friendly, Reliable, Local</h3>
+          <p class="contact">Call me: <strong>07595 289669</strong></p>
+          <a href="{{ url_for('contact') }}" class="btn primary" style="margin-top:10px">Enquire Now</a>
+        </aside>
+        <div class="owner-content">
+          <h2>{{ meet_andy.heading.content }}</h2>
+          <p>{{ meet_andy.paragraph1.content }}</p>
+          <p>{{ meet_andy.paragraph2.content }}</p>
+          <div class="owner-features">
+            <div class="owner-feature">{{ meet_andy.badge1.content }}</div>
+            <div class="owner-feature">{{ meet_andy.badge2.content }}</div>
+            <div class="owner-feature">{{ meet_andy.badge3.content }}</div>
+            <div class="owner-feature">{{ meet_andy.badge4.content }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- How It Works Section -->
   <section class="how-it-works">
     <div class="container">
@@ -90,33 +117,6 @@
       <figure class="photo"><img src="{{ hero_images.hero_strip_2 }}" alt="Side view dog walker dark hair black trousers with dog" loading="lazy" decoding="async" fetchpriority="low" width="900" height="600" sizes="(max-width: 640px) 50vw, (max-width: 1200px) 25vw, 300px"></figure>
       <figure class="photo"><img src="{{ hero_images.hero_strip_3 }}" alt="Cute dog looking up at walker legs in black trousers" loading="lazy" decoding="async" fetchpriority="low" width="900" height="600" sizes="(max-width: 640px) 50vw, (max-width: 1200px) 25vw, 300px"></figure>
       <figure class="photo"><img src="{{ hero_images.hero_strip_4 }}" alt="Hand holding lead with cute dog, black trousers visible" loading="lazy" decoding="async" fetchpriority="low" width="900" height="600" sizes="(max-width: 640px) 50vw, (max-width: 1200px) 25vw, 300px"></figure>
-    </div>
-  </section>
-
-  <!-- Owner Introduction Section -->
-  <section class="owner-intro">
-    <div class="container">
-      <div class="owner-grid">
-        <aside class="profile-card">
-          <div class="avatar">
-            <img src="{{ url_for('static', filename='img/andy.jpg') }}" alt="Profile photo" width="400" height="400" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%20male%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern%2C%20photorealistic?width=400&height=400&nologo=true'">
-          </div>
-          <h3>Friendly, Reliable, Local</h3>
-          <p class="contact">Call me: <strong>07595 289669</strong></p>
-          <a href="{{ url_for('contact') }}" class="btn primary" style="margin-top:10px">Enquire Now</a>
-        </aside>
-        <div class="owner-content">
-          <h2>{{ meet_andy.heading.content }}</h2>
-          <p>{{ meet_andy.paragraph1.content }}</p>
-          <p>{{ meet_andy.paragraph2.content }}</p>
-          <div class="owner-features">
-            <div class="owner-feature">{{ meet_andy.badge1.content }}</div>
-            <div class="owner-feature">{{ meet_andy.badge2.content }}</div>
-            <div class="owner-feature">{{ meet_andy.badge3.content }}</div>
-            <div class="owner-feature">{{ meet_andy.badge4.content }}</div>
-          </div>
-        </div>
-      </div>
     </div>
   </section>
 
