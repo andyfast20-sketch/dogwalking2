@@ -64,22 +64,17 @@
               </td>
               <td style="padding:12px 8px;text-align:center">
                 {% if ip.is_blocked %}
-                  <form method="post" action="{{ url_for('admin_unblock_ip', ip_address=ip.ip_address) }}" style="display:inline">
-                    <button type="submit" class="btn" style="padding:8px 16px;font-size:.85rem;background:linear-gradient(135deg,var(--brand),#15803d);border:none;color:#fff;font-weight:700;border-radius:8px;cursor:pointer;transition:all .3s"
-                      onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(34,197,94,.3)'"
-                      onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
-                      🔓 Unblock
-                    </button>
-                  </form>
+                  <button onclick="toggleBlock('{{ ip.ip_address }}', false)" class="btn" style="padding:8px 16px;font-size:.85rem;background:linear-gradient(135deg,var(--brand),#15803d);border:none;color:#fff;font-weight:700;border-radius:8px;cursor:pointer;transition:all .3s"
+                    onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(34,197,94,.3)'"
+                    onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
+                    🔓 Unblock
+                  </button>
                 {% else %}
-                  <form method="post" action="{{ url_for('admin_block_ip', ip_address=ip.ip_address) }}" style="display:inline"
-                    onsubmit="return confirm('Block this IP address from accessing the main site?')">
-                    <button type="submit" class="btn danger" style="padding:8px 16px;font-size:.85rem;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;color:#fff;font-weight:700;border-radius:8px;cursor:pointer;transition:all .3s"
-                      onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(239,68,68,.3)'"
-                      onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
-                      🚫 Block
-                    </button>
-                  </form>
+                  <button onclick="toggleBlock('{{ ip.ip_address }}', true)" class="btn danger" style="padding:8px 16px;font-size:.85rem;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;color:#fff;font-weight:700;border-radius:8px;cursor:pointer;transition:all .3s"
+                    onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(239,68,68,.3)'"
+                    onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
+                    🚫 Block
+                  </button>
                 {% endif %}
               </td>
             </tr>
@@ -108,4 +103,37 @@
   </div>
 
 </section>
+
+<script>
+function toggleBlock(ipAddress, shouldBlock) {
+  if (shouldBlock && !confirm('Block this IP address from accessing the main site?')) {
+    return;
+  }
+  
+  const url = shouldBlock 
+    ? `/admin/block-ip/${encodeURIComponent(ipAddress)}`
+    : `/admin/unblock-ip/${encodeURIComponent(ipAddress)}`;
+  
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Reload the IP management section
+      showSection('ip-management');
+    } else {
+      alert('Error: ' + (data.error || 'Failed to update IP status'));
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Failed to update IP status. Please try again.');
+  });
+}
+</script>
+
 {% endblock %}

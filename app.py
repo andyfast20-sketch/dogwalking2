@@ -1425,26 +1425,32 @@ def admin_ip_management():
     return render_template('admin_ip_management.html', ips=ips)
 
 
-@app.route('/admin/ip-management/block/<ip_address>', methods=['POST'])
+@app.route('/admin/block-ip/<ip_address>', methods=['POST'])
 def admin_block_ip(ip_address: str):
     """Block an IP address"""
     auth_result = require_admin()
     if isinstance(auth_result, Response):
         return auth_result
     
-    toggle_ip_block(ip_address, True)
-    return redirect(url_for('admin_ip_management'))
+    try:
+        toggle_ip_block(ip_address, True)
+        return jsonify({'success': True, 'message': 'IP blocked successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@app.route('/admin/ip-management/unblock/<ip_address>', methods=['POST'])
+@app.route('/admin/unblock-ip/<ip_address>', methods=['POST'])
 def admin_unblock_ip(ip_address: str):
     """Unblock an IP address"""
     auth_result = require_admin()
     if isinstance(auth_result, Response):
         return auth_result
     
-    toggle_ip_block(ip_address, False)
-    return redirect(url_for('admin_ip_management'))
+    try:
+        toggle_ip_block(ip_address, False)
+        return jsonify({'success': True, 'message': 'IP unblocked successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/admin/ai_status')
