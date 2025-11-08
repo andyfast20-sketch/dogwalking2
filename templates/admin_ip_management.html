@@ -1,6 +1,11 @@
 {% extends 'base.html' %}
 {% block title %}IP Management{% endblock %}
 {% block content %}
+<div style="max-width:1600px;margin:0 auto;padding:20px 20px 0">
+  <a href="{{ url_for('admin_dashboard') }}" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:var(--text);text-decoration:none;font-weight:600;transition:all .2s;margin-bottom:20px" onmouseover="this.style.background='rgba(255,255,255,.12)';this.style.transform='translateX(-4px)'" onmouseout="this.style.background='rgba(255,255,255,.08)';this.style.transform='translateX(0)'">
+    ← Back to Dashboard
+  </a>
+</div>
 <section class="container" style="max-width:1600px;padding-top:20px">
   
   <div style="background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(59,130,246,.04));border:2px solid rgba(59,130,246,.3);border-radius:20px;padding:32px;margin-bottom:32px;box-shadow:0 8px 32px rgba(0,0,0,.3)">
