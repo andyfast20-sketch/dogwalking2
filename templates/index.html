@@ -68,6 +68,51 @@
     </div>
   </section>
 
+  <!-- Services & Pricing Section -->
+  <section class="services-section">
+    <div class="section-block">
+      <h2>My Services & Pricing</h2>
+      <div class="accordion" id="services-accordion">
+        {% for service in services %}
+        <div class="accordion-item" aria-expanded="false">
+          <h3 class="accordion-header" id="header-{{ service.key }}">
+            <button class="accordion-button" type="button" aria-controls="panel-{{ service.key }}" aria-expanded="false" aria-label="Toggle {{ service.title }} panel">
+              {{ service.title }} <span class="accordion-icon">+</span>
+            </button>
+          </h3>
+          <div class="accordion-panel" id="panel-{{ service.key }}" role="region" aria-labelledby="header-{{ service.key }}">
+            {% if service.price %}
+            <p class="price"><strong>{{ service.price }}</strong></p>
+            {% endif %}
+            {% set lines = service.content.split('\n') %}
+            {% set description = [] %}
+            {% set bullets = [] %}
+            {% for line in lines %}
+              {% if line.strip() %}
+                {% if line.strip().startswith('•') or line.strip().startswith('-') %}
+                  {% set _ = bullets.append(line.strip().lstrip('•').lstrip('-').strip()) %}
+                {% else %}
+                  {% set _ = description.append(line.strip()) %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+            {% if description %}
+            <p>{{ description|join(' ') }}</p>
+            {% endif %}
+            {% if bullets %}
+            <ul class="accordion-list">
+              {% for bullet in bullets %}
+              <li>{{ bullet }}</li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
   <!-- How It Works Section -->
   <section class="how-it-works">
     <div class="container">
@@ -117,51 +162,6 @@
       <figure class="photo"><img src="{{ hero_images.hero_strip_2 }}" alt="Side view dog walker dark hair black trousers with dog" loading="lazy" decoding="async" fetchpriority="low" width="900" height="600" sizes="(max-width: 640px) 50vw, (max-width: 1200px) 25vw, 300px"></figure>
       <figure class="photo"><img src="{{ hero_images.hero_strip_3 }}" alt="Cute dog looking up at walker legs in black trousers" loading="lazy" decoding="async" fetchpriority="low" width="900" height="600" sizes="(max-width: 640px) 50vw, (max-width: 1200px) 25vw, 300px"></figure>
       <figure class="photo"><img src="{{ hero_images.hero_strip_4 }}" alt="Hand holding lead with cute dog, black trousers visible" loading="lazy" decoding="async" fetchpriority="low" width="900" height="600" sizes="(max-width: 640px) 50vw, (max-width: 1200px) 25vw, 300px"></figure>
-    </div>
-  </section>
-
-  <!-- Services & Pricing Section -->
-  <section class="services-section">
-    <div class="section-block">
-      <h2>My Services & Pricing</h2>
-      <div class="accordion" id="services-accordion">
-        {% for service in services %}
-        <div class="accordion-item" aria-expanded="false">
-          <h3 class="accordion-header" id="header-{{ service.key }}">
-            <button class="accordion-button" type="button" aria-controls="panel-{{ service.key }}" aria-expanded="false" aria-label="Toggle {{ service.title }} panel">
-              {{ service.title }} <span class="accordion-icon">+</span>
-            </button>
-          </h3>
-          <div class="accordion-panel" id="panel-{{ service.key }}" role="region" aria-labelledby="header-{{ service.key }}">
-            {% if service.price %}
-            <p class="price"><strong>{{ service.price }}</strong></p>
-            {% endif %}
-            {% set lines = service.content.split('\n') %}
-            {% set description = [] %}
-            {% set bullets = [] %}
-            {% for line in lines %}
-              {% if line.strip() %}
-                {% if line.strip().startswith('•') or line.strip().startswith('-') %}
-                  {% set _ = bullets.append(line.strip().lstrip('•').lstrip('-').strip()) %}
-                {% else %}
-                  {% set _ = description.append(line.strip()) %}
-                {% endif %}
-              {% endif %}
-            {% endfor %}
-            {% if description %}
-            <p>{{ description|join(' ') }}</p>
-            {% endif %}
-            {% if bullets %}
-            <ul class="accordion-list">
-              {% for bullet in bullets %}
-              <li>{{ bullet }}</li>
-              {% endfor %}
-            </ul>
-            {% endif %}
-          </div>
-        </div>
-        {% endfor %}
-      </div>
     </div>
   </section>
 
