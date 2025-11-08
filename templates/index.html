@@ -83,70 +83,42 @@
     <div class="section-block">
       <h2>My Services & Pricing</h2>
       <div class="accordion" id="services-accordion">
+        {% for service in services %}
         <div class="accordion-item" aria-expanded="false">
-          <h3 class="accordion-header" id="header-group">
-            <button class="accordion-button" type="button" aria-controls="panel-group" aria-expanded="false" aria-label="Toggle Group Walks panel">
-              Group Walks <span class="accordion-icon">+</span>
+          <h3 class="accordion-header" id="header-{{ service.key }}">
+            <button class="accordion-button" type="button" aria-controls="panel-{{ service.key }}" aria-expanded="false" aria-label="Toggle {{ service.title }} panel">
+              {{ service.title }} <span class="accordion-icon">+</span>
             </button>
           </h3>
-          <div class="accordion-panel" id="panel-group" role="region" aria-labelledby="header-group">
-            <p class="price"><strong>From £14/hour</strong></p>
-            <p>Professional small group walks for socialization, stimulation and exercise in safe dog-friendly areas.</p>
+          <div class="accordion-panel" id="panel-{{ service.key }}" role="region" aria-labelledby="header-{{ service.key }}">
+            {% if service.price %}
+            <p class="price"><strong>{{ service.price }}</strong></p>
+            {% endif %}
+            {% set lines = service.content.split('\n') %}
+            {% set description = [] %}
+            {% set bullets = [] %}
+            {% for line in lines %}
+              {% if line.strip() %}
+                {% if line.strip().startswith('•') or line.strip().startswith('-') %}
+                  {% set _ = bullets.append(line.strip().lstrip('•').lstrip('-').strip()) %}
+                {% else %}
+                  {% set _ = description.append(line.strip()) %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+            {% if description %}
+            <p>{{ description|join(' ') }}</p>
+            {% endif %}
+            {% if bullets %}
             <ul class="accordion-list">
-              <li>Matched with compatible temperaments</li>
-              <li>Hydration & rest breaks included</li>
-              <li>GPS route & photo update</li>
+              {% for bullet in bullets %}
+              <li>{{ bullet }}</li>
+              {% endfor %}
             </ul>
+            {% endif %}
           </div>
         </div>
-        <div class="accordion-item" aria-expanded="false">
-          <h3 class="accordion-header" id="header-solo">
-            <button class="accordion-button" type="button" aria-controls="panel-solo" aria-expanded="false" aria-label="Toggle Solo Walks panel">
-              Solo Walks <span class="accordion-icon">+</span>
-            </button>
-          </h3>
-          <div class="accordion-panel" id="panel-solo" role="region" aria-labelledby="header-solo">
-            <p class="price"><strong>£15–£20</strong></p>
-            <p>One-on-one focused walks perfect for anxious, reactive or senior dogs needing tailored pacing.</p>
-            <ul class="accordion-list">
-              <li>30–60 minute tailored durations</li>
-              <li>Calmer, personalized routes</li>
-              <li>Behaviour notes & progress tracking</li>
-            </ul>
-          </div>
-        </div>
-        <div class="accordion-item" aria-expanded="false">
-          <h3 class="accordion-header" id="header-daycare">
-            <button class="accordion-button" type="button" aria-controls="panel-daycare" aria-expanded="false" aria-label="Toggle Dog Day Care panel">
-              Dog Day Care <span class="accordion-icon">+</span>
-            </button>
-          </h3>
-          <div class="accordion-panel" id="panel-daycare" role="region" aria-labelledby="header-daycare">
-            <p class="price"><strong>£30/day</strong></p>
-            <p>A full adventure day with social play, 2 group walks and supervised downtime. Pickup & drop-off included.*</p>
-            <ul class="accordion-list">
-              <li>2 structured group walks</li>
-              <li>Play & social enrichment sessions</li>
-              <li>Collection & delivery (*availability)</li>
-            </ul>
-          </div>
-        </div>
-        <div class="accordion-item" aria-expanded="false">
-          <h3 class="accordion-header" id="header-puppy">
-            <button class="accordion-button" type="button" aria-controls="panel-puppy" aria-expanded="false" aria-label="Toggle Puppy and Senior Care panel">
-              Puppy & Senior Care <span class="accordion-icon">+</span>
-            </button>
-          </h3>
-          <div class="accordion-panel" id="panel-puppy" role="region" aria-labelledby="header-puppy">
-            <p class="price"><strong>£14/visit</strong></p>
-            <p>Gentle, age-appropriate visits with toilet breaks, light exercise, socialisation or medication support.</p>
-            <ul class="accordion-list">
-              <li>Age & health considerate pacing</li>
-              <li>Socialisation & routine building</li>
-              <li>Flexible scheduling options</li>
-            </ul>
-          </div>
-        </div>
+        {% endfor %}
       </div>
     </div>
   </section>

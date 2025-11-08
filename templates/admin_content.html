@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}Website Settings{% endblock %}
+{% block content %}
+<section class="container" style="max-width:1000px">
+  <h1 style="margin-bottom:10px">Website Content Editor</h1>
+  <p style="margin-top:0;color:var(--muted)">Edit the services & pricing section displayed on the home page.</p>
+  
+  <div style="margin-top:30px;display:flex;flex-direction:column;gap:24px">
+    {% for service in services %}
+    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px">
+      <form method="post" action="{{ url_for('admin_content_update', service_id=service.id) }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h3 style="margin:0;background:linear-gradient(135deg,var(--brand),var(--accent-light));-webkit-background-clip:text;background-clip:text;color:transparent">{{ service.title }}</h3>
+          <button class="btn primary" type="submit">Save Changes</button>
+        </div>
+        
+        <div style="display:grid;gap:16px">
+          <label style="display:flex;flex-direction:column;gap:6px">
+            <strong style="font-size:.9rem">Service Title</strong>
+            <input type="text" name="title" value="{{ service.title }}" required
+              style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
+          </label>
+          
+          <label style="display:flex;flex-direction:column;gap:6px">
+            <strong style="font-size:.9rem">Price</strong>
+            <input type="text" name="price" value="{{ service.price }}" placeholder="e.g., From £14/hour"
+              style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
+            <small style="color:var(--muted);font-size:.8rem">This appears at the top of the accordion panel</small>
+          </label>
+          
+          <label style="display:flex;flex-direction:column;gap:6px">
+            <strong style="font-size:.9rem">Description & Details</strong>
+            <textarea name="content" rows="8" required
+              style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem;font-family:inherit;line-height:1.6;resize:vertical">{{ service.content }}</textarea>
+            <small style="color:var(--muted);font-size:.8rem">Use bullet points with "•" or "-" for lists. Each line will be displayed separately.</small>
+          </label>
+        </div>
+        
+        <div style="margin-top:12px;padding-top:16px;border-top:1px solid rgba(255,255,255,.08)">
+          <details style="cursor:pointer">
+            <summary style="font-weight:600;color:var(--accent-light);font-size:.9rem">Preview current content</summary>
+            <div style="margin-top:12px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.05);border-radius:10px;padding:16px">
+              <p style="margin:0 0 8px;font-weight:700;color:var(--brand)">{{ service.price }}</p>
+              {% set lines = service.content.split('\n') %}
+              {% for line in lines %}
+                {% if line.strip() %}
+                  {% if line.strip().startswith('•') or line.strip().startswith('-') %}
+                    <div style="margin-left:16px;font-size:.9rem;color:var(--text)">{{ line.strip() }}</div>
+                  {% else %}
+                    <p style="margin:8px 0;color:var(--text)">{{ line.strip() }}</p>
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+            </div>
+          </details>
+        </div>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

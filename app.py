@@ -32,7 +32,8 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return render_template('index.html')
+    services = fetch_services()
+    return render_template('index.html', services=services)
 
 @app.route('/about')
 def about():
@@ -166,6 +167,32 @@ def init_db():
                 created_at TEXT NOT NULL
             )
         """))
+        # Content management table for editable website content
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS site_content (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                section TEXT NOT NULL,
+                key TEXT NOT NULL,
+                title TEXT,
+                content TEXT,
+                price TEXT,
+                sort_order INTEGER DEFAULT 0,
+                UNIQUE(section, key)
+            )
+        """))
+        # Seed default services if table is empty
+        count = conn.execute(text("SELECT COUNT(*) FROM site_content WHERE section='services'")).scalar()
+        if count == 0:
+            services = [
+                ("group-walks", "Group Walks", "From £14/hour", "Professional small group walks for socialization, stimulation and exercise in safe dog-friendly areas.\n• Matched with compatible temperaments\n• Hydration & rest breaks included\n• GPS route & photo update", 1),
+                ("solo-walks", "Solo Walks", "£15–£20", "One-on-one focused walks perfect for anxious, reactive or senior dogs needing tailored pacing.\n• 30–60 minute tailored durations\n• Calmer, personalized routes\n• Behaviour notes & progress tracking", 2),
+                ("dog-daycare", "Dog Day Care", "£30/day", "A full adventure day with social play, 2 group walks and supervised downtime. Pickup & drop-off included.*\n• 2 structured group walks\n• Play & social enrichment sessions\n• Collection & delivery (*availability)", 3),
+                ("puppy-senior", "Puppy & Senior Care", "£14/visit", "Gentle, age-appropriate visits with toilet breaks, light exercise, socialisation or medication support.\n• Age & health considerate pacing\n• Socialisation & routine building\n• Flexible scheduling options", 4),
+            ]
+            for key, title, price, content, order in services:
+                conn.execute(text(
+                    "INSERT INTO site_content (section, key, title, price, content, sort_order) VALUES (:sec, :key, :title, :price, :content, :order)"
+                ), {"sec": "services", "key": key, "title": title, "price": price, "content": content, "order": order})
 
 def save_enquiry(name: str, email: str, dog: str, message: str):
     init_db()
@@ -183,6 +210,23 @@ def save_enquiry(name: str, email: str, dog: str, message: str):
                 'sid': request.form.get('sid', '').strip() or None,
             }
         )
+
+def fetch_services():
+    """Fetch all services content from database"""
+    init_db()
+    with engine.begin() as conn:
+        result = conn.execute(text("SELECT id, key, title, price, content, sort_order FROM site_content WHERE section='services' ORDER BY sort_order ASC"))
+        services = []
+        for r in result:
+            services.append({
+                'id': r.id,
+                'key': r.key,
+                'title': r.title,
+                'price': r.price,
+                'content': r.content,
+                'sort_order': r.sort_order
+            })
+        return services
 
 def fetch_enquiries():
     init_db()
@@ -708,6 +752,36 @@ def admin_chat_close(chat_id: int):
     with engine.begin() as conn:
         conn.execute(text("UPDATE chats SET status='closed' WHERE id=:cid"), {"cid": chat_id})
     return redirect(url_for('admin_chats'))
+
+# ---------- Admin Content Management ----------
+@app.route('/admin/content')
+def admin_content():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    services = fetch_services()
+    return render_template('admin_content.html', services=services)
+
+@app.post('/admin/content/service/<int:service_id>')
+def admin_content_update(service_id: int):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    title = request.form.get('title', '').strip()
+    price = request.form.get('price', '').strip()
+    content = request.form.get('content', '').strip()
+    
+    if not title:
+        abort(400, "Title is required")
+    
+    init_db()
+    with engine.begin() as conn:
+        conn.execute(text(
+            "UPDATE site_content SET title=:title, price=:price, content=:content WHERE id=:id"
+        ), {"title": title, "price": price, "content": content, "id": service_id})
+    
+    return redirect(url_for('admin_content'))
 
 
 @app.route('/admin/visitors/analyze/<sid>', methods=['POST'])
