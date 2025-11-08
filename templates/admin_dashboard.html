@@ -2,7 +2,7 @@
 {% block title %}Admin Dashboard{% endblock %}
 {% block extra_head %}
 <style>
-  .admin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:960px;margin:30px auto;padding:0 clamp(20px,5vw,60px)}
+  .admin-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;max-width:960px;margin:20px auto;padding:0 clamp(20px,5vw,60px)}
   @media(max-width:900px){.admin-grid{grid-template-columns:1fr}}
   .admin-card{background:linear-gradient(180deg,rgba(16,185,129,.08),rgba(16,185,129,.03));border:2px solid rgba(16,185,129,.25);border-radius:18px;padding:24px;cursor:pointer;transition:all .35s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
   .admin-card::before{content:'';position:absolute;top:0;right:0;width:80px;height:80px;background:radial-gradient(circle,rgba(34,197,94,.2),transparent 70%);pointer-events:none}
@@ -24,10 +24,6 @@
 </style>
 {% endblock %}
 {% block content %}
-<section class="container" style="text-align:center;padding-top:40px">
-  <h1 style="margin-bottom:12px">Admin Dashboard</h1>
-  <p style="color:var(--muted);margin-top:0;margin-bottom:0">Select a section to manage</p>
-</section>
 
 <!-- Dashboard Cards -->
 <div id="dashboard-cards" class="admin-grid">
@@ -161,7 +157,6 @@ async function showSection(name){
   
   // Hide dashboard cards
   document.getElementById('dashboard-cards').style.display='none';
-  document.querySelector('.container').style.display='none';
   
   // Show section
   const section = document.getElementById('section-'+name);
@@ -211,7 +206,6 @@ function showDashboard(){
   
   // Show dashboard
   document.getElementById('dashboard-cards').style.display='grid';
-  document.querySelector('.container').style.display='block';
   
   // Restart dashboard polling
   startDashboardPolling();
