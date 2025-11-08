@@ -55,6 +55,12 @@
     <p>Track visitor activity and behavior patterns.</p>
   </div>
   
+  <div class="admin-card" onclick="showSection('ip-management')">
+    <div class="admin-card-icon">🛡️</div>
+    <h2>IP Management</h2>
+    <p>Track IPs, locations, and manage access controls.</p>
+  </div>
+  
   <div class="admin-card" onclick="showSection('content')">
     <div class="admin-card-icon">⚙️</div>
     <h2>Website Settings</h2>
@@ -96,6 +102,15 @@
     <button class="back-btn" onclick="showDashboard()">← Back to Dashboard</button>
   </div>
   <div id="visitors-content"></div>
+</div>
+
+<!-- IP Management Section -->
+<div id="section-ip-management" class="admin-section">
+  <div class="admin-header">
+    <h1>IP Management</h1>
+    <button class="back-btn" onclick="showDashboard()">← Back to Dashboard</button>
+  </div>
+  <div id="ip-management-content"></div>
 </div>
 
 <!-- Website Settings Section -->
@@ -186,6 +201,7 @@ async function showSection(name){
     else if(name==='enquiries') url='/admin/enquiries';
     else if(name==='bookings') url='/admin/bookings';
     else if(name==='visitors') url='/admin/visitors';
+    else if(name==='ip-management') url='/admin/ip-management';
     else if(name==='content') url='/admin/content';
     
     const r = await fetch(url);

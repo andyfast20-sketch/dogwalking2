@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %}IP Management{% endblock %}
+{% block content %}
+<section class="container" style="max-width:1600px;padding-top:20px">
+  
+  <div style="background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(59,130,246,.04));border:2px solid rgba(59,130,246,.3);border-radius:20px;padding:32px;margin-bottom:32px;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+      <div style="background:linear-gradient(135deg,#3b82f6,#1d4ed8);width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;box-shadow:0 4px 12px rgba(59,130,246,.3)">🛡️</div>
+      <h1 style="margin:0;color:#3b82f6;font-size:1.8rem;font-weight:800">IP Address Management</h1>
+    </div>
+    <p style="margin:0;color:var(--muted);font-size:1rem">Track visitor IP addresses, locations, and manage access controls</p>
+  </div>
+
+  <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <h2 style="margin:0;color:var(--text);font-size:1.4rem;font-weight:700">
+        📊 Tracked IP Addresses <span style="background:rgba(59,130,246,.2);color:#3b82f6;padding:4px 12px;border-radius:8px;font-size:.9rem;margin-left:12px">{{ ips|length }} total</span>
+      </h2>
+    </div>
+
+    {% if ips %}
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:.9rem">
+          <thead>
+            <tr style="border-bottom:2px solid rgba(255,255,255,.1)">
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:#3b82f6">IP Address</th>
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:#3b82f6">Location</th>
+              <th style="padding:12px 8px;text-align:center;font-weight:700;color:#3b82f6">Visits</th>
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:#3b82f6">First Visit</th>
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:#3b82f6">Last Visit</th>
+              <th style="padding:12px 8px;text-align:center;font-weight:700;color:#3b82f6">Status</th>
+              <th style="padding:12px 8px;text-align:center;font-weight:700;color:#3b82f6">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ip in ips %}
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05);{% if ip.is_blocked %}background:rgba(239,68,68,.08){% endif %}">
+              <td style="padding:12px 8px">
+                <code style="background:rgba(255,255,255,.08);padding:4px 10px;border-radius:6px;font-family:monospace;color:var(--text);font-size:.9rem">{{ ip.ip_address }}</code>
+              </td>
+              <td style="padding:12px 8px">
+                <div style="display:flex;flex-direction:column;gap:2px">
+                  <span style="color:var(--text);font-weight:600">🌍 {{ ip.country }}</span>
+                  <span style="color:var(--muted);font-size:.85rem">{{ ip.city }}</span>
+                </div>
+              </td>
+              <td style="padding:12px 8px;text-align:center">
+                <span style="background:{% if ip.visit_count > 50 %}rgba(239,68,68,.2);color:#fca5a5{% elif ip.visit_count > 20 %}rgba(245,158,11,.2);color:#fbbf24{% else %}rgba(59,130,246,.2);color:#3b82f6{% endif %};padding:6px 12px;border-radius:8px;font-weight:700;font-size:.95rem">
+                  {{ ip.visit_count }}
+                </span>
+              </td>
+              <td style="padding:12px 8px;color:var(--muted);font-size:.85rem">
+                {{ ip.first_visit[:10] if ip.first_visit else '—' }}
+              </td>
+              <td style="padding:12px 8px;color:var(--muted);font-size:.85rem">
+                {{ ip.last_visit[:10] if ip.last_visit else '—' }}
+              </td>
+              <td style="padding:12px 8px;text-align:center">
+                {% if ip.is_blocked %}
+                  <span style="background:rgba(239,68,68,.25);color:#fca5a5;padding:6px 14px;border-radius:8px;font-size:.8rem;font-weight:700">🔒 BLOCKED</span>
+                {% else %}
+                  <span style="background:rgba(34,197,94,.2);color:var(--brand);padding:6px 14px;border-radius:8px;font-size:.8rem;font-weight:700">✓ Active</span>
+                {% endif %}
+              </td>
+              <td style="padding:12px 8px;text-align:center">
+                {% if ip.is_blocked %}
+                  <form method="post" action="{{ url_for('admin_unblock_ip', ip_address=ip.ip_address) }}" style="display:inline">
+                    <button type="submit" class="btn" style="padding:8px 16px;font-size:.85rem;background:linear-gradient(135deg,var(--brand),#15803d);border:none;color:#fff;font-weight:700;border-radius:8px;cursor:pointer;transition:all .3s"
+                      onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(34,197,94,.3)'"
+                      onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
+                      🔓 Unblock
+                    </button>
+                  </form>
+                {% else %}
+                  <form method="post" action="{{ url_for('admin_block_ip', ip_address=ip.ip_address) }}" style="display:inline"
+                    onsubmit="return confirm('Block this IP address from accessing the main site?')">
+                    <button type="submit" class="btn danger" style="padding:8px 16px;font-size:.85rem;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;color:#fff;font-weight:700;border-radius:8px;cursor:pointer;transition:all .3s"
+                      onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(239,68,68,.3)'"
+                      onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
+                      🚫 Block
+                    </button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div style="padding:60px 40px;text-align:center;background:rgba(255,255,255,.02);border-radius:12px">
+        <div style="font-size:3rem;margin-bottom:16px">📭</div>
+        <p style="color:var(--muted);font-size:1.1rem;margin:0">No IP addresses tracked yet. Visitor tracking will begin automatically.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <div style="background:rgba(245,158,11,.1);border:2px solid rgba(245,158,11,.3);border-radius:12px;padding:20px;margin-top:24px">
+    <h3 style="margin:0 0 12px;color:#fbbf24;font-size:1.1rem;display:flex;align-items:center;gap:8px">
+      <span style="font-size:1.3rem">ℹ️</span> Important Information
+    </h3>
+    <ul style="margin:0;padding-left:20px;color:var(--muted);line-height:1.8">
+      <li><strong style="color:var(--text)">Automatic Tracking:</strong> All visitor IPs are automatically tracked when they visit the main site</li>
+      <li><strong style="color:var(--text)">Admin Access:</strong> Blocked IPs can still access the admin area</li>
+      <li><strong style="color:var(--text)">Location Data:</strong> Geographic location is estimated and may not be 100% accurate</li>
+      <li><strong style="color:var(--text)">Block Effect:</strong> Blocked visitors will see an access denied page when visiting the main site</li>
+    </ul>
+  </div>
+
+</section>
+{% endblock %}

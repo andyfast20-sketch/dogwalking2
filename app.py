@@ -39,6 +39,26 @@ def inject_globals():
         'meet_andy': get_meet_andy()
     }
 
+@app.before_request
+def track_and_block_ips():
+    """Track visitor IPs and block if necessary (except admin routes)"""
+    # Skip tracking/blocking for admin routes
+    if request.path.startswith('/admin'):
+        return None
+    
+    # Get IP address
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    if ip and ',' in ip:
+        ip = ip.split(',')[0].strip()
+    
+    # Track the visit
+    user_agent = request.headers.get('User-Agent', '')
+    track_ip_visit(ip, user_agent)
+    
+    # Check if blocked
+    if is_ip_blocked(ip):
+        return render_template('blocked.html'), 403
+
 @app.route('/')
 def home():
     services = fetch_services()
@@ -334,6 +354,20 @@ def init_db():
                 FOREIGN KEY (slot_id) REFERENCES booking_slots(id)
             )
         """))
+        # IP tracking and blocking table
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS ip_tracking (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ip_address TEXT UNIQUE NOT NULL,
+                visit_count INTEGER DEFAULT 1,
+                is_blocked INTEGER DEFAULT 0,
+                country TEXT,
+                city TEXT,
+                first_visit TEXT NOT NULL,
+                last_visit TEXT NOT NULL,
+                user_agent TEXT
+            )
+        """))
 
 def save_enquiry(name: str, email: str, dog: str, message: str):
     init_db()
@@ -576,6 +610,68 @@ def update_booking_status(booking_id: int, status: str):
     init_db()
     with engine.begin() as conn:
         conn.execute(text("UPDATE bookings SET status = :status WHERE id = :bid"), {"status": status, "bid": booking_id})
+
+def track_ip_visit(ip_address: str, user_agent: str = ''):
+    """Track or update IP visit"""
+    init_db()
+    from datetime import datetime
+    now = datetime.utcnow().isoformat() + 'Z'
+    
+    with engine.begin() as conn:
+        # Check if IP exists
+        existing = conn.execute(text("SELECT id, visit_count FROM ip_tracking WHERE ip_address = :ip"), {"ip": ip_address}).fetchone()
+        
+        if existing:
+            # Update visit count and last visit
+            new_count = existing.visit_count + 1
+            conn.execute(text("""
+                UPDATE ip_tracking 
+                SET visit_count = :count, last_visit = :last, user_agent = :ua
+                WHERE ip_address = :ip
+            """), {"count": new_count, "last": now, "ua": user_agent, "ip": ip_address})
+        else:
+            # Insert new IP
+            conn.execute(text("""
+                INSERT INTO ip_tracking (ip_address, visit_count, is_blocked, first_visit, last_visit, user_agent)
+                VALUES (:ip, 1, 0, :first, :last, :ua)
+            """), {"ip": ip_address, "first": now, "last": now, "ua": user_agent})
+
+def is_ip_blocked(ip_address: str) -> bool:
+    """Check if an IP is blocked"""
+    init_db()
+    with engine.begin() as conn:
+        result = conn.execute(text("SELECT is_blocked FROM ip_tracking WHERE ip_address = :ip"), {"ip": ip_address}).fetchone()
+        return result.is_blocked == 1 if result else False
+
+def fetch_all_ips():
+    """Fetch all tracked IPs with stats"""
+    init_db()
+    with engine.begin() as conn:
+        result = conn.execute(text("""
+            SELECT ip_address, visit_count, is_blocked, country, city, first_visit, last_visit, user_agent
+            FROM ip_tracking
+            ORDER BY visit_count DESC, last_visit DESC
+        """))
+        ips = []
+        for r in result:
+            ips.append({
+                'ip_address': r.ip_address,
+                'visit_count': r.visit_count,
+                'is_blocked': r.is_blocked == 1,
+                'country': r.country or 'Unknown',
+                'city': r.city or 'Unknown',
+                'first_visit': r.first_visit,
+                'last_visit': r.last_visit,
+                'user_agent': r.user_agent or ''
+            })
+        return ips
+
+def toggle_ip_block(ip_address: str, block: bool):
+    """Block or unblock an IP address"""
+    init_db()
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE ip_tracking SET is_blocked = :blocked WHERE ip_address = :ip"), 
+                    {"blocked": 1 if block else 0, "ip": ip_address})
 
 def fetch_enquiries():
     init_db()
@@ -1316,6 +1412,39 @@ def admin_visitors_delete(sid: str):
         conn.execute(text("DELETE FROM events WHERE sid=:sid"), {"sid": sid})
         conn.execute(text("DELETE FROM visitor_insights WHERE sid=:sid"), {"sid": sid})
     return redirect(url_for('admin_visitors'))
+
+
+@app.route('/admin/ip-management')
+def admin_ip_management():
+    """IP tracking and blocking management"""
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    ips = fetch_all_ips()
+    return render_template('admin_ip_management.html', ips=ips)
+
+
+@app.route('/admin/ip-management/block/<ip_address>', methods=['POST'])
+def admin_block_ip(ip_address: str):
+    """Block an IP address"""
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    toggle_ip_block(ip_address, True)
+    return redirect(url_for('admin_ip_management'))
+
+
+@app.route('/admin/ip-management/unblock/<ip_address>', methods=['POST'])
+def admin_unblock_ip(ip_address: str):
+    """Unblock an IP address"""
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    toggle_ip_block(ip_address, False)
+    return redirect(url_for('admin_ip_management'))
 
 
 @app.route('/admin/ai_status')
