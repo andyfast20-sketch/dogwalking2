@@ -40,7 +40,10 @@
                 {% if slot.spaces_left == 0 %}disabled{% endif %}
                 onclick="openBookingModal(this)">
           <div class="slot-box-date">{{ slot.date }}</div>
-          <div class="slot-box-time">{{ slot.time }}</div>
+          <div class="slot-box-time">
+            <span style="font-size:.75rem;font-weight:500;color:var(--muted);display:block;margin-bottom:2px">Start</span>
+            <span class="time-12hr" data-time-24="{{ slot.time }}">{{ slot.time }}</span>
+          </div>
           <div class="slot-box-duration">{{ slot.duration_minutes }} min</div>
           {% if slot.price %}
             <div class="slot-box-price">{{ slot.price }}</div>
@@ -276,6 +279,22 @@
 </style>
 
 <script>
+function convertTo12Hour(time24) {
+  const [hours, minutes] = time24.split(':');
+  let hour = parseInt(hours);
+  const ampm = hour >= 12 ? 'pm' : 'am';
+  hour = hour % 12 || 12;
+  return `${hour}.${minutes}${ampm}`;
+}
+
+// Convert all times on page load
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.time-12hr').forEach(el => {
+    const time24 = el.dataset.time24;
+    el.textContent = convertTo12Hour(time24);
+  });
+});
+
 function openBookingModal(button) {
   const modal = document.getElementById('booking-modal');
   const slotId = button.dataset.slotId;
@@ -286,7 +305,7 @@ function openBookingModal(button) {
   const notes = button.dataset.slotNotes;
   
   document.getElementById('modal-slot-id').value = slotId;
-  document.getElementById('modal-slot-datetime').textContent = `${date} at ${time}`;
+  document.getElementById('modal-slot-datetime').textContent = `${date} at ${convertTo12Hour(time)}`;
   
   let details = `${duration} minutes`;
   if (price) details += ` • ${price}`;
