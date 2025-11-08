@@ -35,6 +35,64 @@
     {% endif %}
   </div>
   
+  <!-- Hero Images Editor -->
+  <div style="background:linear-gradient(180deg,rgba(34,197,94,.08),rgba(34,197,94,.03));border:2px solid rgba(34,197,94,.25);border-radius:16px;padding:24px;margin-bottom:32px">
+    <h3 style="margin:0 0 16px;color:var(--brand);font-size:1.2rem">🖼️ Hero Images</h3>
+    <p style="margin:0 0 20px;color:var(--muted);font-size:.9rem">Change the images displayed in the hero slideshow and photo strip at the top of the homepage.</p>
+    
+    <form method="post" action="{{ url_for('admin_hero_images_update') }}">
+      <div style="display:grid;gap:20px">
+        <!-- Slideshow Images -->
+        <div style="background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:16px">
+          <h4 style="margin:0 0 12px;color:var(--text);font-size:1rem">Main Slideshow (2 images)</h4>
+          <div style="display:grid;gap:12px">
+            <label style="display:flex;flex-direction:column;gap:6px">
+              <strong style="font-size:.85rem">Image 1 URL</strong>
+              <input type="url" name="hero_slide_1" value="{{ hero_imgs.hero_slide_1 }}" placeholder="https://example.com/image1.jpg"
+                style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem" />
+            </label>
+            <label style="display:flex;flex-direction:column;gap:6px">
+              <strong style="font-size:.85rem">Image 2 URL</strong>
+              <input type="url" name="hero_slide_2" value="{{ hero_imgs.hero_slide_2 }}" placeholder="https://example.com/image2.jpg"
+                style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem" />
+            </label>
+          </div>
+        </div>
+        
+        <!-- Photo Strip Images -->
+        <div style="background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:16px">
+          <h4 style="margin:0 0 12px;color:var(--text);font-size:1rem">Photo Strip (4 images)</h4>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">
+            <label style="display:flex;flex-direction:column;gap:6px">
+              <strong style="font-size:.85rem">Photo 1 URL</strong>
+              <input type="url" name="hero_strip_1" value="{{ hero_imgs.hero_strip_1 }}" placeholder="https://example.com/photo1.jpg"
+                style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem" />
+            </label>
+            <label style="display:flex;flex-direction:column;gap:6px">
+              <strong style="font-size:.85rem">Photo 2 URL</strong>
+              <input type="url" name="hero_strip_2" value="{{ hero_imgs.hero_strip_2 }}" placeholder="https://example.com/photo2.jpg"
+                style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem" />
+            </label>
+            <label style="display:flex;flex-direction:column;gap:6px">
+              <strong style="font-size:.85rem">Photo 3 URL</strong>
+              <input type="url" name="hero_strip_3" value="{{ hero_imgs.hero_strip_3 }}" placeholder="https://example.com/photo3.jpg"
+                style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem" />
+            </label>
+            <label style="display:flex;flex-direction:column;gap:6px">
+              <strong style="font-size:.85rem">Photo 4 URL</strong>
+              <input type="url" name="hero_strip_4" value="{{ hero_imgs.hero_strip_4 }}" placeholder="https://example.com/photo4.jpg"
+                style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem" />
+            </label>
+          </div>
+        </div>
+      </div>
+      
+      <div style="margin-top:16px;text-align:right">
+        <button class="btn primary" type="submit" style="padding:12px 24px;font-weight:700">Save Hero Images</button>
+      </div>
+    </form>
+  </div>
+  
   <div style="margin-top:30px;display:flex;flex-direction:column;gap:24px">
     {% for service in services %}
     <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px">

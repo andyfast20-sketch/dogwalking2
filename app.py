@@ -32,9 +32,10 @@ app = Flask(__name__)
 
 @app.context_processor
 def inject_globals():
-    """Make maintenance_mode available to all templates"""
+    """Make maintenance_mode and hero_images available to all templates"""
     return {
-        'maintenance_mode': get_maintenance_mode()
+        'maintenance_mode': get_maintenance_mode(),
+        'hero_images': get_hero_images()
     }
 
 @app.route('/')
@@ -212,6 +213,20 @@ def init_db():
             conn.execute(text("INSERT INTO site_settings (key, value) VALUES ('maintenance_mode', 'false')"))
         except Exception:
             pass  # setting already exists
+        # Initialize default hero images
+        default_hero_images = [
+            ("hero_slide_1", "https://image.pollinations.ai/prompt/stocky%20build%20dark-haired%20male%20dog%20walker%20back%20view%20walking%20a%20cute%20small%20dog%2C%20black%20trousers%2C%20no%20suit%2C%20professional%20casual%2C%20no%20face%20visible%2C%20emerald%20and%20amber%20tones%2C%20photorealistic%2C%20crisp%20lighting?width=1100&height=1400&nologo=true"),
+            ("hero_slide_2", "https://image.pollinations.ai/prompt/stocky%20dark-haired%20male%20dog%20walker%20mid%20section%20holding%20lead%20with%20cute%20dog%2C%20black%20trousers%2C%20no%20suit%2C%20professional%20casual%2C%20face%20out%20of%20frame%2C%20emerald%20amber%20color%20grading%2C%20photorealistic?width=1100&height=1400&nologo=true"),
+            ("hero_strip_1", "https://image.pollinations.ai/prompt/stocky%20dark-haired%20male%20dog%20walker%20rear%20view%20with%20cute%20small%20dog%20on%20lead%2C%20black%20trousers%2C%20no%20suit%2C%20professional%20casual%2C%20no%20face%2C%20emerald%20and%20amber%20tones%2C%20wide%20angle%20street?width=900&height=600&nologo=true"),
+            ("hero_strip_2", "https://image.pollinations.ai/prompt/side%20view%20stocky%20male%20dog%20walker%20dark%20hair%20black%20trousers%20casual%20(no%20suit)%20walking%20cute%20dog%2C%20face%20out%20of%20frame%2C%20emerald%20amber%20tones%20professional?width=900&height=600&nologo=true"),
+            ("hero_strip_3", "https://image.pollinations.ai/prompt/close%20up%20dog%20looking%20up%20at%20stocky%20walker%20legs%20black%20trousers%20(no%20suit)%20lead%20visible%2C%20emerald%20and%20amber%20tones%2C%20professional%20casual?width=900&height=600&nologo=true"),
+            ("hero_strip_4", "https://image.pollinations.ai/prompt/stocky%20male%20dog%20walker%20dark%20hair%20holding%20lead%20hand%20detail%20with%20cute%20dog%2C%20black%20trousers%2C%20no%20suit%2C%20emerald%20amber%20tones%2C%20professional%20macro?width=900&height=600&nologo=true"),
+        ]
+        for key, url in default_hero_images:
+            try:
+                conn.execute(text("INSERT INTO site_settings (key, value) VALUES (:key, :val)"), {"key": key, "val": url})
+            except Exception:
+                pass  # setting already exists
 
 def save_enquiry(name: str, email: str, dog: str, message: str):
     init_db()
@@ -260,6 +275,22 @@ def set_maintenance_mode(enabled: bool):
     value = 'true' if enabled else 'false'
     with engine.begin() as conn:
         conn.execute(text("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('maintenance_mode', :val)"), {"val": value})
+
+def get_hero_images():
+    """Get all hero image URLs"""
+    init_db()
+    with engine.begin() as conn:
+        images = {}
+        for key in ['hero_slide_1', 'hero_slide_2', 'hero_strip_1', 'hero_strip_2', 'hero_strip_3', 'hero_strip_4']:
+            result = conn.execute(text("SELECT value FROM site_settings WHERE key=:key"), {"key": key}).fetchone()
+            images[key] = result.value if result else ''
+        return images
+
+def set_hero_image(key: str, url: str):
+    """Set a hero image URL"""
+    init_db()
+    with engine.begin() as conn:
+        conn.execute(text("INSERT OR REPLACE INTO site_settings (key, value) VALUES (:key, :val)"), {"key": key, "val": url})
 
 def fetch_enquiries():
     init_db()
@@ -794,7 +825,8 @@ def admin_content():
         return auth_result
     services = fetch_services()
     maintenance_mode = get_maintenance_mode()
-    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode)
+    hero_imgs = get_hero_images()
+    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, hero_imgs=hero_imgs)
 
 @app.post('/admin/content/service/<int:service_id>')
 def admin_content_update(service_id: int):
@@ -814,6 +846,20 @@ def admin_content_update(service_id: int):
         conn.execute(text(
             "UPDATE site_content SET title=:title, price=:price, content=:content WHERE id=:id"
         ), {"title": title, "price": price, "content": content, "id": service_id})
+    
+    return redirect(url_for('admin_content'))
+
+@app.post('/admin/content/hero-images')
+def admin_hero_images_update():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    # Update each hero image URL
+    for key in ['hero_slide_1', 'hero_slide_2', 'hero_strip_1', 'hero_strip_2', 'hero_strip_3', 'hero_strip_4']:
+        url = request.form.get(key, '').strip()
+        if url:  # Only update if URL is provided
+            set_hero_image(key, url)
     
     return redirect(url_for('admin_content'))
 
