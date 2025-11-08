@@ -39,10 +39,10 @@
                 data-slot-notes="{{ slot.notes or '' }}"
                 {% if slot.spaces_left == 0 %}disabled{% endif %}
                 onclick="openBookingModal(this)">
-          <div class="slot-box-date">{{ slot.date }}</div>
+          <div class="slot-box-date date-with-day" data-date="{{ slot.date }}">{{ slot.date }}</div>
           <div class="slot-box-time">
             <span style="font-size:.75rem;font-weight:500;color:var(--muted);display:block;margin-bottom:2px">Start</span>
-            <span class="time-12hr" data-time-24="{{ slot.time }}">{{ slot.time }}</span>
+            <span class="time-12hr" data-time24="{{ slot.time }}">{{ slot.time }}</span>
           </div>
           <div class="slot-box-duration">{{ slot.duration_minutes }} min</div>
           {% if slot.price %}
@@ -167,8 +167,9 @@
 }
 .slot-box-date {
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: .95rem;
   color: var(--text);
+  line-height: 1.3;
 }
 .slot-box-time {
   font-size: 1.3rem;
@@ -287,11 +288,29 @@ function convertTo12Hour(time24) {
   return `${hour}.${minutes}${ampm}`;
 }
 
-// Convert all times on page load
+function addDayOfWeek(dateStr) {
+  // dateStr is in format DD/MM/YYYY
+  const [day, month, year] = dateStr.split('/');
+  const date = new Date(year, month - 1, day);
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dayName = days[date.getDay()];
+  return `${dayName} ${dateStr}`;
+}
+
+// Convert all times and dates on page load
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.time-12hr').forEach(el => {
-    const time24 = el.dataset.time24;
-    el.textContent = convertTo12Hour(time24);
+    const time24 = el.getAttribute('data-time24');
+    if (time24) {
+      el.textContent = convertTo12Hour(time24);
+    }
+  });
+  
+  document.querySelectorAll('.date-with-day').forEach(el => {
+    const dateStr = el.getAttribute('data-date');
+    if (dateStr) {
+      el.textContent = addDayOfWeek(dateStr);
+    }
   });
 });
 
@@ -305,7 +324,7 @@ function openBookingModal(button) {
   const notes = button.dataset.slotNotes;
   
   document.getElementById('modal-slot-id').value = slotId;
-  document.getElementById('modal-slot-datetime').textContent = `${date} at ${convertTo12Hour(time)}`;
+  document.getElementById('modal-slot-datetime').textContent = `${addDayOfWeek(date)} at ${convertTo12Hour(time)}`;
   
   let details = `${duration} minutes`;
   if (price) details += ` • ${price}`;
