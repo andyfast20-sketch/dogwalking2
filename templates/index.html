@@ -47,13 +47,13 @@
       <h2>My Services & Pricing</h2>
       <div class="accordion" id="services-accordion">
         {% for service in services %}
-        <div class="accordion-item" aria-expanded="true">
+        <div class="accordion-item" aria-expanded="false">
           <h3 class="accordion-header" id="header-{{ service.key }}">
-            <button class="accordion-button" type="button" aria-controls="panel-{{ service.key }}" aria-expanded="true" aria-label="Toggle {{ service.title }} panel">
-              {{ service.title }} <span class="accordion-icon">−</span>
+            <button class="accordion-button" type="button" aria-controls="panel-{{ service.key }}" aria-expanded="false" aria-label="Toggle {{ service.title }} panel">
+              {{ service.title }} <span class="accordion-icon">+</span>
             </button>
           </h3>
-          <div class="accordion-panel" id="panel-{{ service.key }}" role="region" aria-labelledby="header-{{ service.key }}" style="display:block">
+          <div class="accordion-panel" id="panel-{{ service.key }}" role="region" aria-labelledby="header-{{ service.key }}">
             {% if service.price %}
             <p class="price"><strong>{{ service.price }}</strong></p>
             {% endif %}
@@ -196,13 +196,13 @@
     <div class="section-block">
       <h2>Service Areas</h2>
       <div class="accordion" id="areas-accordion">
-        <div class="accordion-item" aria-expanded="false">
+        <div class="accordion-item" aria-expanded="true">
           <h3 class="accordion-header" id="header-areas">
-            <button class="accordion-button" type="button" aria-controls="panel-areas" aria-expanded="false" aria-label="Toggle coverage list panel">
-              Coverage List <span class="accordion-icon">+</span>
+            <button class="accordion-button" type="button" aria-controls="panel-areas" aria-expanded="true" aria-label="Toggle coverage list panel">
+              Coverage List <span class="accordion-icon">−</span>
             </button>
           </h3>
-          <div class="accordion-panel" id="panel-areas" role="region" aria-labelledby="header-areas">
+          <div class="accordion-panel" id="panel-areas" role="region" aria-labelledby="header-areas" style="display:block">
             <div class="areas-grid">
               <div class="area-card">Downtown</div>
               <div class="area-card">Riverside Park District</div>
