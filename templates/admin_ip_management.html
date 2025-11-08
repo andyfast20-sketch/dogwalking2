@@ -124,7 +124,23 @@ function toggleBlock(ipAddress, shouldBlock) {
   .then(data => {
     if (data.success) {
       // Reload the IP management section
-      showSection('ip-management');
+      if (typeof showSection === 'function') {
+        showSection('ip-management');
+      } else {
+        // Fallback: reload the entire page content
+        fetch('/admin/ip-management')
+          .then(r => r.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newContent = doc.querySelector('section');
+            if (newContent) {
+              document.querySelector('section').innerHTML = newContent.innerHTML;
+            } else {
+              location.reload();
+            }
+          });
+      }
     } else {
       alert('Error: ' + (data.error || 'Failed to update IP status'));
     }
