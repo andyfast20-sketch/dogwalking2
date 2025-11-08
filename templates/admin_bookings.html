@@ -214,10 +214,14 @@
   // Calendar logic
   let currentMonth = new Date().getMonth();
   let currentYear = new Date().getFullYear();
-  let selectedDate = null;
+  let selectedDate = '';
   
   function renderCalendar() {
     const calendar = document.getElementById('calendar');
+    if (!calendar) {
+      console.error('Calendar element not found');
+      return;
+    }
     const firstDay = new Date(currentYear, currentMonth, 1);
     const lastDay = new Date(currentYear, currentMonth + 1, 0);
     const prevLastDay = new Date(currentYear, currentMonth, 0);
@@ -333,8 +337,13 @@
     }
   });
   
-  // Initialize calendar
-  renderCalendar();
+  // Initialize calendar after DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', renderCalendar);
+  } else {
+    // DOM already loaded (e.g., AJAX content)
+    setTimeout(renderCalendar, 100);
+  }
   </script>
   
   <!-- Booking Slots Table -->
