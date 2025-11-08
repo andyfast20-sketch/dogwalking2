@@ -31,8 +31,9 @@
         <a href="{{ url_for('home') }}" class="{% if request.endpoint == 'home' %}active{% endif %}">Home</a>
         <a href="{{ url_for('about') }}" class="{% if request.endpoint == 'about' %}active{% endif %}">About</a>
         <a href="{{ url_for('services') }}" class="{% if request.endpoint == 'services' %}active{% endif %}">Services</a>
+        <a href="{{ url_for('book') }}" class="cta-link {% if request.endpoint == 'book' %}active{% endif %}">Book a Walk</a>
         <a href="{{ url_for('gallery') }}" class="{% if request.endpoint == 'gallery' %}active{% endif %}">Gallery</a>
-        <a href="{{ url_for('contact') }}" class="cta-link {% if request.endpoint == 'contact' %}active{% endif %}">Contact</a>
+        <a href="{{ url_for('contact') }}" class="{% if request.endpoint == 'contact' %}active{% endif %}">Contact</a>
       </nav>
     </div>
   </header>

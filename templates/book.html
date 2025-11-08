@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% block title %}Book a Walk{% endblock %}
+{% block content %}
+<section class="hero small">
+  <h1>Book a Dog Walk</h1>
+  <p>Choose an available time slot and we'll take great care of your pup!</p>
+</section>
+
+{% if success %}
+<div class="container" style="max-width:700px;text-align:center;padding:60px 20px">
+  <div style="background:linear-gradient(180deg,rgba(34,197,94,.12),rgba(34,197,94,.06));border:2px solid rgba(34,197,94,.3);border-radius:20px;padding:40px">
+    <div style="font-size:4rem;margin-bottom:16px">✅</div>
+    <h2 style="color:var(--brand);margin:0 0 12px">Booking Request Received!</h2>
+    <p style="color:var(--text);font-size:1.1rem;margin:0 0 20px">Thank you for your booking. We'll review your request and confirm shortly via email.</p>
+    <a href="{{ url_for('home') }}" class="btn primary" style="margin-top:12px">Return Home</a>
+  </div>
+</div>
+{% else %}
+
+<div class="container" style="max-width:1200px;padding:40px clamp(20px,5vw,60px)">
+  
+  {% if error %}
+    <div style="background:rgba(239,68,68,.15);border:2px solid rgba(239,68,68,.3);border-radius:16px;padding:20px;margin-bottom:30px;text-align:center">
+      <strong style="color:#fca5a5;font-size:1.1rem">⚠️ {{ error }}</strong>
+    </div>
+  {% endif %}
+  
+  <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:40px;align-items:start">
+  
+    <!-- Available Slots -->
+    <div>
+      <h2 style="margin:0 0 20px;color:var(--brand)">📅 Available Time Slots</h2>
+      {% if slots %}
+        <div style="display:flex;flex-direction:column;gap:12px">
+          {% for slot in slots %}
+            <label class="booking-slot-card {% if slot.spaces_left == 0 %}disabled{% endif %}" data-slot="{{ slot.id }}">
+              <input type="radio" name="slot_choice" value="{{ slot.id }}" {% if slot.spaces_left == 0 %}disabled{% endif %} required style="display:none">
+              <div class="slot-inner">
+                <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+                  <div>
+                    <div style="font-weight:700;font-size:1.1rem;color:var(--text)">{{ slot.date }}</div>
+                    <div style="color:var(--muted);font-size:.95rem">{{ slot.time }} • {{ slot.duration_minutes }} minutes</div>
+                  </div>
+                  {% if slot.spaces_left > 0 %}
+                    <span style="background:rgba(34,197,94,.2);color:var(--brand);padding:4px 12px;border-radius:12px;font-size:.8rem;font-weight:700">{{ slot.spaces_left }} spot{% if slot.spaces_left != 1 %}s{% endif %} left</span>
+                  {% else %}
+                    <span style="background:rgba(239,68,68,.2);color:#fca5a5;padding:4px 12px;border-radius:12px;font-size:.8rem;font-weight:700">Fully Booked</span>
+                  {% endif %}
+                </div>
+                {% if slot.notes %}
+                  <div style="color:var(--muted);font-size:.85rem;font-style:italic">{{ slot.notes }}</div>
+                {% endif %}
+              </div>
+            </label>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:40px;text-align:center">
+          <div style="font-size:3rem;margin-bottom:12px">📭</div>
+          <p style="color:var(--muted);margin:0">No booking slots available at the moment. Please check back soon or <a href="{{ url_for('contact') }}" style="color:var(--brand)">contact us</a> directly.</p>
+        </div>
+      {% endif %}
+    </div>
+    
+    <!-- Booking Form -->
+    <div>
+      <h2 style="margin:0 0 20px;color:var(--brand)">✍️ Your Details</h2>
+      <form method="post" action="{{ url_for('book') }}" id="booking-form" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:32px">
+        <input type="hidden" name="slot_id" id="slot_id" required>
+        
+        <div id="slot-required-message" style="background:rgba(245,158,11,.15);border:2px solid rgba(245,158,11,.3);border-radius:12px;padding:16px;margin-bottom:24px;display:none">
+          <strong style="color:#fbbf24">⬅️ Please select a time slot first</strong>
+        </div>
+        
+        <div style="display:grid;gap:20px">
+          <label style="display:flex;flex-direction:column;gap:8px">
+            <strong style="color:var(--text)">Your Name *</strong>
+            <input type="text" name="name" required value="{{ form.name if form else '' }}"
+              style="padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
+          </label>
+          
+          <label style="display:flex;flex-direction:column;gap:8px">
+            <strong style="color:var(--text)">Email Address *</strong>
+            <input type="email" name="email" required value="{{ form.email if form else '' }}"
+              style="padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
+          </label>
+          
+          <label style="display:flex;flex-direction:column;gap:8px">
+            <strong style="color:var(--text)">Phone Number</strong>
+            <input type="tel" name="phone" value="{{ form.phone if form else '' }}"
+              style="padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
+          </label>
+          
+          <label style="display:flex;flex-direction:column;gap:8px">
+            <strong style="color:var(--text)">Dog's Name *</strong>
+            <input type="text" name="dog_name" required value="{{ form.dog_name if form else '' }}"
+              style="padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
+          </label>
+          
+          <label style="display:flex;flex-direction:column;gap:8px">
+            <strong style="color:var(--text)">Dog Info (breed, age, temperament)</strong>
+            <textarea name="dog_info" rows="3" placeholder="e.g., Labrador, 3 years old, friendly and energetic"
+              style="padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem;font-family:inherit;line-height:1.6;resize:vertical">{{ form.dog_info if form else '' }}</textarea>
+          </label>
+          
+          <label style="display:flex;flex-direction:column;gap:8px">
+            <strong style="color:var(--text)">Service Type</strong>
+            <select name="service_type" 
+              style="padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem">
+              <option value="">Select a service...</option>
+              <option value="Group Walk" {% if form and form.service_type == 'Group Walk' %}selected{% endif %}>Group Walk</option>
+              <option value="Solo Walk" {% if form and form.service_type == 'Solo Walk' %}selected{% endif %}>Solo Walk</option>
+              <option value="Puppy Visit" {% if form and form.service_type == 'Puppy Visit' %}selected{% endif %}>Puppy Visit</option>
+              <option value="Senior Care" {% if form and form.service_type == 'Senior Care' %}selected{% endif %}>Senior Care</option>
+            </select>
+          </label>
+          
+          <label style="display:flex;flex-direction:column;gap:8px">
+            <strong style="color:var(--text)">Additional Message</strong>
+            <textarea name="message" rows="3" placeholder="Any special requirements or notes?"
+              style="padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem;font-family:inherit;line-height:1.6;resize:vertical">{{ form.message if form else '' }}</textarea>
+          </label>
+          
+          <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:16px">
+            <p style="margin:0;color:var(--muted);font-size:.85rem;line-height:1.6">
+              <strong style="color:var(--text)">📍 Connection Info:</strong> Your connection is from <code style="background:rgba(255,255,255,.08);padding:2px 8px;border-radius:6px;font-family:monospace;color:var(--brand)">{{ ip }}</code>
+            </p>
+            <p style="margin:8px 0 0;color:var(--muted);font-size:.75rem">We record this to help maintain service quality and security.</p>
+          </div>
+          
+          <button type="submit" class="btn primary" style="padding:16px 32px;font-size:1.1rem;font-weight:700;margin-top:8px">
+            Submit Booking Request
+          </button>
+        </div>
+      </form>
+    </div>
+    
+  </div>
+</div>
+
+<style>
+.booking-slot-card {
+  background: rgba(255,255,255,.04);
+  border: 2px solid rgba(255,255,255,.1);
+  border-radius: 14px;
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: all .3s cubic-bezier(.4,0,.2,1);
+  display: block;
+}
+.booking-slot-card:not(.disabled):hover {
+  background: rgba(34,197,94,.08);
+  border-color: rgba(34,197,94,.4);
+  transform: translateX(4px);
+}
+.booking-slot-card input:checked + .slot-inner {
+  border-left: 4px solid var(--brand);
+  padding-left: 16px;
+}
+.booking-slot-card.disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  background: rgba(255,255,255,.02);
+}
+.booking-slot-card.disabled:hover {
+  transform: none;
+  border-color: rgba(255,255,255,.1);
+}
+.slot-inner {
+  transition: all .3s;
+}
+@media (max-width: 900px) {
+  .container > div {
+    grid-template-columns: 1fr !important;
+  }
+}
+</style>
+
+<script>
+// Handle slot selection
+document.querySelectorAll('[name="slot_choice"]').forEach(radio => {
+  radio.addEventListener('change', (e) => {
+    document.getElementById('slot_id').value = e.target.value;
+    document.getElementById('slot-required-message').style.display = 'none';
+    
+    // Remove selected class from all cards
+    document.querySelectorAll('.booking-slot-card').forEach(card => {
+      card.style.background = 'rgba(255,255,255,.04)';
+      card.style.borderColor = 'rgba(255,255,255,.1)';
+    });
+    
+    // Highlight selected card
+    const selected = e.target.closest('.booking-slot-card');
+    if (selected) {
+      selected.style.background = 'rgba(34,197,94,.12)';
+      selected.style.borderColor = 'var(--brand)';
+    }
+  });
+});
+
+// Show warning if submitting without slot selection
+document.getElementById('booking-form').addEventListener('submit', (e) => {
+  if (!document.getElementById('slot_id').value) {
+    e.preventDefault();
+    document.getElementById('slot-required-message').style.display = 'block';
+    document.getElementById('slot-required-message').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+});
+</script>
+
+{% endif %}
+{% endblock %}

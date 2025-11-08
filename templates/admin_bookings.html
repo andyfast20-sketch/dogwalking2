@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block title %}Booking Management{% endblock %}
+{% block content %}
+<section class="container" style="max-width:1400px">
+  <h1 style="margin-bottom:24px">📅 Booking Management</h1>
+  
+  {% if request.args.get('error') == 'cannot_delete' %}
+    <div style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:16px;margin-bottom:24px">
+      <strong style="color:#fca5a5">⚠️ Cannot delete slot with existing bookings</strong>
+    </div>
+  {% endif %}
+  
+  <!-- Create New Booking Slot -->
+  <div style="background:linear-gradient(180deg,rgba(34,197,94,.08),rgba(34,197,94,.03));border:2px solid rgba(34,197,94,.25);border-radius:16px;padding:24px;margin-bottom:32px">
+    <h2 style="margin:0 0 16px;color:var(--brand);font-size:1.3rem">➕ Create New Booking Slot</h2>
+    <form method="post" action="{{ url_for('admin_create_slot') }}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;align-items:end">
+      <label style="display:flex;flex-direction:column;gap:6px">
+        <strong style="font-size:.9rem">Date (DD/MM/YYYY)</strong>
+        <input type="text" name="date" placeholder="25/12/2025" pattern="\d{2}/\d{2}/\d{4}" required
+          style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
+      </label>
+      <label style="display:flex;flex-direction:column;gap:6px">
+        <strong style="font-size:.9rem">Time (HH:MM)</strong>
+        <input type="text" name="time" placeholder="14:30" pattern="\d{2}:\d{2}" required
+          style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
+      </label>
+      <label style="display:flex;flex-direction:column;gap:6px">
+        <strong style="font-size:.9rem">Duration (minutes)</strong>
+        <input type="number" name="duration" value="60" min="15" max="480" required
+          style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
+      </label>
+      <label style="display:flex;flex-direction:column;gap:6px">
+        <strong style="font-size:.9rem">Capacity</strong>
+        <input type="number" name="capacity" value="1" min="1" max="10" required
+          style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
+      </label>
+      <label style="display:flex;flex-direction:column;gap:6px;grid-column:1/-1">
+        <strong style="font-size:.9rem">Notes (optional)</strong>
+        <input type="text" name="notes" placeholder="Group walk in park"
+          style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
+      </label>
+      <button type="submit" class="btn primary" style="padding:12px 24px;font-weight:700;white-space:nowrap">Create Slot</button>
+    </form>
+  </div>
+  
+  <!-- Booking Slots Table -->
+  <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px;margin-bottom:32px">
+    <h2 style="margin:0 0 16px;color:var(--text);font-size:1.3rem">🗓️ Available Booking Slots</h2>
+    {% if slots %}
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:.9rem">
+          <thead>
+            <tr style="border-bottom:2px solid rgba(255,255,255,.1)">
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Date</th>
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Time</th>
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Duration</th>
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Capacity</th>
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Booked</th>
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Status</th>
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Notes</th>
+              <th style="padding:12px 8px;text-align:right;font-weight:700;color:var(--brand)">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for slot in slots %}
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
+              <td style="padding:12px 8px;color:var(--text)">{{ slot.date }}</td>
+              <td style="padding:12px 8px;color:var(--text)">{{ slot.time }}</td>
+              <td style="padding:12px 8px;color:var(--muted)">{{ slot.duration_minutes }}min</td>
+              <td style="padding:12px 8px;color:var(--muted)">{{ slot.capacity }}</td>
+              <td style="padding:12px 8px">
+                <span style="color:{% if slot.booked_count >= slot.capacity %}#ef4444{% elif slot.booked_count > 0 %}#f59e0b{% else %}var(--brand){% endif %}">
+                  {{ slot.booked_count }}/{{ slot.capacity }}
+                </span>
+              </td>
+              <td style="padding:12px 8px">
+                {% if slot.is_available and slot.spaces_left > 0 %}
+                  <span style="background:rgba(34,197,94,.2);color:var(--brand);padding:4px 10px;border-radius:8px;font-size:.8rem;font-weight:600">Available</span>
+                {% else %}
+                  <span style="background:rgba(239,68,68,.2);color:#fca5a5;padding:4px 10px;border-radius:8px;font-size:.8rem;font-weight:600">Full</span>
+                {% endif %}
+              </td>
+              <td style="padding:12px 8px;color:var(--muted);font-size:.85rem">{{ slot.notes or '—' }}</td>
+              <td style="padding:12px 8px;text-align:right">
+                <form method="post" action="{{ url_for('admin_delete_slot', slot_id=slot.id) }}" style="display:inline" onsubmit="return confirm('Delete this slot? (Only works if no bookings exist)')">
+                  <button type="submit" class="btn danger" style="padding:6px 12px;font-size:.8rem">Delete</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p style="color:var(--muted);text-align:center;padding:20px">No booking slots created yet. Use the form above to create your first slot.</p>
+    {% endif %}
+  </div>
+  
+  <!-- Customer Bookings Table -->
+  <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px">
+    <h2 style="margin:0 0 16px;color:var(--text);font-size:1.3rem">👥 Customer Bookings</h2>
+    {% if bookings %}
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:.9rem">
+          <thead>
+            <tr style="border-bottom:2px solid rgba(255,255,255,.1)">
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">ID</th>
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Date & Time</th>
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Customer</th>
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Contact</th>
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Dog</th>
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Service</th>
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Status</th>
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">IP</th>
+              <th style="padding:12px 8px;text-align:left;font-weight:700;color:var(--brand)">Message</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for booking in bookings %}
+            <tr style="border-bottom:1px solid rgba(255,255,255,.05)">
+              <td style="padding:12px 8px;color:var(--muted)">#{{ booking.id }}</td>
+              <td style="padding:12px 8px;color:var(--text);white-space:nowrap">
+                <strong>{{ booking.booking_date }}</strong><br>
+                <span style="color:var(--muted);font-size:.85rem">{{ booking.booking_time }} ({{ booking.duration_minutes }}min)</span>
+              </td>
+              <td style="padding:12px 8px;color:var(--text)">
+                <strong>{{ booking.customer_name }}</strong>
+              </td>
+              <td style="padding:12px 8px;font-size:.85rem">
+                <a href="mailto:{{ booking.customer_email }}" style="color:var(--brand)">{{ booking.customer_email }}</a>
+                {% if booking.customer_phone %}<br><span style="color:var(--muted)">{{ booking.customer_phone }}</span>{% endif %}
+              </td>
+              <td style="padding:12px 8px">
+                <strong style="color:var(--text)">{{ booking.dog_name }}</strong>
+                {% if booking.dog_info %}<br><span style="color:var(--muted);font-size:.85rem">{{ booking.dog_info[:50] }}{% if booking.dog_info|length > 50 %}...{% endif %}</span>{% endif %}
+              </td>
+              <td style="padding:12px 8px;color:var(--muted);font-size:.85rem">{{ booking.service_type or '—' }}</td>
+              <td style="padding:12px 8px">
+                <form method="post" action="{{ url_for('admin_update_booking', booking_id=booking.id) }}" style="margin:0">
+                  <select name="status" onchange="this.form.submit()" 
+                    style="padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.16);background:{% if booking.status=='confirmed' %}rgba(34,197,94,.2){% elif booking.status=='cancelled' %}rgba(239,68,68,.2){% else %}rgba(245,158,11,.2){% endif %};color:var(--text);font-size:.85rem;font-weight:600">
+                    <option value="pending" {% if booking.status=='pending' %}selected{% endif %}>⏳ Pending</option>
+                    <option value="confirmed" {% if booking.status=='confirmed' %}selected{% endif %}>✅ Confirmed</option>
+                    <option value="cancelled" {% if booking.status=='cancelled' %}selected{% endif %}>❌ Cancelled</option>
+                  </select>
+                </form>
+              </td>
+              <td style="padding:12px 8px;color:var(--muted);font-size:.8rem;font-family:monospace">{{ booking.ip_address or '—' }}</td>
+              <td style="padding:12px 8px;color:var(--muted);font-size:.85rem;max-width:200px">{{ booking.message[:60] if booking.message else '—' }}{% if booking.message and booking.message|length > 60 %}...{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p style="color:var(--muted);text-align:center;padding:20px">No customer bookings yet.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

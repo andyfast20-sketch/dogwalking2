@@ -41,6 +41,13 @@
     <p>Review contact form submissions and inquiries.</p>
   </div>
   
+  <div class="admin-card {% if pending_bookings > 0 %}pulse{% endif %}" onclick="showSection('bookings')">
+    {% if pending_bookings > 0 %}<span class="badge">{{ pending_bookings }}</span>{% endif %}
+    <div class="admin-card-icon">📅</div>
+    <h2>Bookings</h2>
+    <p>Manage booking slots and customer reservations.</p>
+  </div>
+  
   <div class="admin-card {% if active_visitors > 0 %}pulse{% endif %}" onclick="showSection('visitors')">
     {% if active_visitors > 0 %}<span class="badge">{{ active_visitors }}</span>{% endif %}
     <div class="admin-card-icon">👥</div>
@@ -71,6 +78,15 @@
     <button class="back-btn" onclick="showDashboard()">← Back to Dashboard</button>
   </div>
   <div id="enquiries-content"></div>
+</div>
+
+<!-- Bookings Section -->
+<div id="section-bookings" class="admin-section">
+  <div class="admin-header">
+    <h1>Bookings</h1>
+    <button class="back-btn" onclick="showDashboard()">← Back to Dashboard</button>
+  </div>
+  <div id="bookings-content"></div>
 </div>
 
 <!-- Visitors Section -->
@@ -168,6 +184,7 @@ async function showSection(name){
     let url;
     if(name==='chats') url='/admin/chats';
     else if(name==='enquiries') url='/admin/enquiries';
+    else if(name==='bookings') url='/admin/bookings';
     else if(name==='visitors') url='/admin/visitors';
     else if(name==='content') url='/admin/content';
     

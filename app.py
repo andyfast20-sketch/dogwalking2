@@ -74,6 +74,58 @@ def contact():
     submitted = request.args.get('submitted') == '1'
     return render_template('contact.html', submitted=submitted)
 
+@app.route('/book', methods=['GET', 'POST'])
+def book():
+    if request.method == 'POST':
+        slot_id = request.form.get('slot_id', '').strip()
+        customer_name = request.form.get('name', '').strip()
+        customer_email = request.form.get('email', '').strip()
+        customer_phone = request.form.get('phone', '').strip()
+        dog_name = request.form.get('dog_name', '').strip()
+        dog_info = request.form.get('dog_info', '').strip()
+        service_type = request.form.get('service_type', '').strip()
+        message = request.form.get('message', '').strip()
+        
+        # Get IP address
+        ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
+        if ip_address and ',' in ip_address:
+            ip_address = ip_address.split(',')[0].strip()
+        
+        # Validation
+        if not all([slot_id, customer_name, customer_email, dog_name]):
+            slots = fetch_booking_slots()
+            return render_template('book.html', slots=slots, error="Please fill in all required fields.", form=request.form, ip=ip_address), 400
+        
+        # Create booking
+        booking_id = create_booking(
+            slot_id=int(slot_id),
+            customer_name=customer_name,
+            customer_email=customer_email,
+            customer_phone=customer_phone,
+            dog_name=dog_name,
+            dog_info=dog_info,
+            service_type=service_type,
+            message=message,
+            ip_address=ip_address
+        )
+        
+        if booking_id:
+            return redirect(url_for('book', success='1'))
+        else:
+            slots = fetch_booking_slots()
+            return render_template('book.html', slots=slots, error="Sorry, that time slot is no longer available. Please select another.", form=request.form, ip=ip_address), 400
+    
+    # GET request
+    slots = fetch_booking_slots()
+    success = request.args.get('success') == '1'
+    
+    # Get IP for display
+    ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
+    if ip_address and ',' in ip_address:
+        ip_address = ip_address.split(',')[0].strip()
+    
+    return render_template('book.html', slots=slots, success=success, ip=ip_address)
+
 
 """Persistence layer
 Chooses Postgres (if DATABASE_URL env var is set) otherwise falls back to local SQLite.
@@ -244,6 +296,38 @@ def init_db():
                 conn.execute(text("INSERT INTO site_settings (key, value) VALUES (:key, :val)"), {"key": key, "val": url})
             except Exception:
                 pass  # setting already exists
+        # Booking slots table for admin-defined available times
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS booking_slots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date TEXT NOT NULL,
+                time TEXT NOT NULL,
+                duration_minutes INTEGER DEFAULT 60,
+                capacity INTEGER DEFAULT 1,
+                booked_count INTEGER DEFAULT 0,
+                is_available INTEGER DEFAULT 1,
+                notes TEXT,
+                created_at TEXT NOT NULL
+            )
+        """))
+        # Bookings table for customer reservations
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS bookings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                slot_id INTEGER NOT NULL,
+                customer_name TEXT NOT NULL,
+                customer_email TEXT NOT NULL,
+                customer_phone TEXT,
+                dog_name TEXT NOT NULL,
+                dog_info TEXT,
+                service_type TEXT,
+                message TEXT,
+                status TEXT NOT NULL DEFAULT 'pending',
+                ip_address TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (slot_id) REFERENCES booking_slots(id)
+            )
+        """))
 
 def save_enquiry(name: str, email: str, dog: str, message: str):
     init_db()
@@ -327,6 +411,126 @@ def update_meet_andy(data: dict):
             conn.execute(text(
                 "UPDATE site_content SET content=:content WHERE section='about' AND key=:key"
             ), {"content": value, "key": key})
+
+# ---- Booking Management Functions ----
+def fetch_booking_slots(include_past=False):
+    """Fetch all booking slots, optionally filtering out past dates"""
+    init_db()
+    with engine.begin() as conn:
+        if include_past:
+            result = conn.execute(text("SELECT * FROM booking_slots ORDER BY date ASC, time ASC"))
+        else:
+            # For customer view, only show future slots
+            from datetime import datetime
+            today = datetime.now().strftime('%d/%m/%Y')
+            result = conn.execute(text("SELECT * FROM booking_slots WHERE date >= :today AND is_available = 1 ORDER BY date ASC, time ASC"), {"today": today})
+        slots = []
+        for r in result:
+            slots.append({
+                'id': r.id,
+                'date': r.date,
+                'time': r.time,
+                'duration_minutes': r.duration_minutes,
+                'capacity': r.capacity,
+                'booked_count': r.booked_count,
+                'is_available': r.is_available,
+                'notes': r.notes or '',
+                'created_at': r.created_at,
+                'spaces_left': r.capacity - r.booked_count
+            })
+        return slots
+
+def create_booking_slot(date: str, time: str, duration: int = 60, capacity: int = 1, notes: str = ''):
+    """Create a new booking slot"""
+    init_db()
+    from datetime import datetime
+    created_at = datetime.utcnow().isoformat() + 'Z'
+    with engine.begin() as conn:
+        conn.execute(text("""
+            INSERT INTO booking_slots (date, time, duration_minutes, capacity, booked_count, is_available, notes, created_at)
+            VALUES (:date, :time, :duration, :capacity, 0, 1, :notes, :created_at)
+        """), {"date": date, "time": time, "duration": duration, "capacity": capacity, "notes": notes, "created_at": created_at})
+
+def delete_booking_slot(slot_id: int):
+    """Delete a booking slot (only if no bookings exist)"""
+    init_db()
+    with engine.begin() as conn:
+        # Check if any bookings exist for this slot
+        count = conn.execute(text("SELECT COUNT(*) FROM bookings WHERE slot_id = :sid"), {"sid": slot_id}).scalar()
+        if count > 0:
+            return False  # Cannot delete slot with existing bookings
+        conn.execute(text("DELETE FROM booking_slots WHERE id = :sid"), {"sid": slot_id})
+        return True
+
+def fetch_bookings():
+    """Fetch all bookings with slot details"""
+    init_db()
+    with engine.begin() as conn:
+        result = conn.execute(text("""
+            SELECT b.*, bs.date, bs.time, bs.duration_minutes
+            FROM bookings b
+            JOIN booking_slots bs ON b.slot_id = bs.id
+            ORDER BY bs.date DESC, bs.time DESC, b.created_at DESC
+        """))
+        bookings = []
+        for r in result:
+            bookings.append({
+                'id': r.id,
+                'slot_id': r.slot_id,
+                'customer_name': r.customer_name,
+                'customer_email': r.customer_email,
+                'customer_phone': r.customer_phone or '',
+                'dog_name': r.dog_name,
+                'dog_info': r.dog_info or '',
+                'service_type': r.service_type or '',
+                'message': r.message or '',
+                'status': r.status,
+                'ip_address': r.ip_address or '',
+                'created_at': r.created_at,
+                'booking_date': r.date,
+                'booking_time': r.time,
+                'duration_minutes': r.duration_minutes
+            })
+        return bookings
+
+def create_booking(slot_id: int, customer_name: str, customer_email: str, customer_phone: str,
+                   dog_name: str, dog_info: str, service_type: str, message: str, ip_address: str):
+    """Create a new booking"""
+    init_db()
+    from datetime import datetime
+    created_at = datetime.utcnow().isoformat() + 'Z'
+    with engine.begin() as conn:
+        # Check if slot is available
+        slot = conn.execute(text("SELECT capacity, booked_count, is_available FROM booking_slots WHERE id = :sid"), {"sid": slot_id}).fetchone()
+        if not slot or not slot.is_available or slot.booked_count >= slot.capacity:
+            return None  # Slot not available
+        
+        # Create booking
+        result = conn.execute(text("""
+            INSERT INTO bookings (slot_id, customer_name, customer_email, customer_phone, dog_name, dog_info, service_type, message, status, ip_address, created_at)
+            VALUES (:slot_id, :name, :email, :phone, :dog_name, :dog_info, :service, :message, 'pending', :ip, :created_at)
+        """), {
+            "slot_id": slot_id, "name": customer_name, "email": customer_email, "phone": customer_phone,
+            "dog_name": dog_name, "dog_info": dog_info, "service": service_type, "message": message,
+            "ip": ip_address, "created_at": created_at
+        })
+        booking_id = result.lastrowid
+        
+        # Increment booked_count
+        new_count = slot.booked_count + 1
+        conn.execute(text("UPDATE booking_slots SET booked_count = :count WHERE id = :sid"), {"count": new_count, "sid": slot_id})
+        
+        # If fully booked, mark as unavailable
+        if new_count >= slot.capacity:
+            conn.execute(text("UPDATE booking_slots SET is_available = 0 WHERE id = :sid"), {"sid": slot_id})
+        
+        return booking_id
+
+def update_booking_status(booking_id: int, status: str):
+    """Update booking status"""
+    init_db()
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE bookings SET status = :status WHERE id = :bid"), {"status": status, "bid": booking_id})
 
 def fetch_enquiries():
     init_db()
@@ -454,6 +658,9 @@ def admin_dashboard():
         # Count new enquiries (status='new')
         new_enquiries = conn.execute(text("SELECT COUNT(*) FROM enquiries WHERE status='new'")).scalar() or 0
         
+        # Count pending bookings
+        pending_bookings = conn.execute(text("SELECT COUNT(*) FROM bookings WHERE status='pending'")).scalar() or 0
+        
         # Count recent visitors (last 24 hours)
         from datetime import datetime, timedelta
         cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
@@ -461,7 +668,8 @@ def admin_dashboard():
     
     return render_template('admin_dashboard.html', 
                          open_chats=open_chats,
-                         new_enquiries=new_enquiries, 
+                         new_enquiries=new_enquiries,
+                         pending_bookings=pending_bookings,
                          active_visitors=active_visitors)
 
 @app.route('/admin/status.json')
@@ -474,6 +682,7 @@ def admin_status_json():
     with engine.begin() as conn:
         open_chats = conn.execute(text("SELECT COUNT(*) FROM chats WHERE status='open'")).scalar() or 0
         new_enquiries = conn.execute(text("SELECT COUNT(*) FROM enquiries WHERE status='new'")).scalar() or 0
+        pending_bookings = conn.execute(text("SELECT COUNT(*) FROM bookings WHERE status='pending'")).scalar() or 0
         from datetime import datetime, timedelta
         cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
         active_visitors = conn.execute(text("SELECT COUNT(DISTINCT sid) FROM events WHERE created_at > :cutoff"), {"cutoff": cutoff}).scalar() or 0
@@ -481,6 +690,7 @@ def admin_status_json():
     return jsonify({
         "open_chats": open_chats,
         "new_enquiries": new_enquiries,
+        "pending_bookings": pending_bookings,
         "active_visitors": active_visitors
     })
 
@@ -932,6 +1142,58 @@ def admin_maintenance_toggle():
     
     return redirect(url_for('admin_content'))
 
+
+# ---------- Admin Booking Management ----------
+@app.route('/admin/bookings')
+def admin_bookings():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    slots = fetch_booking_slots(include_past=True)
+    bookings = fetch_bookings()
+    return render_template('admin_bookings.html', slots=slots, bookings=bookings)
+
+@app.post('/admin/bookings/slot/create')
+def admin_create_slot():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    date = request.form.get('date', '').strip()
+    time = request.form.get('time', '').strip()
+    duration = int(request.form.get('duration', '60'))
+    capacity = int(request.form.get('capacity', '1'))
+    notes = request.form.get('notes', '').strip()
+    
+    if date and time:
+        create_booking_slot(date, time, duration, capacity, notes)
+    
+    return redirect(url_for('admin_bookings'))
+
+@app.post('/admin/bookings/slot/delete/<int:slot_id>')
+def admin_delete_slot(slot_id: int):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    success = delete_booking_slot(slot_id)
+    if not success:
+        # Slot has bookings, cannot delete
+        return redirect(url_for('admin_bookings') + '?error=cannot_delete')
+    
+    return redirect(url_for('admin_bookings'))
+
+@app.post('/admin/bookings/update/<int:booking_id>')
+def admin_update_booking(booking_id: int):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    status = request.form.get('status', '').strip()
+    if status:
+        update_booking_status(booking_id, status)
+    
+    return redirect(url_for('admin_bookings'))
 
 @app.route('/admin/visitors/analyze/<sid>', methods=['POST'])
 def admin_visitors_analyze(sid: str):
