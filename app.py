@@ -1300,7 +1300,11 @@ def chat_send():
         
         # Autopilot AI response if enabled and user sent a message
         try:
-            if sender == 'user' and get_autopilot_enabled():
+            autopilot_on = get_autopilot_enabled()
+            if sender == 'user' and autopilot_on:
+                # Debug: log that autopilot is attempting
+                conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), 
+                            {"cid": int(chat_id), "m": f"[Autopilot attempting reply... OpenAI client: {bool(openai_client)}, Gemini: {bool(genai and GEMINI_API_KEY)}]", "t": datetime.utcnow().isoformat()})
                 ai_reply = None
                 failure_reason = None
                 user_text = message.strip()
@@ -1342,6 +1346,14 @@ def chat_send():
                         conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": f"(Autopilot failed: {failure_reason[:140]})", "t": datetime.utcnow().isoformat()})
                 if ai_reply:
                     conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :m, :t)"), {"cid": int(chat_id), "m": ai_reply[:2000], "t": datetime.utcnow().isoformat()})
+                else:
+                    # No reply generated - log why
+                    conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), 
+                                {"cid": int(chat_id), "m": f"[Autopilot: No AI reply generated. Reason: {failure_reason or 'Unknown'}]", "t": datetime.utcnow().isoformat()})
+            elif sender == 'user' and not autopilot_on:
+                # Autopilot is off
+                conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), 
+                            {"cid": int(chat_id), "m": "[Autopilot is OFF - no AI response]", "t": datetime.utcnow().isoformat()})
         except Exception:
             # Silent catch-all to ensure user message flow, but insert a generic failure note.
             try:
