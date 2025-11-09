@@ -41,101 +41,44 @@
     <div class="feature"><h3>First‑Aid Trained</h3><p>Safety‑first approach on every walk.</p></div>
   </section>
 
-  <!-- Services & Pricing Section -->
-  <section class="services-section">
-    <div class="section-block">
-      <h2>My Services & Pricing</h2>
-      <div class="accordion" id="services-accordion">
-        {% for service in services %}
-        <div class="accordion-item" aria-expanded="false">
-          <h3 class="accordion-header" id="header-{{ service.key }}">
-            <button class="accordion-button" type="button" aria-controls="panel-{{ service.key }}" aria-expanded="false" aria-label="Toggle {{ service.title }} panel">
-              {{ service.title }} <span class="accordion-icon">+</span>
-            </button>
-          </h3>
-          <div class="accordion-panel" id="panel-{{ service.key }}" role="region" aria-labelledby="header-{{ service.key }}">
-            {% if service.price %}
-            <p class="price"><strong>{{ service.price }}</strong></p>
-            {% endif %}
-            {% set lines = service.content.split('\n') %}
-            {% set description = [] %}
-            {% set bullets = [] %}
-            {% for line in lines %}
-              {% if line.strip() %}
-                {% if line.strip().startswith('•') or line.strip().startswith('-') %}
-                  {% set _ = bullets.append(line.strip().lstrip('•').lstrip('-').strip()) %}
-                {% else %}
-                  {% set _ = description.append(line.strip()) %}
-                {% endif %}
-              {% endif %}
-            {% endfor %}
-            {% if description %}
-            <p>{{ description|join(' ') }}</p>
-            {% endif %}
-            {% if bullets %}
-            <ul class="accordion-list">
-              {% for bullet in bullets %}
-              <li>{{ bullet }}</li>
-              {% endfor %}
-            </ul>
-            {% endif %}
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-  </section>
-
-  <!-- Owner Introduction Section -->
-  <section class="owner-intro">
+  <!-- How It Works Section -->
+  <section class="how-it-works">
     <div class="container">
-      <div class="owner-grid">
-        <aside class="profile-card">
-          <div class="avatar">
-            <img src="{{ url_for('static', filename='img/andy.jpg') }}" alt="Profile photo" width="400" height="400" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%20male%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern%2C%20photorealistic?width=400&height=400&nologo=true'">
+      <div class="how-header">
+        <h2>Book a Walk in 3 Simple Steps</h2>
+        <p class="how-subtitle">Getting your dog's tail wagging has never been easier</p>
+      </div>
+      <div class="steps-grid">
+        <div class="step">
+          <div class="step-number">
+            <span>1</span>
           </div>
-          <h3>Friendly, Reliable, Local</h3>
-          <p class="contact">Call me: <strong>07595 289669</strong></p>
-          <a href="{{ url_for('contact') }}" class="btn primary" style="margin-top:10px">Enquire Now</a>
-        </aside>
-        <div class="owner-content">
-          <h2>{{ meet_andy.heading.content }}</h2>
-          <p>{{ meet_andy.paragraph1.content }}</p>
-          <p>{{ meet_andy.paragraph2.content }}</p>
-          <div class="owner-features">
-            <div class="owner-feature">{{ meet_andy.badge1.content }}</div>
-            <div class="owner-feature">{{ meet_andy.badge2.content }}</div>
-            <div class="owner-feature">{{ meet_andy.badge3.content }}</div>
-            <div class="owner-feature">{{ meet_andy.badge4.content }}</div>
+          <div class="step-icon">📅</div>
+          <h3>Choose Your Slot</h3>
+          <p>Browse available times and pick what works best for your schedule. Flexible slots 7 days a week.</p>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-number">
+            <span>2</span>
           </div>
+          <div class="step-icon">📝</div>
+          <h3>Share Details</h3>
+          <p>Tell me about your dog's personality, needs, and any special requirements. Quick and easy form.</p>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-number">
+            <span>3</span>
+          </div>
+          <div class="step-icon">🐾</div>
+          <h3>Enjoy Updates</h3>
+          <p>Relax while I walk your dog. Get GPS routes and photo updates after every adventure!</p>
         </div>
       </div>
-    </div>
-  </section>
-
-  <!-- Areas Covered Section -->
-  <section class="areas-section">
-    <div class="section-block">
-      <h2>Service Areas</h2>
-      <div class="accordion" id="areas-accordion">
-        <div class="accordion-item" aria-expanded="true">
-          <h3 class="accordion-header" id="header-areas">
-            <button class="accordion-button" type="button" aria-controls="panel-areas" aria-expanded="true" aria-label="Toggle coverage list panel">
-              Coverage List <span class="accordion-icon">−</span>
-            </button>
-          </h3>
-          <div class="accordion-panel" id="panel-areas" role="region" aria-labelledby="header-areas" style="display:block">
-            <div class="areas-grid">
-              <div class="area-card">Downtown</div>
-              <div class="area-card">Riverside Park District</div>
-              <div class="area-card">Northside Neighborhood</div>
-              <div class="area-card">Central Commons</div>
-              <div class="area-card">West End</div>
-              <div class="area-card">East Hills</div>
-            </div>
-            <p class="areas-note">Expanding monthly – ask if your area is next.</p>
-          </div>
-        </div>
+      <div class="how-cta">
+        <a href="{{ url_for('book') }}" class="btn primary large">Book a Walk Now</a>
+        <p class="how-cta-note">✨ Most slots confirmed within 2 hours</p>
       </div>
     </div>
   </section>
@@ -192,6 +135,78 @@
     </div>
   </section>
 
+  <!-- Owner Introduction Section -->
+  <section class="owner-intro">
+    <div class="container">
+      <div class="owner-grid">
+        <aside class="profile-card">
+          <div class="avatar">
+            <img src="{{ url_for('static', filename='img/andy.jpg') }}" alt="Profile photo" width="400" height="400" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%20male%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern%2C%20photorealistic?width=400&height=400&nologo=true'">
+          </div>
+          <h3>{{ contact_info.profile_title.content }}</h3>
+          <p class="contact">Call me: <strong>{{ contact_info.phone.content }}</strong><br> Email: <strong>{{ contact_info.email.content }}</strong></p>
+          <a href="{{ url_for('contact') }}" class="btn primary" style="margin-top:10px">Enquire Now</a>
+        </aside>
+        <div class="owner-content">
+          <h2>{{ meet_andy.heading.content }}</h2>
+          <p>{{ meet_andy.paragraph1.content }}</p>
+          <p>{{ meet_andy.paragraph2.content }}</p>
+          <div class="owner-features">
+            <div class="owner-feature">{{ meet_andy.badge1.content }}</div>
+            <div class="owner-feature">{{ meet_andy.badge2.content }}</div>
+            <div class="owner-feature">{{ meet_andy.badge3.content }}</div>
+            <div class="owner-feature">{{ meet_andy.badge4.content }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Services & Pricing Section -->
+  <section class="services-section">
+    <div class="section-block">
+      <h2>My Services & Pricing</h2>
+      <div class="accordion" id="services-accordion">
+        {% for service in services %}
+        <div class="accordion-item" aria-expanded="false">
+          <h3 class="accordion-header" id="header-{{ service.key }}">
+            <button class="accordion-button" type="button" aria-controls="panel-{{ service.key }}" aria-expanded="false" aria-label="Toggle {{ service.title }} panel">
+              {{ service.title }} <span class="accordion-icon">+</span>
+            </button>
+          </h3>
+          <div class="accordion-panel" id="panel-{{ service.key }}" role="region" aria-labelledby="header-{{ service.key }}">
+            {% if service.price %}
+            <p class="price"><strong>{{ service.price }}</strong></p>
+            {% endif %}
+            {% set lines = service.content.split('\n') %}
+            {% set description = [] %}
+            {% set bullets = [] %}
+            {% for line in lines %}
+              {% if line.strip() %}
+                {% if line.strip().startswith('•') or line.strip().startswith('-') %}
+                  {% set _ = bullets.append(line.strip().lstrip('•').lstrip('-').strip()) %}
+                {% else %}
+                  {% set _ = description.append(line.strip()) %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+            {% if description %}
+            <p>{{ description|join(' ') }}</p>
+            {% endif %}
+            {% if bullets %}
+            <ul class="accordion-list">
+              {% for bullet in bullets %}
+              <li>{{ bullet }}</li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
   <!-- Inline Enquiry Section -->
   <section class="enquiry-section">
     <div class="section-block">
@@ -215,6 +230,30 @@
         </label>
         <button class="btn primary" type="submit">Send Enquiry</button>
       </form>
+    </div>
+  </section>
+
+  <!-- Areas Covered Section -->
+  <section class="areas-section">
+    <div class="section-block">
+      <h2>Service Areas</h2>
+      <div class="accordion" id="areas-accordion">
+        <div class="accordion-item" aria-expanded="false">
+          <h3 class="accordion-header" id="header-areas">
+            <button class="accordion-button" type="button" aria-controls="panel-areas" aria-expanded="false" aria-label="Toggle coverage list panel">
+              Coverage List <span class="accordion-icon">+</span>
+            </button>
+          </h3>
+          <div class="accordion-panel" id="panel-areas" role="region" aria-labelledby="header-areas" style="display:block">
+            <div class="areas-grid">
+              {% for area in service_areas %}
+              <div class="area-card">{{ area.name }}</div>
+              {% endfor %}
+            </div>
+            <p class="areas-note">Expanding monthly – ask if your area is next.</p>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 

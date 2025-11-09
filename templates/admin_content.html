@@ -164,6 +164,76 @@
     </form>
   </div>
   
+  <!-- Contact Info Section Editor -->
+  <div style="background:linear-gradient(180deg,rgba(245,158,11,.08),rgba(245,158,11,.03));border:2px solid rgba(245,158,11,.25);border-radius:16px;padding:24px;margin-bottom:32px">
+    <h3 style="margin:0 0 16px;color:var(--accent-light);font-size:1.2rem">📞 Contact Information</h3>
+    <p style="margin:0 0 20px;color:var(--muted);font-size:.9rem">Edit the contact details displayed in the profile card on the homepage.</p>
+    
+    <form method="post" action="{{ url_for('admin_contact_update') }}">
+      <div style="display:grid;gap:16px">
+        <!-- Profile Title -->
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <strong style="font-size:.9rem">Profile Title</strong>
+          <input type="text" name="profile_title" value="{{ contact_info.profile_title.content }}" required maxlength="50"
+            style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
+          <small style="color:var(--muted);font-size:.8rem">Short description (e.g., "Friendly, Reliable, Local")</small>
+        </label>
+        
+        <!-- Phone Number -->
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <strong style="font-size:.9rem">Phone Number</strong>
+          <input type="text" name="phone" value="{{ contact_info.phone.content }}" required maxlength="30"
+            style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
+          <small style="color:var(--muted);font-size:.8rem">Contact phone number (e.g., "(555) 123-PAWS")</small>
+        </label>
+        
+        <!-- Email Address -->
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <strong style="font-size:.9rem">Email Address</strong>
+          <input type="email" name="email" value="{{ contact_info.email.content }}" required maxlength="60"
+            style="padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:1rem" />
+          <small style="color:var(--muted);font-size:.8rem">Contact email address</small>
+        </label>
+      </div>
+      
+      <div style="margin-top:16px;text-align:right">
+        <button class="btn primary" type="submit" style="padding:12px 24px;font-weight:700">Save Contact Information</button>
+      </div>
+    </form>
+  </div>
+  
+  <!-- Service Areas Editor -->
+  <div style="background:linear-gradient(180deg,rgba(34,197,94,.08),rgba(34,197,94,.03));border:2px solid rgba(34,197,94,.25);border-radius:16px;padding:24px;margin-bottom:32px">
+    <h3 style="margin:0 0 16px;color:var(--brand);font-size:1.2rem">📍 Service Areas</h3>
+    <p style="margin:0 0 20px;color:var(--muted);font-size:.9rem">Manage the coverage areas displayed on the homepage.</p>
+    
+    <!-- Existing Areas -->
+    <div style="display:grid;gap:12px;margin-bottom:24px">
+      {% for area in service_areas %}
+      <div style="display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:12px">
+        <form method="post" action="{{ url_for('admin_service_area_update', area_id=area.id) }}" style="flex:1;display:flex;gap:12px">
+          <input type="text" name="name" value="{{ area.name }}" required
+            style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem" />
+          <button class="btn" type="submit" style="background:var(--brand);color:#fff;padding:10px 20px;font-weight:600">Update</button>
+        </form>
+        <form method="post" action="{{ url_for('admin_service_area_delete', area_id=area.id) }}" onsubmit="return confirm('Delete this service area?')" style="margin:0">
+          <button class="btn" type="submit" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;padding:10px 16px;font-weight:600">Delete</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    
+    <!-- Add New Area -->
+    <div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:12px;padding:16px">
+      <h4 style="margin:0 0 12px;color:var(--text);font-size:1rem">Add New Area</h4>
+      <form method="post" action="{{ url_for('admin_service_area_add') }}" style="display:flex;gap:12px">
+        <input type="text" name="name" placeholder="Enter area name..." required
+          style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem" />
+        <button class="btn primary" type="submit" style="padding:10px 24px;font-weight:600">Add Area</button>
+      </form>
+    </div>
+  </div>
+  
   <div style="margin-top:30px;display:flex;flex-direction:column;gap:24px">
     {% for service in services %}
     <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px">

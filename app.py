@@ -62,7 +62,8 @@ def track_and_block_ips():
 @app.route('/')
 def home():
     services = fetch_services()
-    return render_template('index.html', services=services)
+    service_areas = fetch_service_areas()
+    return render_template('index.html', services=services, service_areas=service_areas)
 
 @app.route('/about')
 def about():
@@ -248,6 +249,29 @@ def init_db():
                 created_at TEXT NOT NULL
             )
         """))
+        # Service Areas table
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS service_areas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                sort_order INTEGER DEFAULT 0
+            )
+        """))
+        # Seed default service areas if table is empty
+        count = conn.execute(text("SELECT COUNT(*) FROM service_areas")).scalar()
+        if count == 0:
+            default_areas = [
+                ("Downtown", 1),
+                ("Riverside Park District", 2),
+                ("Northside Neighborhood", 3),
+                ("Central Commons", 4),
+                ("West End", 5),
+                ("East Hills", 6),
+            ]
+            for name, order in default_areas:
+                conn.execute(text(
+                    "INSERT INTO service_areas (name, sort_order) VALUES (:name, :order)"
+                ), {"name": name, "order": order})
         # Content management table for editable website content
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS site_content (
@@ -402,6 +426,20 @@ def fetch_services():
                 'sort_order': r.sort_order
             })
         return services
+
+def fetch_service_areas():
+    """Fetch all service areas from database"""
+    init_db()
+    with engine.begin() as conn:
+        result = conn.execute(text("SELECT id, name, sort_order FROM service_areas ORDER BY sort_order ASC"))
+        areas = []
+        for r in result:
+            areas.append({
+                'id': r.id,
+                'name': r.name,
+                'sort_order': r.sort_order
+            })
+        return areas
 
 def get_maintenance_mode():
     """Get current maintenance mode status"""
@@ -1215,7 +1253,8 @@ def admin_content():
     maintenance_mode = get_maintenance_mode()
     hero_imgs = get_hero_images()
     meet_andy = get_meet_andy()
-    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, hero_imgs=hero_imgs, meet_andy=meet_andy)
+    service_areas = fetch_service_areas()
+    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, hero_imgs=hero_imgs, meet_andy=meet_andy, service_areas=service_areas)
 
 @app.post('/admin/content/service/<int:service_id>')
 def admin_content_update(service_id: int):
@@ -1281,6 +1320,56 @@ def admin_maintenance_toggle():
     
     enabled = request.form.get('enabled') == 'true'
     set_maintenance_mode(enabled)
+    
+    return redirect(url_for('admin_content'))
+
+@app.post('/admin/service-areas/add')
+def admin_service_area_add():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    name = request.form.get('name', '').strip()
+    if not name:
+        abort(400, "Area name is required")
+    
+    init_db()
+    with engine.begin() as conn:
+        # Get max sort_order and add 1
+        max_order = conn.execute(text("SELECT MAX(sort_order) FROM service_areas")).scalar() or 0
+        conn.execute(text(
+            "INSERT INTO service_areas (name, sort_order) VALUES (:name, :order)"
+        ), {"name": name, "order": max_order + 1})
+    
+    return redirect(url_for('admin_content'))
+
+@app.post('/admin/service-areas/update/<int:area_id>')
+def admin_service_area_update(area_id: int):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    name = request.form.get('name', '').strip()
+    if not name:
+        abort(400, "Area name is required")
+    
+    init_db()
+    with engine.begin() as conn:
+        conn.execute(text(
+            "UPDATE service_areas SET name=:name WHERE id=:id"
+        ), {"name": name, "id": area_id})
+    
+    return redirect(url_for('admin_content'))
+
+@app.post('/admin/service-areas/delete/<int:area_id>')
+def admin_service_area_delete(area_id: int):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    init_db()
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM service_areas WHERE id=:id"), {"id": area_id})
     
     return redirect(url_for('admin_content'))
 
