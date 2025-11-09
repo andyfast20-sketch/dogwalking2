@@ -63,7 +63,8 @@ def track_and_block_ips():
 def home():
     services = fetch_services()
     service_areas = fetch_service_areas()
-    return render_template('index.html', services=services, service_areas=service_areas)
+    contact_info = get_contact_info()
+    return render_template('index.html', services=services, service_areas=service_areas, contact_info=contact_info)
 
 @app.route('/about')
 def about():
