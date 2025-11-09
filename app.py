@@ -314,6 +314,18 @@ def init_db():
                 conn.execute(text(
                     "INSERT INTO site_content (section, key, title, price, content, sort_order) VALUES (:sec, :key, :title, :price, :content, :order)"
                 ), {"sec": "about", "key": key, "title": title, "price": price, "content": content, "order": order})
+        # Seed default contact info if not exists
+        count = conn.execute(text("SELECT COUNT(*) FROM site_content WHERE section='contact'")).scalar()
+        if count == 0:
+            contact_content = [
+                ("profile_title", None, None, "Friendly, Reliable, Local", 1),
+                ("phone", None, None, "07595 289669", 2),
+                ("email", None, None, "hello@happypawswalking.com", 3),
+            ]
+            for key, title, price, content, order in contact_content:
+                conn.execute(text(
+                    "INSERT INTO site_content (section, key, title, price, content, sort_order) VALUES (:sec, :key, :title, :price, :content, :order)"
+                ), {"sec": "contact", "key": key, "title": title, "price": price, "content": content, "order": order})
         # Site settings table for global configurations
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS site_settings (
@@ -489,6 +501,16 @@ def update_meet_andy(data: dict):
             conn.execute(text(
                 "UPDATE site_content SET content=:content WHERE section='about' AND key=:key"
             ), {"content": value, "key": key})
+
+def get_contact_info():
+    """Get contact info section content"""
+    init_db()
+    with engine.begin() as conn:
+        result = conn.execute(text("SELECT key, title, content FROM site_content WHERE section='contact' ORDER BY sort_order ASC"))
+        content = {}
+        for row in result:
+            content[row.key] = {'title': row.title, 'content': row.content}
+        return content
 
 # ---- Booking Management Functions ----
 def fetch_booking_slots(include_past=False):
@@ -1253,8 +1275,9 @@ def admin_content():
     maintenance_mode = get_maintenance_mode()
     hero_imgs = get_hero_images()
     meet_andy = get_meet_andy()
+    contact_info = get_contact_info()
     service_areas = fetch_service_areas()
-    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, hero_imgs=hero_imgs, meet_andy=meet_andy, service_areas=service_areas)
+    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, hero_imgs=hero_imgs, meet_andy=meet_andy, contact_info=contact_info, service_areas=service_areas)
 
 @app.post('/admin/content/service/<int:service_id>')
 def admin_content_update(service_id: int):
@@ -1309,6 +1332,37 @@ def admin_meet_andy_update():
     }
     
     update_meet_andy(data)
+    
+    return redirect(url_for('admin_content'))
+
+@app.post('/admin/content/contact')
+def admin_contact_update():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    # Get form data
+    profile_title = request.form.get('profile_title', '').strip()
+    phone = request.form.get('phone', '').strip()
+    email = request.form.get('email', '').strip()
+    
+    if not profile_title or not phone or not email:
+        abort(400, "All contact fields are required")
+    
+    # Update contact info in database
+    init_db()
+    with engine.begin() as conn:
+        conn.execute(text(
+            "UPDATE site_content SET content=:content WHERE section='contact' AND key='profile_title'"
+        ), {"content": profile_title})
+        
+        conn.execute(text(
+            "UPDATE site_content SET content=:content WHERE section='contact' AND key='phone'"
+        ), {"content": phone})
+        
+        conn.execute(text(
+            "UPDATE site_content SET content=:content WHERE section='contact' AND key='email'"
+        ), {"content": email})
     
     return redirect(url_for('admin_content'))
 
