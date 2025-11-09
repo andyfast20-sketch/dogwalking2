@@ -196,14 +196,17 @@
 
       {# GPS & Photo Updates Section #}
       {% if section.section_key == 'photo-strip' %}
-      <section class="gps-updates-section" style="padding:clamp(48px,8vh,80px) clamp(20px,5vw,60px);background:linear-gradient(180deg,rgba(34,197,94,.03),transparent);position:relative">
-        <div class="container" style="max-width:1200px;margin:0 auto">
-          <div style="text-align:center;margin-bottom:48px">
+      <section class="gps-updates-section" style="padding:clamp(40px,6vh,64px) clamp(20px,5vw,60px);background:linear-gradient(180deg,rgba(34,197,94,.05),rgba(34,197,94,.02));position:relative;margin-top:-20px">
+        <!-- Top Gradient Transition -->
+        <div style="position:absolute;top:0;left:0;right:0;height:80px;background:linear-gradient(180deg,rgba(34,197,94,.03),transparent);pointer-events:none"></div>
+        
+        <div class="container" style="max-width:1200px;margin:0 auto;position:relative">
+          <div style="text-align:center;margin-bottom:40px">
             <h2 style="font-size:clamp(1.8rem,4vw,2.5rem);margin-bottom:16px;background:linear-gradient(135deg,var(--brand),var(--accent-light));-webkit-background-clip:text;background-clip:text;color:transparent">Stay Connected on Every Walk</h2>
             <p style="font-size:1.1rem;color:var(--muted);max-width:700px;margin:0 auto">Track your dog's adventure in real-time and receive photo updates — all through WhatsApp</p>
           </div>
           
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:32px;margin-top:48px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:28px;margin-top:40px">
             <!-- GPS Tracking Card -->
             <div style="background:rgba(255,255,255,.04);border:1px solid rgba(34,197,94,.2);border-radius:20px;padding:32px;text-align:center;transition:all .3s" onmouseover="this.style.transform='translateY(-8px)';this.style.boxShadow='0 12px 32px rgba(34,197,94,.15)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
               <div style="width:80px;height:80px;margin:0 auto 24px;background:linear-gradient(135deg,rgba(34,197,94,.2),rgba(34,197,94,.1));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.5rem">
@@ -244,8 +247,8 @@
           </div>
 
           <!-- How It Works -->
-          <div style="margin-top:64px;background:rgba(34,197,94,.06);border:2px solid rgba(34,197,94,.2);border-radius:20px;padding:40px;text-align:center">
-            <h3 style="font-size:1.6rem;margin-bottom:32px;color:var(--brand)">How It Works</h3>
+          <div style="margin-top:48px;background:rgba(34,197,94,.06);border:2px solid rgba(34,197,94,.2);border-radius:20px;padding:36px;text-align:center">
+            <h3 style="font-size:1.6rem;margin-bottom:28px;color:var(--brand)">How It Works</h3>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:24px;max-width:900px;margin:0 auto">
               <div>
                 <div style="width:48px;height:48px;margin:0 auto 16px;background:var(--brand);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#082621;font-weight:800;font-size:1.3rem">1</div>
@@ -270,6 +273,9 @@
             </div>
           </div>
         </div>
+        
+        <!-- Bottom Gradient Transition -->
+        <div style="position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.02));pointer-events:none"></div>
       </section>
       {% endif %}
 
