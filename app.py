@@ -293,7 +293,7 @@ def init_db():
                 ("meet-andy", "Meet Andy", 1, 3),
                 ("service-areas", "Service Areas", 1, 4),
                 ("how-it-works", "Book a Walk in 3 Simple Steps", 1, 5),
-                ("photo-strip", "Photo Strip", 1, 6),
+                ("photo-strip", "GPS Tracking & Photo Updates", 1, 6),
                 ("enquiry", "Get in Touch", 1, 7),
                 ("testimonials", "Testimonials", 1, 8),
                 ("gallery", "Gallery", 1, 9),
