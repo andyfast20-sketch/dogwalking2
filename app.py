@@ -36,7 +36,10 @@ def inject_globals():
     return {
         'maintenance_mode': get_maintenance_mode(),
         'hero_images': get_hero_images(),
-        'meet_andy': get_meet_andy()
+        'meet_andy': get_meet_andy(),
+        # Expose provider presence so templates don't guess
+        'has_openai': bool(OPENAI_API_KEY),
+        'has_gemini': bool(GEMINI_API_KEY),
     }
 
 @app.before_request
