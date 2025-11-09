@@ -1310,6 +1310,8 @@ def chat_send():
         # Autopilot AI response if enabled and user sent a message
         try:
             autopilot_on = get_autopilot_enabled()
+            conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"),
+                        {"cid": int(chat_id), "m": f"[Autopilot debug] sender={sender} autopilot_on={autopilot_on}", "t": datetime.utcnow().isoformat()})
             if sender == 'user' and autopilot_on:
                 # Debug: log that autopilot is attempting
                 conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), 
