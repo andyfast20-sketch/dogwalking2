@@ -1290,60 +1290,64 @@ def chat_send():
     if sender == 'admin':
         auth_ok = require_admin()
         if isinstance(auth_ok, Response):
-            try:
-                if sender == 'user' and get_autopilot_enabled():
-                    ai_reply = None
-                    failure_reason = None
-                    user_text = message.strip()
-                    base_system = "You are Andy's Dog Walking assistant. Keep replies friendly, concise (<80 words), and actionable. If pricing or availability is unclear, invite them to share their dog's needs."
-                    prompt_messages = [
-                        {"role": "system", "content": base_system},
-                        {"role": "user", "content": user_text}
-                    ]
-                    if openai_client:
-                        # Try a cascade of models for reliability
-                        models_try = ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo", "gpt-4-turbo-preview"]
-                        for mname in models_try:
-                            try:
-                                resp = openai_client.chat.completions.create(
-                                    model=mname,
-                                    messages=prompt_messages,
-                                    max_tokens=200,
-                                    temperature=0.5
-                                )
-                                ai_reply = resp.choices[0].message.content.strip() if resp and resp.choices else None
-                                if ai_reply:
-                                    break
-                            except Exception as e:
-                                failure_reason = str(e)
-                        if not ai_reply and failure_reason:
-                            # Log a minimal system notice for admin visibility
-                            conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": f"(Autopilot failed: {failure_reason[:140]})", "t": datetime.utcnow().isoformat()})
-                    elif genai and GEMINI_API_KEY:
+            return auth_ok
+    else:
+        sender = 'user'
+    now = datetime.utcnow().isoformat()
+    with engine.begin() as conn:
+        conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, :s, :m, :t)"), {"cid": int(chat_id), "s": sender, "m": message.strip()[:2000], "t": now})
+        conn.execute(text("UPDATE chats SET last_activity=:t WHERE id=:cid"), {"cid": int(chat_id), "t": now})
+        
+        # Autopilot AI response if enabled and user sent a message
+        try:
+            if sender == 'user' and get_autopilot_enabled():
+                ai_reply = None
+                failure_reason = None
+                user_text = message.strip()
+                base_system = "You are Andy's Dog Walking assistant. Keep replies friendly, concise (<80 words), and actionable. If pricing or availability is unclear, invite them to share their dog's needs."
+                prompt_messages = [
+                    {"role": "system", "content": base_system},
+                    {"role": "user", "content": user_text}
+                ]
+                if openai_client:
+                    # Try a cascade of models for reliability
+                    models_try = ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo", "gpt-4-turbo-preview"]
+                    for mname in models_try:
                         try:
-                            model = genai.GenerativeModel('gemini-1.5-flash')
-                            r = model.generate_content(user_text + "\nReply under 80 words as a friendly dog walking assistant.")
-                            ai_reply = getattr(r, 'text', None)
-                            if not ai_reply and getattr(r, 'candidates', None):
-                                ai_reply = r.candidates[0].content.parts[0].text
+                            resp = openai_client.chat.completions.create(
+                                model=mname,
+                                messages=prompt_messages,
+                                max_tokens=200,
+                                temperature=0.5
+                            )
+                            ai_reply = resp.choices[0].message.content.strip() if resp and resp.choices else None
                             if ai_reply:
-                                ai_reply = ai_reply.strip()
+                                break
                         except Exception as e:
                             failure_reason = str(e)
-                            conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": f"(Autopilot failed: {failure_reason[:140]})", "t": datetime.utcnow().isoformat()})
-                    if ai_reply:
-                        conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :m, :t)"), {"cid": int(chat_id), "m": ai_reply[:2000], "t": datetime.utcnow().isoformat()})
-            except Exception:
-                # Silent catch-all to ensure user message flow, but insert a generic failure note.
-                conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": "(Autopilot encountered an unexpected error)", "t": datetime.utcnow().isoformat()})
+                    if not ai_reply and failure_reason:
+                        # Log a minimal system notice for admin visibility
+                        conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": f"(Autopilot failed: {failure_reason[:140]})", "t": datetime.utcnow().isoformat()})
+                elif genai and GEMINI_API_KEY:
+                    try:
+                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        r = model.generate_content(user_text + "\nReply under 80 words as a friendly dog walking assistant.")
+                        ai_reply = getattr(r, 'text', None)
+                        if not ai_reply and getattr(r, 'candidates', None):
+                            ai_reply = r.candidates[0].content.parts[0].text
                         if ai_reply:
                             ai_reply = ai_reply.strip()
-                    except Exception:
-                        ai_reply = None
+                    except Exception as e:
+                        failure_reason = str(e)
+                        conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": f"(Autopilot failed: {failure_reason[:140]})", "t": datetime.utcnow().isoformat()})
                 if ai_reply:
                     conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :m, :t)"), {"cid": int(chat_id), "m": ai_reply[:2000], "t": datetime.utcnow().isoformat()})
         except Exception:
-            pass  # Never block user message due to AI failure
+            # Silent catch-all to ensure user message flow, but insert a generic failure note.
+            try:
+                conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": "(Autopilot encountered an unexpected error)", "t": datetime.utcnow().isoformat()})
+            except Exception:
+                pass
     return jsonify({"ok": True})
 
 @app.get('/chat/poll/<int:chat_id>')
