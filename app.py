@@ -12,6 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 # Optional AI providers
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 
 # Gemini
 try:
@@ -28,6 +29,13 @@ try:
 except Exception:
     openai_client = None
 
+# DeepSeek (uses OpenAI-compatible API)
+try:
+    from openai import OpenAI  # type: ignore
+    deepseek_client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com") if DEEPSEEK_API_KEY else None
+except Exception:
+    deepseek_client = None
+
 app = Flask(__name__)
 
 @app.context_processor
@@ -40,6 +48,7 @@ def inject_globals():
         # Expose provider presence so templates don't guess
         'has_openai': bool(OPENAI_API_KEY),
         'has_gemini': bool(GEMINI_API_KEY),
+        'has_deepseek': bool(DEEPSEEK_API_KEY),
     }
 
 @app.before_request
@@ -1304,7 +1313,7 @@ def chat_send():
             if sender == 'user' and autopilot_on:
                 # Debug: log that autopilot is attempting
                 conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), 
-                            {"cid": int(chat_id), "m": f"[Autopilot attempting reply... OpenAI client: {bool(openai_client)}, Gemini: {bool(genai and GEMINI_API_KEY)}]", "t": datetime.utcnow().isoformat()})
+                            {"cid": int(chat_id), "m": f"[Autopilot attempting reply... OpenAI: {bool(openai_client)}, DeepSeek: {bool(deepseek_client)}, Gemini: {bool(genai and GEMINI_API_KEY)}]", "t": datetime.utcnow().isoformat()})
                 ai_reply = None
                 failure_reason = None
                 user_text = message.strip()
@@ -1313,8 +1322,9 @@ def chat_send():
                     {"role": "system", "content": base_system},
                     {"role": "user", "content": user_text}
                 ]
+                
+                # Try OpenAI first
                 if openai_client:
-                    # Try a cascade of models for reliability
                     models_try = ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo", "gpt-4-turbo-preview"]
                     for mname in models_try:
                         try:
@@ -1330,9 +1340,24 @@ def chat_send():
                         except Exception as e:
                             failure_reason = str(e)
                     if not ai_reply and failure_reason:
-                        # Log a minimal system notice for admin visibility
-                        conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": f"(Autopilot failed: {failure_reason[:140]})", "t": datetime.utcnow().isoformat()})
-                elif genai and GEMINI_API_KEY:
+                        conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": f"(OpenAI failed: {failure_reason[:120]})", "t": datetime.utcnow().isoformat()})
+                
+                # Try DeepSeek if OpenAI failed
+                if not ai_reply and deepseek_client:
+                    try:
+                        resp = deepseek_client.chat.completions.create(
+                            model="deepseek-chat",
+                            messages=prompt_messages,
+                            max_tokens=200,
+                            temperature=0.5
+                        )
+                        ai_reply = resp.choices[0].message.content.strip() if resp and resp.choices else None
+                    except Exception as e:
+                        failure_reason = str(e)
+                        conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": f"(DeepSeek failed: {failure_reason[:120]})", "t": datetime.utcnow().isoformat()})
+                
+                # Try Gemini as last resort
+                if not ai_reply and genai and GEMINI_API_KEY:
                     try:
                         model = genai.GenerativeModel('gemini-1.5-flash')
                         r = model.generate_content(user_text + "\nReply under 80 words as a friendly dog walking assistant.")
@@ -1343,13 +1368,14 @@ def chat_send():
                             ai_reply = ai_reply.strip()
                     except Exception as e:
                         failure_reason = str(e)
-                        conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": f"(Autopilot failed: {failure_reason[:140]})", "t": datetime.utcnow().isoformat()})
+                        conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": f"(Gemini failed: {failure_reason[:120]})", "t": datetime.utcnow().isoformat()})
+                
                 if ai_reply:
                     conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :m, :t)"), {"cid": int(chat_id), "m": ai_reply[:2000], "t": datetime.utcnow().isoformat()})
                 else:
                     # No reply generated - log why
                     conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), 
-                                {"cid": int(chat_id), "m": f"[Autopilot: No AI reply generated. Reason: {failure_reason or 'Unknown'}]", "t": datetime.utcnow().isoformat()})
+                                {"cid": int(chat_id), "m": f"[Autopilot: No AI reply generated. Reason: {failure_reason or 'No providers available'}]", "t": datetime.utcnow().isoformat()})
             elif sender == 'user' and not autopilot_on:
                 # Autopilot is off
                 conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), 

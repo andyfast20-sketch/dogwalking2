@@ -46,10 +46,10 @@
       <div>
         <h3 style="margin:0 0 8px;color:var(--brand);font-size:1.2rem">🤖 Chat Autopilot</h3>
         <p style="margin:0;color:var(--text);font-size:.9rem">Automatically answer live chat messages using AI when enabled.</p>
-        <p style="margin:4px 0 0;color:var(--muted);font-size:.8rem">Uses OpenAI if OPENAI_API_KEY is set, else Gemini if GEMINI_API_KEY is set.</p>
-        {% if not (has_openai or has_gemini) %}
+        <p style="margin:4px 0 0;color:var(--muted);font-size:.8rem">Uses OpenAI (preferred), DeepSeek, or Gemini API keys.</p>
+        {% if not (has_openai or has_deepseek or has_gemini) %}
         <div style="margin-top:10px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:10px">
-          <strong style="color:#fca5a5;font-size:.9rem">No AI provider keys detected. Set OPENAI_API_KEY or GEMINI_API_KEY in environment.</strong>
+          <strong style="color:#fca5a5;font-size:.9rem">No AI provider keys detected. Set OPENAI_API_KEY, DEEPSEEK_API_KEY, or GEMINI_API_KEY in environment.</strong>
         </div>
         {% endif %}
       </div>
