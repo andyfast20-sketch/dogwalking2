@@ -64,7 +64,8 @@ def home():
     services = fetch_services()
     service_areas = fetch_service_areas()
     contact_info = get_contact_info()
-    return render_template('index.html', services=services, service_areas=service_areas, contact_info=contact_info)
+    homepage_sections = fetch_homepage_sections()
+    return render_template('index.html', services=services, service_areas=service_areas, contact_info=contact_info, homepage_sections=homepage_sections)
 
 @app.route('/about')
 def about():
@@ -273,6 +274,35 @@ def init_db():
                 conn.execute(text(
                     "INSERT INTO service_areas (name, sort_order) VALUES (:name, :order)"
                 ), {"name": name, "order": order})
+        # Homepage Sections table for section ordering
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS homepage_sections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                section_key TEXT UNIQUE NOT NULL,
+                title TEXT NOT NULL,
+                enabled INTEGER DEFAULT 1,
+                sort_order INTEGER DEFAULT 0
+            )
+        """))
+        # Seed default homepage sections if table is empty
+        count = conn.execute(text("SELECT COUNT(*) FROM homepage_sections")).scalar()
+        if count == 0:
+            default_sections = [
+                ("features", "Key Features", 1, 1),
+                ("services", "Services & Pricing", 1, 2),
+                ("meet-andy", "Meet Andy", 1, 3),
+                ("service-areas", "Service Areas", 1, 4),
+                ("how-it-works", "Book a Walk in 3 Simple Steps", 1, 5),
+                ("photo-strip", "Photo Strip", 1, 6),
+                ("enquiry", "Get in Touch", 1, 7),
+                ("testimonials", "Testimonials", 1, 8),
+                ("gallery", "Gallery", 1, 9),
+                ("cta", "Final Call to Action", 1, 10),
+            ]
+            for key, title, enabled, order in default_sections:
+                conn.execute(text(
+                    "INSERT INTO homepage_sections (section_key, title, enabled, sort_order) VALUES (:key, :title, :enabled, :order)"
+                ), {"key": key, "title": title, "enabled": enabled, "order": order})
         # Content management table for editable website content
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS site_content (
@@ -453,6 +483,74 @@ def fetch_service_areas():
                 'sort_order': r.sort_order
             })
         return areas
+
+def fetch_homepage_sections():
+    """Fetch all homepage sections in display order"""
+    init_db()
+    with engine.begin() as conn:
+        result = conn.execute(text("SELECT id, section_key, title, enabled, sort_order FROM homepage_sections ORDER BY sort_order ASC"))
+        sections = []
+        for r in result:
+            sections.append({
+                'id': r.id,
+                'section_key': r.section_key,
+                'title': r.title,
+                'enabled': r.enabled,
+                'sort_order': r.sort_order
+            })
+        return sections
+
+def move_section_up(section_id: int):
+    """Move a section up in the order"""
+    init_db()
+    with engine.begin() as conn:
+        # Get current section
+        current = conn.execute(text("SELECT id, sort_order FROM homepage_sections WHERE id=:id"), {"id": section_id}).fetchone()
+        if not current:
+            return
+        
+        # Find the section above it
+        above = conn.execute(text(
+            "SELECT id, sort_order FROM homepage_sections WHERE sort_order < :order ORDER BY sort_order DESC LIMIT 1"
+        ), {"order": current.sort_order}).fetchone()
+        
+        if above:
+            # Swap sort orders
+            conn.execute(text("UPDATE homepage_sections SET sort_order=:order WHERE id=:id"), 
+                        {"order": above.sort_order, "id": current.id})
+            conn.execute(text("UPDATE homepage_sections SET sort_order=:order WHERE id=:id"), 
+                        {"order": current.sort_order, "id": above.id})
+
+def move_section_down(section_id: int):
+    """Move a section down in the order"""
+    init_db()
+    with engine.begin() as conn:
+        # Get current section
+        current = conn.execute(text("SELECT id, sort_order FROM homepage_sections WHERE id=:id"), {"id": section_id}).fetchone()
+        if not current:
+            return
+        
+        # Find the section below it
+        below = conn.execute(text(
+            "SELECT id, sort_order FROM homepage_sections WHERE sort_order > :order ORDER BY sort_order ASC LIMIT 1"
+        ), {"order": current.sort_order}).fetchone()
+        
+        if below:
+            # Swap sort orders
+            conn.execute(text("UPDATE homepage_sections SET sort_order=:order WHERE id=:id"), 
+                        {"order": below.sort_order, "id": current.id})
+            conn.execute(text("UPDATE homepage_sections SET sort_order=:order WHERE id=:id"), 
+                        {"order": current.sort_order, "id": below.id})
+
+def toggle_section_visibility(section_id: int):
+    """Toggle whether a section is visible on the homepage"""
+    init_db()
+    with engine.begin() as conn:
+        current = conn.execute(text("SELECT enabled FROM homepage_sections WHERE id=:id"), {"id": section_id}).fetchone()
+        if current:
+            new_value = 0 if current.enabled else 1
+            conn.execute(text("UPDATE homepage_sections SET enabled=:enabled WHERE id=:id"), 
+                        {"enabled": new_value, "id": section_id})
 
 def get_maintenance_mode():
     """Get current maintenance mode status"""
@@ -1278,7 +1376,8 @@ def admin_content():
     meet_andy = get_meet_andy()
     contact_info = get_contact_info()
     service_areas = fetch_service_areas()
-    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, hero_imgs=hero_imgs, meet_andy=meet_andy, contact_info=contact_info, service_areas=service_areas)
+    homepage_sections = fetch_homepage_sections()
+    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, hero_imgs=hero_imgs, meet_andy=meet_andy, contact_info=contact_info, service_areas=service_areas, homepage_sections=homepage_sections)
 
 @app.post('/admin/content/service/<int:service_id>')
 def admin_content_update(service_id: int):
@@ -1426,6 +1525,33 @@ def admin_service_area_delete(area_id: int):
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM service_areas WHERE id=:id"), {"id": area_id})
     
+    return redirect(url_for('admin_content'))
+
+@app.post('/admin/sections/move-up/<int:section_id>')
+def admin_section_move_up(section_id: int):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    move_section_up(section_id)
+    return redirect(url_for('admin_content'))
+
+@app.post('/admin/sections/move-down/<int:section_id>')
+def admin_section_move_down(section_id: int):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    move_section_down(section_id)
+    return redirect(url_for('admin_content'))
+
+@app.post('/admin/sections/toggle/<int:section_id>')
+def admin_section_toggle(section_id: int):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    
+    toggle_section_visibility(section_id)
     return redirect(url_for('admin_content'))
 
 

@@ -234,6 +234,61 @@
     </div>
   </div>
   
+  <!-- Homepage Section Order -->
+  <div style="background:linear-gradient(180deg,rgba(139,92,246,.08),rgba(139,92,246,.03));border:2px solid rgba(139,92,246,.25);border-radius:16px;padding:24px;margin-bottom:32px">
+    <h3 style="margin:0 0 16px;color:#a78bfa;font-size:1.2rem">🔀 Homepage Section Order</h3>
+    <p style="margin:0 0 20px;color:var(--muted);font-size:.9rem">Reorder sections on the homepage by moving them up or down. You can also hide sections by toggling visibility.</p>
+    
+    <!-- Sections List -->
+    <div style="display:grid;gap:12px">
+      {% for section in homepage_sections %}
+      <div style="display:flex;align-items:center;gap:12px;background:{% if section.enabled %}rgba(0,0,0,.2){% else %}rgba(255,68,68,.15){% endif %};border:1px solid {% if section.enabled %}rgba(255,255,255,.05){% else %}rgba(255,68,68,.3){% endif %};border-radius:12px;padding:12px">
+        <!-- Section Info -->
+        <div style="flex:1;display:flex;align-items:center;gap:12px">
+          <div style="background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.3);border-radius:8px;padding:6px 10px;font-weight:700;font-size:.85rem;color:#a78bfa;min-width:40px;text-align:center">
+            {{ section.sort_order }}
+          </div>
+          <div>
+            <strong style="color:var(--text);font-size:.95rem">{{ section.title }}</strong>
+            <br>
+            <small style="color:var(--muted);font-size:.8rem">{{ section.section_key }}</small>
+          </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div style="display:flex;gap:8px;align-items:center">
+          <!-- Move Up -->
+          <form method="post" action="{{ url_for('admin_section_move_up', section_id=section.id) }}" style="margin:0">
+            <button class="btn" type="submit" style="background:rgba(139,92,246,.2);color:#a78bfa;padding:8px 12px;font-weight:600;font-size:.85rem" {% if loop.first %}disabled{% endif %}>
+              ↑
+            </button>
+          </form>
+          
+          <!-- Move Down -->
+          <form method="post" action="{{ url_for('admin_section_move_down', section_id=section.id) }}" style="margin:0">
+            <button class="btn" type="submit" style="background:rgba(139,92,246,.2);color:#a78bfa;padding:8px 12px;font-weight:600;font-size:.85rem" {% if loop.last %}disabled{% endif %}>
+              ↓
+            </button>
+          </form>
+          
+          <!-- Toggle Visibility -->
+          <form method="post" action="{{ url_for('admin_section_toggle', section_id=section.id) }}" style="margin:0">
+            <button class="btn" type="submit" style="background:{% if section.enabled %}var(--brand){% else %}#ef4444{% endif %};color:#fff;padding:8px 16px;font-weight:600;font-size:.85rem">
+              {% if section.enabled %}👁️ Visible{% else %}🚫 Hidden{% endif %}
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    
+    <div style="margin-top:16px;padding:12px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);border-radius:10px">
+      <small style="color:var(--muted);font-size:.85rem">
+        💡 <strong>Tip:</strong> Use the ↑ and ↓ buttons to change the order sections appear on the homepage. Hidden sections won't be displayed to visitors.
+      </small>
+    </div>
+  </div>
+  
   <div style="margin-top:30px;display:flex;flex-direction:column;gap:24px">
     {% for service in services %}
     <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px">

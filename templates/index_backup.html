@@ -1,0 +1,263 @@
+{% extends 'base.html' %}
+{% block title %}Happy Paws Dog Walking{% endblock %}
+{% block content %}
+  <section class="hero hero-split">
+    <div class="inner">
+      <div class="hero-content">
+        <p class="hero-eyebrow">DBS checked • Insured • First‑aid trained</p>
+        <h1>Reliable walks, happy <span class="highlight">paws</span>.</h1>
+        <p class="lead">I’m Andy — your local, DBS‑checked and fully insured dog walker. I treat your dog like family and send photo & GPS updates after every walk.</p>
+        <div class="mini-profile">
+          <img src="{{ url_for('static', filename='img/andy.jpg') }}" alt="Profile photo" width="56" height="56" loading="eager" decoding="async" onerror="this.onerror=null;this.src='https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%20male%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern%2C%20photorealistic?width=200&height=200&nologo=true'">
+          <div class="text">
+            <strong>Andy</strong>
+            <span>DBS checked • Insured • First‑aid trained</span>
+          </div>
+        </div>
+        <ul class="hero-points">
+          <li>One‑to‑one walks for focused care</li>
+          <li>Small paired walks when well‑matched</li>
+          <li>Flexible slots, 7 days a week</li>
+        </ul>
+        <div class="hero-actions">
+          <a class="btn primary" href="{{ url_for('services') }}">See Services</a>
+          <a class="btn ghost" href="{{ url_for('about') }}">About Andy</a>
+        </div>
+      </div>
+      <aside class="hero-visual" aria-hidden="true">
+        <div class="image-frame">
+          <div class="slideshow refined">
+            <img src="{{ hero_images.hero_slide_1 }}" alt="" width="1100" height="1400" loading="eager" decoding="async" fetchpriority="high">
+            <img src="{{ hero_images.hero_slide_2 }}" alt="" width="1100" height="1400" loading="lazy" decoding="async">
+          </div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="feature"><h3>DBS Checked</h3><p>Vetted and trustworthy for your peace of mind.</p></div>
+    <div class="feature"><h3>Public Liability Insured</h3><p>Fully covered while I care for your dog.</p></div>
+    <div class="feature"><h3>First‑Aid Trained</h3><p>Safety‑first approach on every walk.</p></div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section class="how-it-works">
+    <div class="container">
+      <div class="how-header">
+        <h2>Book a Walk in 3 Simple Steps</h2>
+        <p class="how-subtitle">Getting your dog's tail wagging has never been easier</p>
+      </div>
+      <div class="steps-grid">
+        <div class="step">
+          <div class="step-number">
+            <span>1</span>
+          </div>
+          <div class="step-icon">📅</div>
+          <h3>Choose Your Slot</h3>
+          <p>Browse available times and pick what works best for your schedule. Flexible slots 7 days a week.</p>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-number">
+            <span>2</span>
+          </div>
+          <div class="step-icon">📝</div>
+          <h3>Share Details</h3>
+          <p>Tell me about your dog's personality, needs, and any special requirements. Quick and easy form.</p>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-number">
+            <span>3</span>
+          </div>
+          <div class="step-icon">🐾</div>
+          <h3>Enjoy Updates</h3>
+          <p>Relax while I walk your dog. Get GPS routes and photo updates after every adventure!</p>
+        </div>
+      </div>
+      <div class="how-cta">
+        <a href="{{ url_for('book') }}" class="btn primary large">Book a Walk Now</a>
+        <p class="how-cta-note">✨ Most slots confirmed within 2 hours</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Top Photo Strip (like reference) -->
+  <section class="hero-photos">
+    <div class="container photos-grid">
+      <figure class="photo"><img src="{{ hero_images.hero_strip_1 }}" alt="Rear view of stocky dark-haired dog walker with small dog" loading="lazy" decoding="async" fetchpriority="low" width="900" height="600" sizes="(max-width: 640px) 50vw, (max-width: 1200px) 25vw, 300px"></figure>
+      <figure class="photo"><img src="{{ hero_images.hero_strip_2 }}" alt="Side view dog walker dark hair black trousers with dog" loading="lazy" decoding="async" fetchpriority="low" width="900" height="600" sizes="(max-width: 640px) 50vw, (max-width: 1200px) 25vw, 300px"></figure>
+      <figure class="photo"><img src="{{ hero_images.hero_strip_3 }}" alt="Cute dog looking up at walker legs in black trousers" loading="lazy" decoding="async" fetchpriority="low" width="900" height="600" sizes="(max-width: 640px) 50vw, (max-width: 1200px) 25vw, 300px"></figure>
+      <figure class="photo"><img src="{{ hero_images.hero_strip_4 }}" alt="Hand holding lead with cute dog, black trousers visible" loading="lazy" decoding="async" fetchpriority="low" width="900" height="600" sizes="(max-width: 640px) 50vw, (max-width: 1200px) 25vw, 300px"></figure>
+    </div>
+  </section>
+
+  <!-- Owner Introduction Section -->
+  <section class="owner-intro">
+    <div class="container">
+      <div class="owner-grid">
+        <aside class="profile-card">
+          <div class="avatar">
+            <img src="{{ url_for('static', filename='img/andy.jpg') }}" alt="Profile photo" width="400" height="400" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%20male%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern%2C%20photorealistic?width=400&height=400&nologo=true'">
+          </div>
+          <h3>{{ contact_info.profile_title.content }}</h3>
+          <p class="contact">Call me: <strong>{{ contact_info.phone.content }}</strong><br> Email: <strong>{{ contact_info.email.content }}</strong></p>
+          <a href="{{ url_for('contact') }}" class="btn primary" style="margin-top:10px">Enquire Now</a>
+        </aside>
+        <div class="owner-content">
+          <h2>{{ meet_andy.heading.content }}</h2>
+          <p>{{ meet_andy.paragraph1.content }}</p>
+          <p>{{ meet_andy.paragraph2.content }}</p>
+          <div class="owner-features">
+            <div class="owner-feature">{{ meet_andy.badge1.content }}</div>
+            <div class="owner-feature">{{ meet_andy.badge2.content }}</div>
+            <div class="owner-feature">{{ meet_andy.badge3.content }}</div>
+            <div class="owner-feature">{{ meet_andy.badge4.content }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Services & Pricing Section -->
+  <section class="services-section">
+    <div class="section-block">
+      <h2>My Services & Pricing</h2>
+      <div class="accordion" id="services-accordion">
+        {% for service in services %}
+        <div class="accordion-item" aria-expanded="false">
+          <h3 class="accordion-header" id="header-{{ service.key }}">
+            <button class="accordion-button" type="button" aria-controls="panel-{{ service.key }}" aria-expanded="false" aria-label="Toggle {{ service.title }} panel">
+              {{ service.title }} <span class="accordion-icon">+</span>
+            </button>
+          </h3>
+          <div class="accordion-panel" id="panel-{{ service.key }}" role="region" aria-labelledby="header-{{ service.key }}">
+            {% if service.price %}
+            <p class="price"><strong>{{ service.price }}</strong></p>
+            {% endif %}
+            {% set lines = service.content.split('\n') %}
+            {% set description = [] %}
+            {% set bullets = [] %}
+            {% for line in lines %}
+              {% if line.strip() %}
+                {% if line.strip().startswith('•') or line.strip().startswith('-') %}
+                  {% set _ = bullets.append(line.strip().lstrip('•').lstrip('-').strip()) %}
+                {% else %}
+                  {% set _ = description.append(line.strip()) %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+            {% if description %}
+            <p>{{ description|join(' ') }}</p>
+            {% endif %}
+            {% if bullets %}
+            <ul class="accordion-list">
+              {% for bullet in bullets %}
+              <li>{{ bullet }}</li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- Inline Enquiry Section -->
+  <section class="enquiry-section">
+    <div class="section-block">
+      <h2>Quick Enquiry</h2>
+      <p class="container" style="padding-top:0">Tell us about your pup and we’ll reply within one business day.</p>
+      <form class="contact-form" method="post" action="{{ url_for('contact') }}" aria-label="Quick enquiry form">
+        <input type="hidden" name="sid" />
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px">
+          <label>Name
+            <input required name="name" autocomplete="name" placeholder="Your name" />
+          </label>
+          <label>Email
+            <input required type="email" name="email" autocomplete="email" placeholder="you@example.com" />
+          </label>
+        </div>
+        <label>Dog's Name
+          <input name="dog" autocomplete="off" placeholder="Your dog's name" />
+        </label>
+        <label>Message
+          <textarea name="message" rows="4" placeholder="Preferred days/times, any special needs"></textarea>
+        </label>
+        <button class="btn primary" type="submit">Send Enquiry</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- Areas Covered Section -->
+  <section class="areas-section">
+    <div class="section-block">
+      <h2>Service Areas</h2>
+      <div class="accordion" id="areas-accordion">
+        <div class="accordion-item" aria-expanded="false">
+          <h3 class="accordion-header" id="header-areas">
+            <button class="accordion-button" type="button" aria-controls="panel-areas" aria-expanded="false" aria-label="Toggle coverage list panel">
+              Coverage List <span class="accordion-icon">+</span>
+            </button>
+          </h3>
+          <div class="accordion-panel" id="panel-areas" role="region" aria-labelledby="header-areas" style="display:block">
+            <div class="areas-grid">
+              {% for area in service_areas %}
+              <div class="area-card">{{ area.name }}</div>
+              {% endfor %}
+            </div>
+            <p class="areas-note">Expanding monthly – ask if your area is next.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials Section -->
+  <section class="testimonials-section">
+    <div class="container">
+      <h2>What Dog Parents Say</h2>
+      <div class="testimonials-grid">
+        <div class="testimonial">
+          <img class="avatar" src="https://image.pollinations.ai/prompt/happy%20dog%20owner%20portrait%20outdoors%20soft%20light?width=400&height=400&nologo=true" alt="Dog owner portrait" width="72" height="72" loading="lazy" decoding="async">
+          <div class="stars">★★★★★</div>
+          <p class="testimonial-text">"My dog absolutely loves his walks with Happy Paws. He comes home content and ready for a nap. The photo updates are awesome!"</p>
+          <p class="testimonial-author">— Sarah J.</p>
+        </div>
+        <div class="testimonial">
+          <img class="avatar" src="https://image.pollinations.ai/prompt/smiling%20person%20with%20small%20dog%20portrait%20natural%20light?width=400&height=400&nologo=true" alt="Dog owner with small dog" width="72" height="72" loading="lazy" decoding="async">
+          <div class="stars">★★★★★</div>
+          <p class="testimonial-text">"Reliable, friendly, and they really understand anxious dogs. Mine is calmer and more confident thanks to their patient walks."</p>
+          <p class="testimonial-author">— Mike R.</p>
+        </div>
+        <div class="testimonial">
+          <img class="avatar" src="https://image.pollinations.ai/prompt/happy%20dog%20with%20walker%20portrait%20vibrant%20colors?width=400&height=400&nologo=true" alt="Dog and walker portrait" width="72" height="72" loading="lazy" decoding="async">
+          <div class="stars">★★★★★</div>
+          <p class="testimonial-text">"The GPS tracking and route summaries give total peace of mind. Highly recommended for busy pet parents who still want transparency."</p>
+          <p class="testimonial-author">— Emma L.</p>
+        </div>
+      </div>
+      <div class="gallery-section">
+        <h2>Gallery</h2>
+        <div class="gallery-grid">
+          <div class="shot"><img src="https://image.pollinations.ai/prompt/dog%20running%20in%20park%20sunlit%20grass%20emerald%20tones?width=800&height=600&nologo=true" alt="Dog running" width="800" height="600" loading="lazy" decoding="async"></div>
+          <div class="shot"><img src="https://image.pollinations.ai/prompt/dog%20walker%20with%20group%20small%20dogs%20city%20pavement%20morning%20light?width=800&height=600&nologo=true" alt="Group walk" width="800" height="600" loading="lazy" decoding="async"></div>
+          <div class="shot"><img src="https://image.pollinations.ai/prompt/happy%20senior%20dog%20on%20gentle%20walk%20soft%20light?width=800&height=600&nologo=true" alt="Senior dog" width="800" height="600" loading="lazy" decoding="async"></div>
+          <div class="shot"><img src="https://image.pollinations.ai/prompt/puppy%20playing%20with%20leaf%20autumn%20path%20amber%20tones?width=800&height=600&nologo=true" alt="Puppy play" width="800" height="600" loading="lazy" decoding="async"></div>
+          <div class="shot"><img src="https://image.pollinations.ai/prompt/dog%20walker%20clipping%20lead%20close%20up%20hands%20care%20emerald%20warm%20tones?width=800&height=600&nologo=true" alt="Lead clip" width="800" height="600" loading="lazy" decoding="async"></div>
+          <div class="shot"><img src="https://image.pollinations.ai/prompt/dog%20looking%20back%20on%20trail%20golden%20hour%20emerald%20and%20amber?width=800&height=600&nologo=true" alt="Trail glance" width="800" height="600" loading="lazy" decoding="async"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta" id="contact">
+    <div class="container">
+      <h2>Ready to Book Your Dog's Next Adventure?</h2>
+      <a class="btn primary" href="{{ url_for('contact') }}">Send Enquiry</a>
+      <p class="contact-phone">Or call me: <strong>(555) 123-PAWS (7297)</strong></p>
+    </div>
+  </section>
+{% endblock %}
