@@ -1373,9 +1373,11 @@ def chat_send():
                 if ai_reply:
                     conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :m, :t)"), {"cid": int(chat_id), "m": ai_reply[:2000], "t": datetime.utcnow().isoformat()})
                 else:
-                    # No reply generated - log why
+                    # No reply generated - log why, then send a guaranteed friendly fallback so the user always gets a response
                     conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), 
                                 {"cid": int(chat_id), "m": f"[Autopilot: No AI reply generated. Reason: {failure_reason or 'No providers available'}]", "t": datetime.utcnow().isoformat()})
+                    fallback = "Thanks for your message! I'm Andy's assistant. Could you share your dog's breed, age, and your preferred walk times?"
+                    conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :m, :t)"), {"cid": int(chat_id), "m": fallback, "t": datetime.utcnow().isoformat()})
             elif sender == 'user' and not autopilot_on:
                 # Autopilot is off
                 conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), 
