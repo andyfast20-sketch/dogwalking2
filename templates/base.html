@@ -45,54 +45,141 @@
   </footer>
   
   <!-- Floating chat button -->
-  <button id="chat-launch" type="button" aria-label="Open live chat" title="Live Chat" style="position:fixed;bottom:24px;right:24px;width:64px;height:64px;border-radius:50%;font-size:2rem;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#22c55e,#13894b);color:#fff;border:none;z-index:1000;box-shadow:0 8px 32px -8px rgba(34,197,94,.7);cursor:pointer;transition:transform .25s">💬</button>
-  
+  {% set initial_mode = 'autopilot' if autopilot_enabled else 'live' %}
+  <button
+    id="chat-launch"
+    class="floating-chat-btn {{ initial_mode }}"
+    type="button"
+    data-mode="{{ initial_mode }}"
+    aria-label="{{ 'Chat with our AI assistant' if autopilot_enabled else 'Open live chat' }}"
+    title="{{ 'AI Assistant Chat' if autopilot_enabled else 'Live Chat' }}"
+  >{{ '🤖' if autopilot_enabled else '💬' }}</button>
+
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
   <script>
-  // Floating chat widget (front-end)
   (function(){
     const btn=document.getElementById('chat-launch');
     if(!btn) return;
-    let panel; let chatId=null; let lastId=0; let pollTimer;
+
+    let autopilotMode=(btn.dataset.mode||'live')==='autopilot';
+    let panel;
+    let chatId=null;
+    let lastId=0;
+    let pollTimer;
+    let introShown=false;
+
+    function applyAutopilotMode(isAutopilot){
+      autopilotMode=!!isAutopilot;
+      btn.dataset.mode=autopilotMode?'autopilot':'live';
+      btn.classList.toggle('autopilot',autopilotMode);
+      btn.classList.toggle('live',!autopilotMode);
+      btn.title=autopilotMode?'AI Assistant Chat':'Live Chat';
+      btn.setAttribute('aria-label',autopilotMode?'Chat with our AI assistant':'Open live chat');
+      btn.textContent=autopilotMode?'🤖':'💬';
+
+      if(!panel) return;
+
+      panel.classList.toggle('autopilot',autopilotMode);
+      const headingEl=panel.querySelector('.chat-header strong');
+      const inputEl=panel.querySelector('.chat-input');
+      if(headingEl) headingEl.textContent=autopilotMode?'AI Assistant':'Live Chat';
+      if(inputEl) inputEl.placeholder=autopilotMode?'Ask the AI about walks, pricing or availability...':'Type your message';
+      if(!autopilotMode) introShown=false;
+    }
+
     function buildPanel(){
       panel=document.createElement('div');
       panel.className='chat-panel';
-      panel.innerHTML=`<div class="chat-header"><strong>Live Chat</strong><button type="button" class="chat-close" aria-label="Close chat">×</button></div>
+      if(autopilotMode) panel.classList.add('autopilot');
+      const heading=autopilotMode?'AI Assistant':'Live Chat';
+      const placeholder=autopilotMode?'Ask the AI about walks, pricing or availability...':'Type your message';
+      panel.innerHTML=`<div class="chat-header"><strong>${heading}</strong><button type="button" class="chat-close" aria-label="Close chat">×</button></div>
       <div class="chat-messages" aria-live="polite"></div>
       <form class="chat-form" autocomplete="off">
-        <div class="chat-row"><input name="message" required placeholder="Type your message" class="chat-input" /><button class="chat-send" type="submit">Send</button></div>
+        <div class="chat-row"><input name="message" required placeholder="${placeholder}" class="chat-input" /><button class="chat-send" type="submit">Send</button></div>
       </form>`;
       document.body.appendChild(panel);
       panel.querySelector('.chat-close').addEventListener('click',closePanel);
       panel.querySelector('.chat-form').addEventListener('submit',onSend);
     }
+
     async function ensureChat(){
       if(chatId) return chatId;
       const data=new URLSearchParams();
       const r=await fetch('/chat/start',{method:'POST',body:data});
-      const j=await r.json(); if(j.ok) chatId=j.chat_id; return chatId;
+      const j=await r.json();
+      if(j.ok) chatId=j.chat_id;
+      return chatId;
     }
+
     function append(sender,text){
+      if(!panel) return;
       const wrap=panel.querySelector('.chat-messages');
-      const row=document.createElement('div'); row.className='msg msg-'+sender;
-      row.textContent=text; wrap.appendChild(row); wrap.scrollTop=wrap.scrollHeight;
+      const row=document.createElement('div');
+      row.className='msg msg-'+sender;
+      row.textContent=text;
+      wrap.appendChild(row);
+      wrap.scrollTop=wrap.scrollHeight;
     }
+
     async function poll(){
-      if(!chatId) return; try{
-        const r=await fetch(`/chat/poll/${chatId}?after=${lastId}`); const j=await r.json();
-        if(j && j.messages){ for(const m of j.messages){ append(m.sender,m.message); lastId=m.id; } }
-      }catch(e){}
+      if(!chatId) return;
+      try{
+        const r=await fetch(`/chat/poll/${chatId}?after=${lastId}`);
+        if(!r.ok) return;
+        const j=await r.json();
+        if(j&&j.messages){
+          for(const m of j.messages){
+            append(m.sender,m.message);
+            lastId=m.id;
+          }
+        }
+      }catch(e){
+        // no-op
+      }
     }
+
     async function onSend(e){
-      e.preventDefault(); const form=e.target; const inp=form.querySelector('.chat-input'); const msg=inp.value.trim(); if(!msg) return;
+      e.preventDefault();
+      const form=e.target;
+      const inp=form.querySelector('.chat-input');
+      const msg=(inp.value||'').trim();
+      if(!msg) return;
       await ensureChat();
-      append('user',msg); inp.value='';
+      append('user',msg);
+      inp.value='';
       const data=new URLSearchParams({chat_id:String(chatId),message:msg,sender:'user'});
       fetch('/chat/send',{method:'POST',body:data}).catch(()=>{});
     }
-    function openPanel(){ if(!panel) buildPanel(); panel.classList.add('open'); ensureChat(); if(!pollTimer){ pollTimer=setInterval(poll,1800); poll(); } }
-    function closePanel(){ if(panel){ panel.classList.remove('open'); } }
+
+    function openPanel(){
+      if(!panel) buildPanel();
+      panel.classList.add('open');
+      ensureChat();
+      if(autopilotMode&&!introShown){
+        append('system',"You're chatting with Andy's AI assistant.");
+        introShown=true;
+      }
+      if(!pollTimer){
+        pollTimer=setInterval(poll,1800);
+        poll();
+      }
+    }
+
+    function closePanel(){
+      if(panel) panel.classList.remove('open');
+    }
+
     btn.addEventListener('click',openPanel);
+    applyAutopilotMode(autopilotMode);
+
+    fetch('/chat/autopilot-status')
+      .then(r=>r.ok?r.json():null)
+      .then(data=>{
+        if(!data||typeof data.autopilot==='undefined') return;
+        if(data.autopilot!==autopilotMode) applyAutopilotMode(!!data.autopilot);
+      })
+      .catch(()=>{});
   })();
   </script>
   {% block extra_js %}{% endblock %}

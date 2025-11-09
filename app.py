@@ -49,6 +49,7 @@ def inject_globals():
         'has_openai': bool(OPENAI_API_KEY),
         'has_gemini': bool(GEMINI_API_KEY),
         'has_deepseek': bool(DEEPSEEK_API_KEY),
+        'autopilot_enabled': get_autopilot_enabled(),
     }
 
 @app.before_request
@@ -1272,6 +1273,7 @@ def admin_visitors():
 @app.post('/chat/start')
 def chat_start():
     init_db()
+    autopilot_on = get_autopilot_enabled()
     with engine.begin() as conn:
         sid = request.cookies.get('sid') or request.form.get('sid') or ''
         ip = request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
@@ -1283,9 +1285,22 @@ def chat_start():
             now = datetime.utcnow().isoformat()
             res = conn.execute(text("INSERT INTO chats (sid, name, status, created_at, last_activity, ip) VALUES (:sid, :name, 'open', :c, :c, :ip)"), {"sid": sid, "name": request.form.get('name') or '', "c": now, "ip": ip})
             chat_id = res.lastrowid if hasattr(res, 'lastrowid') else conn.execute(text("SELECT last_insert_rowid() as id")).fetchone().id
-            # Seed a welcome message from admin
-            conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :msg, :t)"), {"cid": chat_id, "msg": "Hi! How can I help with your walks today?", "t": now})
+            # Seed a welcome message from admin/assistant based on autopilot state
+            if autopilot_on:
+                welcome = "Hi! I'm Andy's AI assistant. Ask me anything about walks, availability or pricing."
+            else:
+                welcome = "Hi! How can I help with your walks today?"
+            conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :msg, :t)"), {"cid": chat_id, "msg": welcome, "t": now})
         return jsonify({"ok": True, "chat_id": chat_id})
+
+@app.get('/chat/autopilot-status')
+def chat_autopilot_status():
+    """Expose whether chat autopilot is enabled so the front-end can adapt without reload timing issues."""
+    try:
+        status = get_autopilot_enabled()
+        return jsonify({"ok": True, "autopilot": status})
+    except Exception:
+        return jsonify({"ok": False, "autopilot": False}), 500
 
 @app.post('/chat/send')
 def chat_send():
