@@ -383,6 +383,11 @@ def init_db():
                 conn.execute(text("INSERT INTO site_settings (key, value) VALUES (:key, :val)"), {"key": key, "val": url})
             except Exception:
                 pass  # setting already exists
+        # Initialize chat autopilot setting (off by default)
+        try:
+            conn.execute(text("INSERT INTO site_settings (key, value) VALUES ('chat_autopilot', 'false')"))
+        except Exception:
+            pass
         # Booking slots table for admin-defined available times
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS booking_slots (
@@ -558,6 +563,20 @@ def get_maintenance_mode():
     with engine.begin() as conn:
         result = conn.execute(text("SELECT value FROM site_settings WHERE key='maintenance_mode'")).fetchone()
         return result.value == 'true' if result else False
+
+def get_autopilot_enabled():
+    """Return True if chat autopilot is enabled."""
+    init_db()
+    with engine.begin() as conn:
+        row = conn.execute(text("SELECT value FROM site_settings WHERE key='chat_autopilot'")) .fetchone()
+        return row.value == 'true' if row else False
+
+def set_autopilot_enabled(enabled: bool):
+    """Toggle chat autopilot setting."""
+    init_db()
+    val = 'true' if enabled else 'false'
+    with engine.begin() as conn:
+        conn.execute(text("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('chat_autopilot', :v)"), {"v": val})
 
 def set_maintenance_mode(enabled: bool):
     """Set maintenance mode on or off"""
@@ -1275,6 +1294,43 @@ def chat_send():
     with engine.begin() as conn:
         conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, :s, :m, :t)"), {"cid": int(chat_id), "s": sender, "m": message.strip()[:2000], "t": now})
         conn.execute(text("UPDATE chats SET last_activity=:t WHERE id=:cid"), {"cid": int(chat_id), "t": now})
+        # Autopilot AI response if enabled and user sent a message
+        try:
+            if sender == 'user' and get_autopilot_enabled():
+                ai_reply = None
+                prompt = (
+                    "You are Andy's Dog Walking live chat assistant. Be brief, friendly and helpful. "
+                    "User message: " + message.strip()
+                )
+                if openai_client:
+                    try:
+                        resp = openai_client.chat.completions.create(
+                            model="gpt-4o-mini",
+                            messages=[
+                                {"role": "system", "content": "You are a helpful dog walking assistant. Keep replies under 80 words."},
+                                {"role": "user", "content": prompt}
+                            ],
+                            max_tokens=180,
+                            temperature=0.5
+                        )
+                        ai_reply = resp.choices[0].message.content.strip() if resp and resp.choices else None
+                    except Exception:
+                        ai_reply = None
+                elif genai and GEMINI_API_KEY:
+                    try:
+                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        r = model.generate_content(prompt + "\nReply in under 80 words.")
+                        ai_reply = getattr(r, 'text', None)
+                        if not ai_reply and getattr(r, 'candidates', None):
+                            ai_reply = r.candidates[0].content.parts[0].text
+                        if ai_reply:
+                            ai_reply = ai_reply.strip()
+                    except Exception:
+                        ai_reply = None
+                if ai_reply:
+                    conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :m, :t)"), {"cid": int(chat_id), "m": ai_reply[:2000], "t": datetime.utcnow().isoformat()})
+        except Exception:
+            pass  # Never block user message due to AI failure
     return jsonify({"ok": True})
 
 @app.get('/chat/poll/<int:chat_id>')
@@ -1372,12 +1428,13 @@ def admin_content():
         return auth_result
     services = fetch_services()
     maintenance_mode = get_maintenance_mode()
+    autopilot = get_autopilot_enabled()
     hero_imgs = get_hero_images()
     meet_andy = get_meet_andy()
     contact_info = get_contact_info()
     service_areas = fetch_service_areas()
     homepage_sections = fetch_homepage_sections()
-    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, hero_imgs=hero_imgs, meet_andy=meet_andy, contact_info=contact_info, service_areas=service_areas, homepage_sections=homepage_sections)
+    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, autopilot_enabled=autopilot, hero_imgs=hero_imgs, meet_andy=meet_andy, contact_info=contact_info, service_areas=service_areas, homepage_sections=homepage_sections)
 
 @app.post('/admin/content/service/<int:service_id>')
 def admin_content_update(service_id: int):
@@ -1475,6 +1532,15 @@ def admin_maintenance_toggle():
     enabled = request.form.get('enabled') == 'true'
     set_maintenance_mode(enabled)
     
+    return redirect(url_for('admin_content'))
+
+@app.post('/admin/content/chat-autopilot')
+def admin_chat_autopilot_toggle():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    enabled = request.form.get('enabled') == 'true'
+    set_autopilot_enabled(enabled)
     return redirect(url_for('admin_content'))
 
 @app.post('/admin/service-areas/add')
