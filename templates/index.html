@@ -105,7 +105,7 @@
                 <img src="{{ url_for('static', filename='img/andy.jpg') }}" alt="Profile photo" width="400" height="400" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%20male%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern%2C%20photorealistic?width=400&height=400&nologo=true'">
               </div>
               <h3>{{ contact_info.profile_title.content }}</h3>
-              <p class="contact">Call me: <strong>{{ contact_info.phone.content }}</strong><br> Email: <strong>{{ contact_info.email.content }}</strong></p>
+              <p class="contact">Call me: <strong>{{ contact_info.phone.content }}</strong></p>
               <a href="{{ url_for('contact') }}" class="btn primary" style="margin-top:10px">Enquire Now</a>
             </aside>
             <div class="owner-content">
