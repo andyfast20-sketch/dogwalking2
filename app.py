@@ -1,4 +1,3 @@
-@app.post('/chat/send')
 def chat_send():
     init_db()
     chat_id = request.form.get('chat_id') or (request.get_json(silent=True) or {}).get('chat_id')
@@ -116,6 +115,8 @@ except Exception:
     deepseek_client = None
 
 app = Flask(__name__)
+# Register chat_send route after app is created so decorators don't run before app exists
+app.post('/chat/send')(chat_send)
 
 @app.context_processor
 def inject_globals():
