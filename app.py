@@ -121,31 +121,15 @@ app.post('/chat/send')(chat_send)
 @app.context_processor
 def inject_globals():
     """Make maintenance_mode, hero_images and meet_andy available to all templates"""
-    try:
-        hero_images = get_hero_images()
-    except Exception:
-        hero_images = {}
-    try:
-        meet_andy = get_meet_andy()
-    except Exception:
-        meet_andy = {}
-    try:
-        maintenance_mode = get_maintenance_mode()
-    except Exception:
-        maintenance_mode = False
-    try:
-        autopilot_enabled = get_autopilot_enabled()
-    except Exception:
-        autopilot_enabled = False
     return {
-        'maintenance_mode': maintenance_mode,
-        'hero_images': hero_images,
-        'meet_andy': meet_andy,
+        'maintenance_mode': get_maintenance_mode(),
+        'hero_images': get_hero_images(),
+        'meet_andy': get_meet_andy(),
         # Expose provider presence so templates don't guess
         'has_openai': bool(OPENAI_API_KEY),
         'has_gemini': bool(GEMINI_API_KEY),
         'has_deepseek': bool(DEEPSEEK_API_KEY),
-        'autopilot_enabled': autopilot_enabled,
+        'autopilot_enabled': get_autopilot_enabled(),
     }
 
 @app.before_request
@@ -170,11 +154,17 @@ def track_and_block_ips():
 
 @app.route('/')
 def home():
-    services = fetch_services()
-    service_areas = fetch_service_areas()
-    contact_info = get_contact_info()
-    homepage_sections = fetch_homepage_sections()
-    return render_template('index.html', services=services, service_areas=service_areas, contact_info=contact_info, homepage_sections=homepage_sections)
+    try:
+        services = fetch_services()
+        service_areas = fetch_service_areas()
+        contact_info = get_contact_info()
+        homepage_sections = fetch_homepage_sections()
+        return render_template('index.html', services=services, service_areas=service_areas, contact_info=contact_info, homepage_sections=homepage_sections)
+    except Exception as e:
+        import traceback
+        error_msg = f"Error in home route: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)  # Log to console
+        return f"<h1>Error</h1><pre>{error_msg}</pre>", 500
 
 @app.route('/about')
 def about():
@@ -569,50 +559,62 @@ def save_enquiry(name: str, email: str, dog: str, message: str):
 
 def fetch_services():
     """Fetch all services content from database"""
-    init_db()
-    with engine.begin() as conn:
-        result = conn.execute(text("SELECT id, key, title, price, content, sort_order FROM site_content WHERE section='services' ORDER BY sort_order ASC"))
-        services = []
-        for r in result:
-            services.append({
-                'id': r.id,
-                'key': r.key,
-                'title': r.title,
-                'price': r.price,
-                'content': r.content,
-                'sort_order': r.sort_order
-            })
-        return services
+    try:
+        init_db()
+        with engine.begin() as conn:
+            result = conn.execute(text("SELECT id, key, title, price, content, sort_order FROM site_content WHERE section='services' ORDER BY sort_order ASC"))
+            services = []
+            for r in result:
+                services.append({
+                    'id': r.id,
+                    'key': r.key,
+                    'title': r.title,
+                    'price': r.price or '',
+                    'content': r.content or '',
+                    'sort_order': r.sort_order
+                })
+            return services
+    except Exception as e:
+        print(f"Error fetching services: {e}")
+        return []  # Return empty list on error
 
 def fetch_service_areas():
     """Fetch all service areas from database"""
-    init_db()
-    with engine.begin() as conn:
-        result = conn.execute(text("SELECT id, name, sort_order FROM service_areas ORDER BY sort_order ASC"))
-        areas = []
-        for r in result:
-            areas.append({
-                'id': r.id,
-                'name': r.name,
-                'sort_order': r.sort_order
-            })
-        return areas
+    try:
+        init_db()
+        with engine.begin() as conn:
+            result = conn.execute(text("SELECT id, name, sort_order FROM service_areas ORDER BY sort_order ASC"))
+            areas = []
+            for r in result:
+                areas.append({
+                    'id': r.id,
+                    'name': r.name,
+                    'sort_order': r.sort_order
+                })
+            return areas
+    except Exception as e:
+        print(f"Error fetching service areas: {e}")
+        return []  # Return empty list on error
 
 def fetch_homepage_sections():
     """Fetch all homepage sections in display order"""
-    init_db()
-    with engine.begin() as conn:
-        result = conn.execute(text("SELECT id, section_key, title, enabled, sort_order FROM homepage_sections ORDER BY sort_order ASC"))
-        sections = []
-        for r in result:
-            sections.append({
-                'id': r.id,
-                'section_key': r.section_key,
-                'title': r.title,
-                'enabled': r.enabled,
-                'sort_order': r.sort_order
-            })
-        return sections
+    try:
+        init_db()
+        with engine.begin() as conn:
+            result = conn.execute(text("SELECT id, section_key, title, enabled, sort_order FROM homepage_sections ORDER BY sort_order ASC"))
+            sections = []
+            for r in result:
+                sections.append({
+                    'id': r.id,
+                    'section_key': r.section_key,
+                    'title': r.title,
+                    'enabled': bool(r.enabled) if r.enabled is not None else True,  # Convert to boolean
+                    'sort_order': r.sort_order
+                })
+            return sections
+    except Exception as e:
+        print(f"Error fetching homepage sections: {e}")
+        return []  # Return empty list on error
 
 def move_section_up(section_id: int):
     """Move a section up in the order"""
@@ -706,12 +708,24 @@ def set_maintenance_mode(enabled: bool):
 def get_hero_images():
     """Get all hero image URLs"""
     init_db()
-    with engine.begin() as conn:
-        images = {}
-        for key in ['hero_slide_1', 'hero_slide_2', 'hero_strip_1', 'hero_strip_2', 'hero_strip_3', 'hero_strip_4']:
-            result = conn.execute(text("SELECT value FROM site_settings WHERE key=:key"), {"key": key}).fetchone()
-            images[key] = result.value if result else ''
-        return images
+    default_images = {
+        'hero_slide_1': 'https://image.pollinations.ai/prompt/stocky%20build%20dark-haired%20male%20dog%20walker%20back%20view%20walking%20a%20cute%20small%20dog%2C%20black%20trousers%2C%20no%20suit%2C%20professional%20casual%2C%20no%20face%20visible%2C%20emerald%20and%20amber%20tones%2C%20photorealistic%2C%20crisp%20lighting?width=1100&height=1400&nologo=true',
+        'hero_slide_2': 'https://image.pollinations.ai/prompt/stocky%20dark-haired%20male%20dog%20walker%20mid%20section%20holding%20lead%20with%20cute%20dog%2C%20black%20trousers%2C%20no%20suit%2C%20professional%20casual%2C%20face%20out%20of%20frame%2C%20emerald%20amber%20color%20grading%2C%20photorealistic?width=1100&height=1400&nologo=true',
+        'hero_strip_1': '',
+        'hero_strip_2': '',
+        'hero_strip_3': '',
+        'hero_strip_4': ''
+    }
+    try:
+        with engine.begin() as conn:
+            images = {}
+            for key in ['hero_slide_1', 'hero_slide_2', 'hero_strip_1', 'hero_strip_2', 'hero_strip_3', 'hero_strip_4']:
+                result = conn.execute(text("SELECT value FROM site_settings WHERE key=:key"), {"key": key}).fetchone()
+                images[key] = result.value if result and result.value else default_images.get(key, '')
+            return images
+    except Exception:
+        # If database error, return defaults
+        return default_images
 
 def set_hero_image(key: str, url: str):
     """Set a hero image URL"""
@@ -740,13 +754,28 @@ def update_meet_andy(data: dict):
 
 def get_contact_info():
     """Get contact info section content"""
-    init_db()
-    with engine.begin() as conn:
-        result = conn.execute(text("SELECT key, title, content FROM site_content WHERE section='contact' ORDER BY sort_order ASC"))
-        content = {}
-        for row in result:
-            content[row.key] = {'title': row.title, 'content': row.content}
-        return content
+    try:
+        init_db()
+        with engine.begin() as conn:
+            result = conn.execute(text("SELECT key, title, content FROM site_content WHERE section='contact' ORDER BY sort_order ASC"))
+            content = {}
+            for row in result:
+                content[row.key] = {'title': row.title or '', 'content': row.content or ''}
+            # Ensure required keys exist with defaults
+            if 'profile_title' not in content:
+                content['profile_title'] = {'title': '', 'content': 'Friendly, Reliable, Local'}
+            if 'phone' not in content:
+                content['phone'] = {'title': '', 'content': '07595 289669'}
+            if 'email' not in content:
+                content['email'] = {'title': '', 'content': 'hello@happypawswalking.com'}
+            return content
+    except Exception as e:
+        print(f"Error fetching contact info: {e}")
+        return {
+            'profile_title': {'title': '', 'content': 'Friendly, Reliable, Local'},
+            'phone': {'title': '', 'content': '07595 289669'},
+            'email': {'title': '', 'content': 'hello@happypawswalking.com'}
+        }
 
 # ---- Booking Management Functions ----
 def fetch_booking_slots(include_past=False):
