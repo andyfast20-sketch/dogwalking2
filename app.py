@@ -1487,6 +1487,29 @@ def admin_visitors():
     
     return jsonify({"ok": True})
 
+@app.post('/chat/start')
+def chat_start():
+    """Create a new chat session and return the chat_id"""
+    init_db()
+    from datetime import datetime
+    now = datetime.utcnow().isoformat()
+    ip = _client_ip()
+    sid = request.cookies.get('sid') or request.form.get('sid') or ''
+    
+    with engine.begin() as conn:
+        result = conn.execute(text("""
+            INSERT INTO chats (sid, name, status, created_at, last_activity, ip)
+            VALUES (:sid, NULL, 'open', :created, :created, :ip)
+        """), {"sid": sid or None, "created": now, "ip": ip})
+        chat_id = result.lastrowid
+    
+    return jsonify({"ok": True, "chat_id": chat_id})
+
+@app.get('/chat/autopilot-status')
+def chat_autopilot_status():
+    """Return the current autopilot status"""
+    return jsonify({"autopilot": get_autopilot_enabled()})
+
 @app.get('/chat/poll/<int:chat_id>')
 def chat_poll(chat_id: int):
     init_db()

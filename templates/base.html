@@ -152,10 +152,10 @@
       fetch('/chat/send',{method:'POST',body:data}).catch(()=>{});
     }
 
-    function openPanel(){
+    async function openPanel(){
       if(!panel) buildPanel();
       panel.classList.add('open');
-      ensureChat();
+      await ensureChat();
       if(autopilotMode&&!introShown){
         append('system',"You're chatting with Andy's AI assistant.");
         introShown=true;
