@@ -28,8 +28,8 @@
       <aside class="hero-visual" aria-hidden="true">
         <div class="image-frame">
           <div class="slideshow refined">
-            <img src="{{ hero_images.hero_slide_1 }}" alt="" width="1100" height="1400" loading="eager" decoding="async" fetchpriority="high">
-            <img src="{{ hero_images.hero_slide_2 }}" alt="" width="1100" height="1400" loading="lazy" decoding="async">
+            <img src="{{ hero_images.hero_slide_1 if hero_images.hero_slide_1 else 'https://image.pollinations.ai/prompt/stocky%20build%20dark-haired%20male%20dog%20walker%20back%20view%20walking%20a%20cute%20small%20dog%2C%20black%20trousers%2C%20no%20suit%2C%20professional%20casual%2C%20no%20face%20visible%2C%20emerald%20and%20amber%20tones%2C%20photorealistic%2C%20crisp%20lighting?width=1100&height=1400&nologo=true' }}" alt="" width="1100" height="1400" loading="eager" decoding="async" fetchpriority="high">
+            <img src="{{ hero_images.hero_slide_2 if hero_images.hero_slide_2 else 'https://image.pollinations.ai/prompt/stocky%20dark-haired%20male%20dog%20walker%20mid%20section%20holding%20lead%20with%20cute%20dog%2C%20black%20trousers%2C%20no%20suit%2C%20professional%20casual%2C%20face%20out%20of%20frame%2C%20emerald%20amber%20color%20grading%2C%20photorealistic?width=1100&height=1400&nologo=true' }}" alt="" width="1100" height="1400" loading="lazy" decoding="async">
           </div>
         </div>
       </aside>
@@ -38,7 +38,7 @@
 
   {# Dynamic Section Rendering #}
   {% for section in homepage_sections %}
-    {% if section.enabled %}
+    {% if section.enabled == 1 or section.enabled == True %}
       
       {# Features Section #}
       {% if section.section_key == 'features' %}
@@ -105,19 +105,19 @@
               <div class="avatar">
                 <img src="{{ url_for('static', filename='img/andy.jpg') }}" alt="Profile photo" width="400" height="400" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://image.pollinations.ai/prompt/portrait%20photo%20of%20friendly%20professional%20dog%20walker%20male%2C%20smiling%2C%20natural%20light%2C%20studio%20background%2C%20clean%2C%20modern%2C%20photorealistic?width=400&height=400&nologo=true'">
               </div>
-              <h3>{{ contact_info.profile_title.content }}</h3>
-              <p class="contact">Call me: <strong>{{ contact_info.phone.content }}</strong></p>
+              <h3>{{ contact_info.profile_title.content if contact_info.profile_title else 'Friendly, Reliable, Local' }}</h3>
+              <p class="contact">Call me: <strong>{{ contact_info.phone.content if contact_info.phone else '07595 289669' }}</strong></p>
               <a href="{{ url_for('contact') }}" class="btn primary" style="margin-top:10px">Enquire Now</a>
             </aside>
             <div class="owner-content">
-              <h2>{{ meet_andy.heading.content }}</h2>
-              <p>{{ meet_andy.paragraph1.content }}</p>
-              <p>{{ meet_andy.paragraph2.content }}</p>
+              <h2>{{ meet_andy.heading.content if meet_andy.heading else 'Meet Andy' }}</h2>
+              <p>{{ meet_andy.paragraph1.content if meet_andy.paragraph1 else "Hi, I'm Andy — a local dog walker who's DBS checked, fully insured and first‑aid trained. I keep walks calm, positive and tailored to your dog's pace and personality." }}</p>
+              <p>{{ meet_andy.paragraph2.content if meet_andy.paragraph2 else "You'll get GPS routes and photo updates after each walk so you always know how it went. I treat every dog like my own and build routines they genuinely enjoy." }}</p>
               <div class="owner-features">
-                <div class="owner-feature">{{ meet_andy.badge1.content }}</div>
-                <div class="owner-feature">{{ meet_andy.badge2.content }}</div>
-                <div class="owner-feature">{{ meet_andy.badge3.content }}</div>
-                <div class="owner-feature">{{ meet_andy.badge4.content }}</div>
+                <div class="owner-feature">{{ meet_andy.badge1.content if meet_andy.badge1 else '✓ DBS Checked' }}</div>
+                <div class="owner-feature">{{ meet_andy.badge2.content if meet_andy.badge2 else '✓ Public Liability Insured' }}</div>
+                <div class="owner-feature">{{ meet_andy.badge3.content if meet_andy.badge3 else '✓ First‑Aid Trained' }}</div>
+                <div class="owner-feature">{{ meet_andy.badge4.content if meet_andy.badge4 else '✓ GPS & Photo Updates' }}</div>
               </div>
             </div>
           </div>

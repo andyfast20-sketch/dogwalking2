@@ -121,15 +121,31 @@ app.post('/chat/send')(chat_send)
 @app.context_processor
 def inject_globals():
     """Make maintenance_mode, hero_images and meet_andy available to all templates"""
+    try:
+        hero_images = get_hero_images()
+    except Exception:
+        hero_images = {}
+    try:
+        meet_andy = get_meet_andy()
+    except Exception:
+        meet_andy = {}
+    try:
+        maintenance_mode = get_maintenance_mode()
+    except Exception:
+        maintenance_mode = False
+    try:
+        autopilot_enabled = get_autopilot_enabled()
+    except Exception:
+        autopilot_enabled = False
     return {
-        'maintenance_mode': get_maintenance_mode(),
-        'hero_images': get_hero_images(),
-        'meet_andy': get_meet_andy(),
+        'maintenance_mode': maintenance_mode,
+        'hero_images': hero_images,
+        'meet_andy': meet_andy,
         # Expose provider presence so templates don't guess
         'has_openai': bool(OPENAI_API_KEY),
         'has_gemini': bool(GEMINI_API_KEY),
         'has_deepseek': bool(DEEPSEEK_API_KEY),
-        'autopilot_enabled': get_autopilot_enabled(),
+        'autopilot_enabled': autopilot_enabled,
     }
 
 @app.before_request
