@@ -35,7 +35,9 @@ def chat_send():
                 except Exception as e:
                     conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": f"(Autopilot error: {str(e)[:120]})", "t": datetime.utcnow().isoformat()})
             elif sender == 'user' and not autopilot_on:
-                conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": chat_id, "m": "[Autopilot is OFF - no AI response]", "t": datetime.utcnow().isoformat()})
+                # Autopilot is off: do not insert repetitive system messages for every user message.
+                # Keep the flow lightweight so user messages are delivered promptly to admins.
+                pass
         except Exception as e:
             # Log error and guarantee fallback message
             err_msg = f"(Autopilot error: {str(e)[:120]})"
@@ -93,12 +95,42 @@ except Exception:
     deepseek_client = None
 
 
+# OpenAI official / legacy client wrapper
+try:
+    openai_client = None
+    if OPENAI_API_KEY:
+        try:
+            from openai import OpenAI as OpenAIClient  # type: ignore
+            try:
+                openai_client = OpenAIClient(api_key=OPENAI_API_KEY)
+            except TypeError:
+                # Some versions may not accept api_key kwarg
+                import openai as _legacy_openai
+                _legacy_openai.api_key = OPENAI_API_KEY
+                openai_client = _legacy_openai
+        except Exception:
+            try:
+                import openai as _legacy_openai
+                if OPENAI_API_KEY:
+                    _legacy_openai.api_key = OPENAI_API_KEY
+                    openai_client = _legacy_openai
+                else:
+                    openai_client = None
+            except Exception:
+                openai_client = None
+    else:
+        openai_client = None
+except Exception:
+    openai_client = None
+
+
 def refresh_ai_clients():
     """Reload AI provider API keys from environment or DB-backed settings.
     This is a lightweight refresh that updates global key variables and configures Gemini if available.
     """
     global OPENAI_API_KEY, GEMINI_API_KEY, DEEPSEEK_API_KEY
     global genai
+    global openai_client, deepseek_client
     # Prefer environment variables but allow admin-saved DB values for testing
     try:
         OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY') or get_site_setting('OPENAI_API_KEY')
@@ -119,6 +151,49 @@ def refresh_ai_clients():
             genai.configure(api_key=GEMINI_API_KEY)
     except Exception:
         pass
+    # Refresh OpenAI client wrapper
+    try:
+        if OPENAI_API_KEY:
+            try:
+                from openai import OpenAI as OpenAIClient  # type: ignore
+                try:
+                    openai_client = OpenAIClient(api_key=OPENAI_API_KEY)
+                except TypeError:
+                    import openai as _legacy_openai
+                    _legacy_openai.api_key = OPENAI_API_KEY
+                    openai_client = _legacy_openai
+            except Exception:
+                try:
+                    import openai as _legacy_openai
+                    _legacy_openai.api_key = OPENAI_API_KEY
+                    openai_client = _legacy_openai
+                except Exception:
+                    openai_client = None
+        else:
+            openai_client = None
+    except Exception:
+        openai_client = None
+    # Refresh DeepSeek client wrapper
+    try:
+        if DEEPSEEK_API_KEY:
+            try:
+                from openai import OpenAI as OpenAIClient  # type: ignore
+                try:
+                    deepseek_client = OpenAIClient(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+                except TypeError:
+                    import openai as _legacy_openai
+                    _legacy_openai.api_key = DEEPSEEK_API_KEY
+                    try:
+                        _legacy_openai.api_base = "https://api.deepseek.com"
+                    except Exception:
+                        pass
+                    deepseek_client = _legacy_openai
+            except Exception:
+                deepseek_client = None
+        else:
+            deepseek_client = None
+    except Exception:
+        deepseek_client = None
 
 
 # Attempt initial refresh on startup
@@ -1740,144 +1815,10 @@ def admin_visitors():
     auth_result = require_admin()
     if isinstance(auth_result, Response):
         return auth_result
-    now = datetime.utcnow().isoformat()
-    with engine.begin() as conn:
-        try:
-            conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, :s, :m, :t)"), {"cid": int(chat_id), "s": sender, "m": message.strip()[:2000], "t": now})
-            conn.execute(text("UPDATE chats SET last_activity=:t WHERE id=:cid"), {"cid": int(chat_id), "t": now})
-            autopilot_on = get_autopilot_enabled()
-            if sender == 'user' and autopilot_on:
-                conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": "[AI is responding...]", "t": datetime.utcnow().isoformat()})
-                providers_status = f"OpenAI: {bool(openai_client)}, Gemini: {bool(genai and GEMINI_API_KEY)}"
-                conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": f"[Available providers: {providers_status}]", "t": datetime.utcnow().isoformat()})
-                ai_reply = None
-                failure_reason = None
-                user_text = message.strip()
-                business_desc = get_business_description()
-                base_system = "You are Andy's Dog Walking assistant. Keep replies friendly, concise (<80 words), and actionable. If pricing or availability is unclear, invite them to share their dog's needs."
-                if business_desc:
-                    base_system = base_system + "\n\nBusiness context: " + business_desc[:1200]
-                prompt_messages = [
-                    {"role": "system", "content": base_system},
-                    {"role": "user", "content": user_text}
-                ]
-                # Try OpenAI first
-                if openai_client:
-                    models_try = ["gpt-4o", "gpt-3.5-turbo", "gpt-4-turbo-preview"]
-                    for mname in models_try:
-                        try:
-                            resp = openai_client.chat.completions.create(
-                                model=mname,
-                                messages=prompt_messages,
-                                max_tokens=200,
-                                temperature=0.5
-                            )
-                            ai_reply = resp.choices[0].message.content.strip() if resp and resp.choices else None
-                            if ai_reply:
-                                break
-                        except Exception as e:
-                            failure_reason = str(e)
-                    if not ai_reply and failure_reason:
-                        conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": f"(OpenAI failed: {failure_reason[:120]})", "t": datetime.utcnow().isoformat()})
-                # Try Gemini as last resort
-                if not ai_reply and genai and GEMINI_API_KEY:
-                    try:
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        r = model.generate_content(user_text + "\nReply under 80 words as a friendly dog walking assistant.")
-                        ai_reply = getattr(r, 'text', None)
-                        if not ai_reply and getattr(r, 'candidates', None):
-                            ai_reply = r.candidates[0].content.parts[0].text
-                        if ai_reply:
-                            ai_reply = ai_reply.strip()
-                    except Exception as e:
-                        failure_reason = str(e)
-                        conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": f"(Gemini failed: {failure_reason[:120]})", "t": datetime.utcnow().isoformat()})
-                # Always reply to user with admin message
-                if ai_reply:
-                    conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :m, :t)"), {"cid": chat_id, "m": ai_reply[:2000], "t": datetime.utcnow().isoformat()})
-                else:
-                    conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": f"[Autopilot: No AI reply generated. Reason: {failure_reason or 'No providers available'}]", "t": datetime.utcnow().isoformat()})
-                    fallback = "Thanks for your message! I'm Andy's assistant. Could you share your dog's breed, age, and your preferred walk times?"
-                    conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :m, :t)"), {"cid": chat_id, "m": fallback, "t": datetime.utcnow().isoformat()})
-            elif sender == 'user' and not autopilot_on:
-                conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": chat_id, "m": "[Autopilot is OFF - no AI response]", "t": datetime.utcnow().isoformat()})
-        except Exception as e:
-            # Log error and guarantee fallback message
-            err_msg = f"(Autopilot error: {str(e)[:120]})"
-            conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": chat_id, "m": err_msg, "t": datetime.utcnow().isoformat()})
-            fallback = "Sorry, there was a technical issue. I'm Andy's assistant. Could you share your dog's breed, age, and preferred walk times?"
-            conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :m, :t)"), {"cid": chat_id, "m": fallback, "t": datetime.utcnow().isoformat()})
-        # Only process AI response for user messages with autopilot on
-        try:
-            autopilot_on = get_autopilot_enabled()
-            if sender == 'user' and autopilot_on:
-                # Signal processing started
-                conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), 
-                            {"cid": chat_id, "m": "[AI assistant is thinking...]", "t": datetime.utcnow().isoformat()})
-                
-                business_desc = get_business_description()
-                base_system = "You are Andy's Dog Walking assistant. Keep replies friendly, concise (<80 words), and actionable. If pricing or availability is unclear, invite them to share their dog's needs."
-                if business_desc:
-                    base_system = base_system + "\n\nBusiness context: " + business_desc[:1200]
-                prompt_messages = [
-                    {"role": "system", "content": base_system},
-                    {"role": "user", "content": user_text}
-                ]
-                
-                ai_reply = None
-                failure_reason = None
-                
-                # Try OpenAI if available
-                if openai_client:
-                    try:
-                        resp = openai_client.chat.completions.create(
-                            model="gpt-3.5-turbo",
-                            messages=prompt_messages,
-                            max_tokens=200,
-                            temperature=0.5
-                        )
-                        ai_reply = resp.choices[0].message.content.strip() if resp and resp.choices else None
-                    except Exception as e:
-                        failure_reason = f"OpenAI error: {str(e)[:120]}"
-                        conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), 
-                                    {"cid": chat_id, "m": f"({failure_reason})", "t": datetime.utcnow().isoformat()})
-                
-                # Try Gemini if OpenAI failed and Gemini is available
-                if not ai_reply and genai and GEMINI_API_KEY:
-                    try:
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        r = model.generate_content(user_text + "\nReply under 80 words as a friendly dog walking assistant.")
-                        ai_reply = getattr(r, 'text', None)
-                        if not ai_reply and getattr(r, 'candidates', None):
-                            ai_reply = r.candidates[0].content.parts[0].text
-                        if ai_reply:
-                            ai_reply = ai_reply.strip()
-                    except Exception as e:
-                        failure_reason = f"Gemini error: {str(e)[:120]}"
-                        conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), 
-                                    {"cid": chat_id, "m": f"({failure_reason})", "t": datetime.utcnow().isoformat()})
-                
-                # Always give the user a response
-                # Always reply to user with admin message
-                if ai_reply:
-                    conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :m, :t)"), {"cid": chat_id, "m": ai_reply[:2000], "t": datetime.utcnow().isoformat()})
-                # Always send fallback after AI reply or if AI fails
-                fallback = "Thanks for your message! I'm Andy's assistant. Could you please share your dog's breed, age, and your preferred walk times?"
-                conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :m, :t)"), {"cid": chat_id, "m": fallback, "t": datetime.utcnow().isoformat()})
-            
-            elif sender == 'user':  # Autopilot is off
-                conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), 
-                            {"cid": chat_id, "m": "[Autopilot is OFF - no AI response]", "t": datetime.utcnow().isoformat()})
-                            
-        except Exception as e:
-            # Last resort fallback - always give some response
-            err_msg = f"System error: {str(e)[:120]}"
-            conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), 
-                        {"cid": chat_id, "m": f"({err_msg})", "t": datetime.utcnow().isoformat()})
-            conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :m, :t)"), 
-                        {"cid": chat_id, "m": "I apologize, but I'm having technical difficulties. Could you share your dog's details and I'll make sure Andy gets back to you?", "t": datetime.utcnow().isoformat()})
-    
-    return jsonify({"ok": True})
+    # Render a simple visitors page showing recent visitor sessions and stats
+    visitors = fetch_visitors()
+    stats = fetch_visitor_stats()
+    return render_template('admin_visitors.html', visitors=visitors, stats=stats)
 
 @app.post('/chat/start')
 def chat_start():
@@ -2141,6 +2082,30 @@ def admin_chat_close(chat_id: int):
     with engine.begin() as conn:
         conn.execute(text("UPDATE chats SET status='closed' WHERE id=:cid"), {"cid": chat_id})
     return redirect(url_for('admin_chats'))
+
+
+@app.post('/admin/chats/delete/<int:chat_id>')
+def admin_chat_delete(chat_id: int):
+    """Delete a closed chat and its messages. Admin-only.
+    Accepts optional form field 'force'=='true' to delete regardless of status.
+    """
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    force = request.form.get('force') == 'true'
+    init_db()
+    with engine.begin() as conn:
+        row = conn.execute(text("SELECT status FROM chats WHERE id=:cid"), {"cid": chat_id}).fetchone()
+        if not row:
+            abort(404)
+        if row.status != 'closed' and not force:
+            # Only allow deletion of closed chats by default
+            abort(400, "Can only delete closed chats. Use force=true to override.")
+        # Delete messages then chat row
+        conn.execute(text("DELETE FROM chat_messages WHERE chat_id=:cid"), {"cid": chat_id})
+        conn.execute(text("DELETE FROM chats WHERE id=:cid"), {"cid": chat_id})
+    # Redirect back to chat list with a flag
+    return redirect(url_for('admin_chats', deleted='1'))
 
 # ---------- Admin Content Management ----------
 @app.route('/admin/content')
