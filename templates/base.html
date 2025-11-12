@@ -57,6 +57,17 @@
       <img src="/static/img/dog-face.svg" alt="Autopilot" class="chat-icon" />
   </button>
 
+  <!-- Separate AI-only chat button (forces AI answer using selected provider) -->
+  <button
+    id="chat-ai-launch"
+    class="floating-chat-btn ai-only"
+    type="button"
+    aria-label="Ask the AI (separate)"
+    title="Ask the AI"
+  >
+    🐶
+  </button>
+
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
   <script>
   (function(){
@@ -189,6 +200,74 @@
       .catch(()=>{});
   })();
   </script>
+    <script>
+    (function(){
+      // Separate AI-only panel: does not rely on chat DB; calls /chat/ai-reply which uses selected provider
+      const aiBtn = document.getElementById('chat-ai-launch');
+      if(!aiBtn) return;
+      let panelAi, pollTimerAi;
+
+      function buildAiPanel(){
+        if(panelAi) return;
+        panelAi=document.createElement('div');
+        panelAi.className='chat-panel ai-only';
+        panelAi.innerHTML=`<div class="chat-header"><strong>Ask the AI</strong><button type="button" class="chat-close" aria-label="Close chat">×</button></div>
+          <div class="chat-messages" aria-live="polite"></div>
+          <form class="chat-form" autocomplete="off">
+            <div class="chat-row"><input name="message" required placeholder="Ask the AI about walks, pricing or availability..." class="chat-input" /><button class="chat-send" type="submit">Ask</button></div>
+          </form>`;
+        document.body.appendChild(panelAi);
+        panelAi.querySelector('.chat-close').addEventListener('click',()=>panelAi.classList.remove('open'));
+        panelAi.querySelector('.chat-form').addEventListener('submit',onAiSend);
+      }
+
+      function appendAi(sender,text){
+        if(!panelAi) return;
+        const wrap=panelAi.querySelector('.chat-messages');
+        const row=document.createElement('div');
+        row.className='msg msg-'+sender;
+        row.textContent=text;
+        wrap.appendChild(row);
+        wrap.scrollTop=wrap.scrollHeight;
+      }
+
+      async function onAiSend(e){
+        e.preventDefault();
+        const form=e.target;
+        const inp=form.querySelector('.chat-input');
+        const msg=(inp.value||'').trim();
+        if(!msg) return;
+        appendAi('user',msg);
+        inp.value='';
+        try{
+          const body = new URLSearchParams({message: msg});
+          const r = await fetch('/chat/ai-reply',{method:'POST',body:body});
+          if(!r.ok){
+            appendAi('system','AI service error');
+            return;
+          }
+          const j = await r.json();
+          if(j && j.reply){
+            appendAi('admin', j.reply);
+          } else if(j && j.error){
+            appendAi('system', j.error);
+          } else {
+            appendAi('system', 'No AI reply received.');
+          }
+        }catch(err){
+          appendAi('system','Error contacting AI');
+        }
+      }
+
+      aiBtn.addEventListener('click', async function(){
+        buildAiPanel();
+        panelAi.classList.add('open');
+        // show intro
+        const msgs = panelAi.querySelector('.chat-messages');
+        if(!msgs.children.length) appendAi('system',"You're chatting with Andy's AI assistant (separate AI-only panel).");
+      });
+    })();
+    </script>
   {% block extra_js %}{% endblock %}
 </body>
 </html>

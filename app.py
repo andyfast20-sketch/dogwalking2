@@ -1897,6 +1897,151 @@ def chat_start():
     
     return jsonify({"ok": True, "chat_id": chat_id})
 
+
+# New endpoint: AI-only reply using selected provider/settings. Returns JSON {reply: str} or {error: str}
+@app.post('/chat/ai-reply')
+def chat_ai_reply():
+    """Accepts form or JSON with 'message' and returns a single AI-crafted reply using the selected provider."""
+    init_db()
+    try:
+        refresh_ai_clients()
+    except Exception:
+        pass
+    data = request.form or (request.get_json(silent=True) or {})
+    message = (data.get('message') or '').strip()
+    if not message:
+        return jsonify({"error": "No message provided"}), 400
+
+    # Build a minimal conversation: system + user message, including business description
+    business_profile = get_business_description()
+    conv = [{'sender': 'user', 'message': message}]
+    messages = _build_autopilot_messages(conv, business_profile=business_profile)
+    if len(messages) <= 1:
+        return jsonify({"error": "Invalid conversation"}), 400
+
+    model = get_site_setting('DEEPSEEK_MODEL') or get_site_setting('OPENAI_MODEL') or DEFAULT_AUTOPILOT_MODEL
+    try:
+        temperature = float(get_site_setting('OPENAI_TEMPERATURE') or DEFAULT_AUTOPILOT_TEMPERATURE)
+    except Exception:
+        temperature = DEFAULT_AUTOPILOT_TEMPERATURE
+
+    # Choose provider preference similarly to autopilot helper
+    provider = (get_site_setting('AUTOPILOT_PROVIDER') or 'auto').lower()
+    openai_key = get_site_setting('OPENAI_API_KEY') or os.environ.get('OPENAI_API_KEY') or globals().get('OPENAI_API_KEY') or ''
+    ds_key = get_site_setting('DEEPSEEK_API_KEY') or globals().get('DEEPSEEK_API_KEY') or ''
+    gemini_key = get_site_setting('GEMINI_API_KEY') or globals().get('GEMINI_API_KEY') or ''
+
+    # Build attempts order
+    attempts = []
+    if ds_key:
+        attempts = [('deepseek', ds_key), ('openai', openai_key), ('gemini', gemini_key)]
+    else:
+        if provider == 'openai':
+            attempts = [('openai', openai_key), ('deepseek', ds_key), ('gemini', gemini_key)]
+        elif provider == 'deepseek':
+            attempts = [('deepseek', ds_key), ('openai', openai_key), ('gemini', gemini_key)]
+        elif provider == 'gemini':
+            attempts = [('gemini', gemini_key), ('deepseek', ds_key), ('openai', openai_key)]
+        else:
+            attempts = [('openai', openai_key), ('deepseek', ds_key), ('gemini', gemini_key)]
+
+    reply_text = None
+    # Reuse helper functions from _maybe_send_autopilot_reply_db scope by re-implementing small tryers here
+    def try_openai_local(key):
+        if not key:
+            return None
+        return _request_autopilot_reply(messages, model=model, temperature=temperature, api_key=key)
+
+    def try_deepseek_local(key):
+        if not key:
+            return None
+        try:
+            import requests
+            endpoints = [
+                'https://api.deepseek.com/v1/chat/completions',
+                'https://api.deepseek.com/v1/responses'
+            ]
+            headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
+            default_models = ['deepseek-chat', 'deepseek-reasoner', 'gpt-4o', 'gpt-3.5-turbo', 'gpt-3.5']
+            models = [m for m in ([model] + default_models) if m]
+            for url in endpoints:
+                for m in models:
+                    payload = {'model': m, 'messages': messages, 'max_tokens': 350, 'temperature': temperature}
+                    try:
+                        r = requests.post(url, json=payload, headers=headers, timeout=15)
+                    except Exception:
+                        continue
+                    if r.status_code != 200:
+                        continue
+                    try:
+                        j = r.json()
+                    except Exception:
+                        return (r.text or '').strip()
+                    got = None
+                    if isinstance(j, dict):
+                        if j.get('choices'):
+                            try:
+                                got = j['choices'][0]['message']['content']
+                            except Exception:
+                                got = j['choices'][0].get('text')
+                        if not got:
+                            got = j.get('output') or j.get('output_text') or None
+                        if not got and j.get('data'):
+                            try:
+                                d0 = j['data'][0]
+                                if isinstance(d0, dict):
+                                    got = d0.get('text') or d0.get('content') or None
+                            except Exception:
+                                pass
+                    if got:
+                        return got.strip()
+            return None
+        except Exception:
+            return None
+
+    def try_gemini_local(key):
+        if not key or not globals().get('genai'):
+            return None
+        try:
+            model_obj = genai.GenerativeModel('gemini-1.5-mini')
+            last_user = message
+            r = model_obj.generate_content(last_user or '')
+            result = getattr(r, 'text', None)
+            if not result and getattr(r, 'candidates', None):
+                try:
+                    result = r.candidates[0].content.parts[0].text
+                except Exception:
+                    result = None
+            return result
+        except Exception:
+            return None
+
+    for name, key in attempts:
+        if not key:
+            continue
+        if name == 'openai':
+            try:
+                reply_text = try_openai_local(key)
+            except Exception:
+                reply_text = None
+        elif name == 'deepseek':
+            try:
+                reply_text = try_deepseek_local(key)
+            except Exception:
+                reply_text = None
+        elif name == 'gemini':
+            try:
+                reply_text = try_gemini_local(key)
+            except Exception:
+                reply_text = None
+        if reply_text:
+            break
+
+    clean_reply = (reply_text or '').strip()
+    if not clean_reply:
+        return jsonify({"error": "No AI reply available"}), 502
+    return jsonify({"ok": True, "reply": clean_reply})
+
 @app.get('/chat/autopilot-status')
 def chat_autopilot_status():
     """Return the current autopilot status"""
