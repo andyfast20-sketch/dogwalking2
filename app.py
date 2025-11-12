@@ -67,39 +67,58 @@ try:
         genai.configure(api_key=GEMINI_API_KEY)
 except Exception:
     genai = None
-@app.route('/admin/visitors')
-def admin_visitors():
-    auth_result = require_admin()
-    if isinstance(auth_result, Response):
-        return auth_result
-    now = datetime.utcnow().isoformat()
-    visitors = fetch_visitors()
-    stats = fetch_visitor_stats()
-    return render_template('admin_visitors.html', visitors=visitors, now=now, stats=stats)
-    # DeepSeek (OpenAI-compatible)
-    try:
-        if DEEPSEEK_API_KEY:
+# DeepSeek (OpenAI-compatible)
+try:
+    if DEEPSEEK_API_KEY:
+        try:
+            from openai import OpenAI as NewOpenAI2  # type: ignore
+            deepseek_client = NewOpenAI2(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+        except TypeError:
+            # Some OpenAI package versions pass unexpected kwargs to httpx/client construction
+            # Fall back to the older `openai` module if available and configure its base URL
             try:
-                from openai import OpenAI as NewOpenAI2  # type: ignore
-                deepseek_client = NewOpenAI2(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
-            except TypeError:
-                # Some OpenAI package versions pass unexpected kwargs to httpx/client construction
-                # Fall back to the older `openai` module if available and configure its base URL
+                import openai as _legacy_openai
+                _legacy_openai.api_key = DEEPSEEK_API_KEY
+                # legacy client uses api_base
                 try:
-                    import openai as _legacy_openai
-                    _legacy_openai.api_key = DEEPSEEK_API_KEY
-                    # legacy client uses api_base
-                    try:
-                        _legacy_openai.api_base = "https://api.deepseek.com"
-                    except Exception:
-                        pass
-                    deepseek_client = _legacy_openai
+                    _legacy_openai.api_base = "https://api.deepseek.com"
                 except Exception:
-                    deepseek_client = None
-        else:
-            deepseek_client = None
-    except Exception:
+                    pass
+                deepseek_client = _legacy_openai
+            except Exception:
+                deepseek_client = None
+    else:
         deepseek_client = None
+except Exception:
+    deepseek_client = None
+
+
+def refresh_ai_clients():
+    """Reload AI provider API keys from environment or DB-backed settings.
+    This is a lightweight refresh that updates global key variables and configures Gemini if available.
+    """
+    global OPENAI_API_KEY, GEMINI_API_KEY, DEEPSEEK_API_KEY
+    global genai
+    # Prefer environment variables but allow admin-saved DB values for testing
+    try:
+        OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY') or get_site_setting('OPENAI_API_KEY')
+    except Exception:
+        OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+    try:
+        GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY') or get_site_setting('GEMINI_API_KEY')
+    except Exception:
+        GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+    try:
+        DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY') or get_site_setting('DEEPSEEK_API_KEY')
+    except Exception:
+        DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
+
+    # Configure Gemini client if module loaded
+    try:
+        if genai and GEMINI_API_KEY:
+            genai.configure(api_key=GEMINI_API_KEY)
+    except Exception:
+        pass
 
 
 # Attempt initial refresh on startup
