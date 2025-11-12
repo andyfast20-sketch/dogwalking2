@@ -675,6 +675,25 @@ def get_maintenance_mode():
         result = conn.execute(text("SELECT value FROM site_settings WHERE key='maintenance_mode'")).fetchone()
         return result.value == 'true' if result else False
 
+
+def get_business_description() -> str:
+    """Return the admin-provided business description used to seed the autopilot context."""
+    init_db()
+    with engine.begin() as conn:
+        row = conn.execute(text("SELECT value FROM site_settings WHERE key='business_description'")).fetchone()
+        return row.value if row and row.value else ''
+
+
+def set_business_description(text_value: str):
+    """Save the admin-provided business description into site_settings."""
+    init_db()
+    with engine.begin() as conn:
+        try:
+            conn.execute(text("INSERT INTO site_settings (key, value) VALUES ('business_description', :v) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"), {"v": text_value})
+        except Exception:
+            # SQLite fallback
+            conn.execute(text("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('business_description', :v)"), {"v": text_value})
+
 def get_autopilot_enabled():
     """Return True if chat autopilot is enabled."""
     init_db()
@@ -1656,7 +1675,8 @@ def admin_content():
     contact_info = get_contact_info()
     service_areas = fetch_service_areas()
     homepage_sections = fetch_homepage_sections()
-    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, autopilot_enabled=autopilot, hero_imgs=hero_imgs, meet_andy=meet_andy, contact_info=contact_info, service_areas=service_areas, homepage_sections=homepage_sections)
+    business_desc = get_business_description()
+    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, autopilot_enabled=autopilot, hero_imgs=hero_imgs, meet_andy=meet_andy, contact_info=contact_info, service_areas=service_areas, homepage_sections=homepage_sections, business_description=business_desc)
 
 @app.post('/admin/content/service/<int:service_id>')
 def admin_content_update(service_id: int):
@@ -1763,6 +1783,16 @@ def admin_chat_autopilot_toggle():
         return auth_result
     enabled = request.form.get('enabled') == 'true'
     set_autopilot_enabled(enabled)
+    return redirect(url_for('admin_content'))
+
+
+@app.post('/admin/content/business-description')
+def admin_business_description_update():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    desc = (request.form.get('business_description') or '').strip()
+    set_business_description(desc)
     return redirect(url_for('admin_content'))
 
 @app.post('/admin/service-areas/add')
