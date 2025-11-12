@@ -388,5 +388,107 @@
     })();
     </script>
   {% block extra_js %}{% endblock %}
+  <script>
+  (function(){
+    // Admin notification poller: shows a flashing banner and plays a 3s ring when new live visitor messages arrive.
+    if(!location.pathname.startsWith('/admin')) return;
+
+    let audioCtx = null;
+    function ensureAudio(){
+      if(audioCtx) return audioCtx;
+      try{
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }catch(e){
+        audioCtx = null;
+      }
+      return audioCtx;
+    }
+
+    function playRing(durationMs){
+      const ctx = ensureAudio();
+      if(!ctx) return;
+      // Some browsers require resume on user gesture
+      if(ctx.state === 'suspended'){
+        try{ ctx.resume(); }catch(e){}
+      }
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(880, ctx.currentTime);
+      g.gain.setValueAtTime(0, ctx.currentTime);
+      g.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 0.02);
+      o.connect(g); g.connect(ctx.destination);
+      o.start();
+      // simple rising pattern
+      o.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + (durationMs/1000)*0.6);
+      setTimeout(()=>{
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.2);
+        try{ o.stop(ctx.currentTime + 0.21); }catch(e){}
+      }, durationMs);
+    }
+
+    // Create banner element
+    let banner = null;
+    function showAdminBanner(text, chatId){
+      if(!banner){
+        banner = document.createElement('div');
+        banner.id = 'admin-notif-banner';
+        banner.style.position = 'fixed';
+        banner.style.top = '12px';
+        banner.style.left = '50%';
+        banner.style.transform = 'translateX(-50%)';
+        banner.style.zIndex = '2000';
+        banner.style.background = 'linear-gradient(90deg,#0ea5a4,#06b6d4)';
+        banner.style.color = '#fff';
+        banner.style.padding = '12px 18px';
+        banner.style.borderRadius = '8px';
+        banner.style.boxShadow = '0 6px 20px rgba(2,6,23,0.4)';
+        banner.style.fontWeight = '700';
+        banner.style.cursor = 'pointer';
+        banner.style.animation = 'pulse 1s ease-in-out infinite';
+        banner.addEventListener('click', function(){ if(chatId) location.href = '/admin/chats/' + chatId; });
+        document.body.appendChild(banner);
+      }
+      banner.textContent = text || 'New visitor message';
+      banner.style.display = 'block';
+      // Auto-hide after 6 seconds
+      clearTimeout(banner._hideTimer);
+      banner._hideTimer = setTimeout(()=>{ if(banner) banner.style.display='none'; }, 6000);
+    }
+
+  // Whether sound should play for notifications (set by admin)
+  const ADMIN_NOTIF_SOUND = {{ 'true' if admin_notifications_sound else 'false' }};
+
+  // Poll server for unseen notifications and mark them seen when returned
+    async function pollNotifications(){
+      try{
+        const r = await fetch('/admin/notifications/next?mark_seen=1',{cache:'no-store'});
+        if(!r.ok) return;
+        const j = await r.json().catch(()=>null);
+        if(!j || !j.notifications) return;
+        for(const n of j.notifications){
+          try{
+            if(n.type === 'new_user_message'){
+              let payload = {};
+              try{ payload = JSON.parse(n.payload || '{}'); }catch(e){}
+              const excerpt = payload.excerpt || 'New visitor message';
+              showAdminBanner(excerpt, n.chat_id);
+              if(ADMIN_NOTIF_SOUND){ playRing(3000); }
+            }
+          }catch(e){/* ignore per-notification errors */}
+        }
+      }catch(e){/* ignore network errors */}
+    }
+
+    // Start polling every 2.5s
+    pollNotifications();
+    setInterval(pollNotifications, 2500);
+
+    // Minimal CSS animation keyframes (injected)
+    const style = document.createElement('style');
+    style.innerHTML = `@keyframes pulse{0%{transform:translateX(-50%) scale(1);}50%{transform:translateX(-50%) scale(1.03);}100%{transform:translateX(-50%) scale(1);}}`;
+    document.head.appendChild(style);
+  })();
+  </script>
 </body>
 </html>

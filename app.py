@@ -36,8 +36,19 @@ def chat_send():
                     conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": f"(Autopilot error: {str(e)[:120]})", "t": datetime.utcnow().isoformat()})
             elif sender == 'user' and not autopilot_on:
                 # Autopilot is off: do not insert repetitive system messages for every user message.
-                # Keep the flow lightweight so user messages are delivered promptly to admins.
-                pass
+                # Instead, create a lightweight admin notification so admin pages can alert staff.
+                try:
+                    # Fetch a bit of chat context for the payload
+                    chat_row = conn.execute(text("SELECT sid, name FROM chats WHERE id=:cid"), {"cid": int(chat_id)}).fetchone()
+                    payload_obj = {
+                        'excerpt': (message or '')[:180],
+                        'sid': getattr(chat_row, 'sid', None) if chat_row else None,
+                        'name': getattr(chat_row, 'name', None) if chat_row else None,
+                    }
+                    conn.execute(text("INSERT INTO admin_notifications (type, chat_id, message_id, payload, created_at, seen) VALUES ('new_user_message', :cid, NULL, :payload, :t, 0)"), {"cid": int(chat_id), "payload": json.dumps(payload_obj, default=str), "t": now})
+                except Exception:
+                    # Swallow notification failures to avoid impacting chat flow
+                    pass
         except Exception as e:
             # Log error and guarantee fallback message
             err_msg = f"(Autopilot error: {str(e)[:120]})"
@@ -48,6 +59,7 @@ def chat_send():
 from flask import Flask, render_template, request, redirect, url_for, abort, Response, jsonify
 import sqlite3
 import os
+import json
 from datetime import datetime, timezone, timedelta
 try:
     from zoneinfo import ZoneInfo  # Python 3.9+
@@ -241,6 +253,8 @@ def inject_globals():
         'has_gemini': bool(GEMINI_API_KEY),
         'has_deepseek': bool(DEEPSEEK_API_KEY),
         'autopilot_enabled': get_autopilot_enabled(),
+        # Admin notification sound preference
+        'admin_notifications_sound': (get_site_setting('admin_notifications_sound') == 'true')
     }
 
 @app.before_request
@@ -467,6 +481,18 @@ def init_db():
                 sender TEXT NOT NULL,
                 message TEXT NOT NULL,
                 created_at TEXT NOT NULL
+            )
+        """))
+        # Notifications for admin UI (new visitor messages etc.)
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS admin_notifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                type TEXT NOT NULL,
+                chat_id INTEGER,
+                message_id INTEGER,
+                payload TEXT,
+                created_at TEXT NOT NULL,
+                seen INTEGER DEFAULT 0
             )
         """))
         # Service Areas table
@@ -1592,6 +1618,39 @@ def admin_status_json():
         "active_visitors": active_visitors
     })
 
+
+@app.route('/admin/notifications/next')
+def admin_notifications_next():
+    """Return next unseen admin notifications (and optionally mark them seen).
+    GET params: mark_seen=1 will mark returned notifications as seen.
+    """
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+
+    init_db()
+    mark = request.args.get('mark_seen') == '1'
+    results = []
+    with engine.begin() as conn:
+        rows = conn.execute(text("SELECT id, type, chat_id, message_id, payload, created_at FROM admin_notifications WHERE seen=0 ORDER BY id ASC LIMIT 20")).fetchall()
+        for r in rows:
+            results.append({
+                'id': r.id,
+                'type': r.type,
+                'chat_id': r.chat_id,
+                'message_id': getattr(r, 'message_id', None),
+                'payload': (r.payload or ''),
+                'created_at': r.created_at,
+            })
+        if mark and results:
+            ids = [str(r['id']) for r in results]
+            try:
+                conn.execute(text(f"UPDATE admin_notifications SET seen=1 WHERE id IN ({','.join(ids)})"))
+            except Exception:
+                pass
+
+    return jsonify({'ok': True, 'notifications': results})
+
 @app.route('/admin/enquiries')
 def admin_enquiries():
     # Enforce admin auth if configured
@@ -2156,7 +2215,8 @@ def admin_content():
     autopilot_provider = get_site_setting('AUTOPILOT_PROVIDER') or 'auto'
     # Last AI test result (for quick visibility)
     ai_test_result = get_site_setting('ai_test_result')
-    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, autopilot_enabled=autopilot, hero_imgs=hero_imgs, meet_andy=meet_andy, contact_info=contact_info, service_areas=service_areas, homepage_sections=homepage_sections, business_description=business_desc, ai_keys=ai_keys, ai_test_result=ai_test_result, autopilot_provider=autopilot_provider)
+    notif_sound = (get_site_setting('admin_notifications_sound') == 'true')
+    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, autopilot_enabled=autopilot, hero_imgs=hero_imgs, meet_andy=meet_andy, contact_info=contact_info, service_areas=service_areas, homepage_sections=homepage_sections, business_description=business_desc, ai_keys=ai_keys, ai_test_result=ai_test_result, autopilot_provider=autopilot_provider, admin_notifications_sound=notif_sound)
 
 @app.post('/admin/content/service/<int:service_id>')
 def admin_content_update(service_id: int):
@@ -2311,6 +2371,19 @@ def admin_api_keys_update():
     else:
         # Clear if empty
         set_site_setting('AUTOPILOT_PROVIDER', '')
+
+    # Preserve previous page
+    return redirect(url_for('admin_content'))
+
+
+@app.post('/admin/content/notifications-sound')
+def admin_notifications_sound_toggle():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    enabled = request.form.get('enabled') == 'true'
+    set_site_setting('admin_notifications_sound', 'true' if enabled else 'false')
+    return redirect(url_for('admin_content'))
 
     # Refresh runtime clients so changes take effect immediately
     try:
