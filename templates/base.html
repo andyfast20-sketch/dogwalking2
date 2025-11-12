@@ -53,7 +53,13 @@
     data-mode="{{ initial_mode }}"
     aria-label="{{ 'Chat with our AI assistant' if autopilot_enabled else 'Open live chat' }}"
     title="{{ 'AI Assistant Chat' if autopilot_enabled else 'Live Chat' }}"
-  >{{ '🤖' if autopilot_enabled else '💬' }}</button>
+  >
+    {% if autopilot_enabled %}
+      <img src="/static/img/autopilot.png" alt="Autopilot" style="height:2em;width:2em;vertical-align:middle;" />
+    {% else %}
+      💬
+    {% endif %}
+  </button>
 
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
   <script>
@@ -75,7 +81,11 @@
       btn.classList.toggle('live',!autopilotMode);
       btn.title=autopilotMode?'AI Assistant Chat':'Live Chat';
       btn.setAttribute('aria-label',autopilotMode?'Chat with our AI assistant':'Open live chat');
-      btn.textContent=autopilotMode?'🤖':'💬';
+      if(autopilotMode){
+        btn.innerHTML='<img src="/static/img/autopilot.png" alt="Autopilot" style="height:2em;width:2em;vertical-align:middle;" />';
+      }else{
+        btn.textContent='💬';
+      }
 
       if(!panel) return;
 
