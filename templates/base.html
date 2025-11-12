@@ -78,9 +78,10 @@
       btn.title=autopilotMode?'AI Assistant Chat':'Live Chat';
       btn.setAttribute('aria-label',autopilotMode?'Chat with our AI assistant':'Open live chat');
       if(autopilotMode){
-        btn.innerHTML='<img src="/static/img/autopilot.png" alt="Autopilot" style="height:2em;width:2em;vertical-align:middle;" />';
+        // Use the SVG dog-face we added so the icon stays consistent and sharp
+        btn.innerHTML='<img src="/static/img/dog-face.svg" alt="Autopilot" class="chat-icon" />';
       }else{
-        btn.textContent='💬';
+        btn.innerHTML='💬';
       }
 
       if(!panel) return;
