@@ -25,7 +25,11 @@ def chat_send():
                 ai_reply = None
                 failure_reason = None
                 user_text = message.strip()
+                # Build system prompt including admin-provided business description for better, accurate replies
+                business_desc = get_business_description()
                 base_system = "You are Andy's Dog Walking assistant. Keep replies friendly, concise (<80 words), and actionable. If pricing or availability is unclear, invite them to share their dog's needs."
+                if business_desc:
+                    base_system = base_system + "\n\nBusiness context: " + business_desc[:1200]
                 prompt_messages = [
                     {"role": "system", "content": base_system},
                     {"role": "user", "content": user_text}
@@ -86,6 +90,7 @@ except Exception:  # pragma: no cover
     ZoneInfo = None
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
+import types
 
 # Optional AI providers
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
@@ -101,11 +106,51 @@ except Exception:
     genai = None
 
 # OpenAI
+legacy_openai = None
+openai_client = None
 try:
     from openai import OpenAI  # type: ignore
-    openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+    try:
+        openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+    except Exception:
+        # SDK instantiation can fail on some environments (httpx/httpcore incompatibilities).
+        # Fall back to the older "openai" module usage if available.
+        try:
+            import openai as _legacy
+            _legacy.api_key = OPENAI_API_KEY
+            legacy_openai = _legacy
+        except Exception:
+            legacy_openai = None
 except Exception:
     openai_client = None
+    try:
+        import openai as _legacy
+        _legacy.api_key = OPENAI_API_KEY
+        legacy_openai = _legacy
+    except Exception:
+        legacy_openai = None
+
+# If we couldn't instantiate the new client but have the legacy module, provide a tiny
+# adapter that exposes the "chat.completions.create(...)" call used elsewhere in the code.
+if not openai_client and legacy_openai:
+    class _LegacyOpenAIAdapter:
+        def __init__(self, legacy_mod):
+            self._mod = legacy_mod
+            # create a minimal namespace so callers can do openai_client.chat.completions.create(...)
+            self.chat = types.SimpleNamespace()
+            self.chat.completions = types.SimpleNamespace()
+
+            def create(*, model=None, messages=None, max_tokens=None, temperature=None, **kwargs):
+                # The legacy OpenAI ChatCompletion.create expects messages and model
+                try:
+                    return self._mod.ChatCompletion.create(model=model, messages=messages, max_tokens=max_tokens, temperature=temperature)
+                except Exception:
+                    # Re-raise so callers can handle exceptions
+                    raise
+
+            self.chat.completions.create = create
+
+    openai_client = _LegacyOpenAIAdapter(legacy_openai)
 
 # DeepSeek (uses OpenAI-compatible API)
 try:
@@ -1431,7 +1476,10 @@ def admin_visitors():
                 ai_reply = None
                 failure_reason = None
                 user_text = message.strip()
+                business_desc = get_business_description()
                 base_system = "You are Andy's Dog Walking assistant. Keep replies friendly, concise (<80 words), and actionable. If pricing or availability is unclear, invite them to share their dog's needs."
+                if business_desc:
+                    base_system = base_system + "\n\nBusiness context: " + business_desc[:1200]
                 prompt_messages = [
                     {"role": "system", "content": base_system},
                     {"role": "user", "content": user_text}
@@ -1490,7 +1538,10 @@ def admin_visitors():
                 conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), 
                             {"cid": chat_id, "m": "[AI assistant is thinking...]", "t": datetime.utcnow().isoformat()})
                 
+                business_desc = get_business_description()
                 base_system = "You are Andy's Dog Walking assistant. Keep replies friendly, concise (<80 words), and actionable. If pricing or availability is unclear, invite them to share their dog's needs."
+                if business_desc:
+                    base_system = base_system + "\n\nBusiness context: " + business_desc[:1200]
                 prompt_messages = [
                     {"role": "system", "content": base_system},
                     {"role": "user", "content": user_text}
