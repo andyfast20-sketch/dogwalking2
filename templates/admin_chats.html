@@ -58,14 +58,34 @@
   async function refresh(){
     if(isInteracting) return;
     try{
-      const r = await fetch(window.location.href);
-      const html = await r.text();
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-      const newGrid = doc.querySelector('.cards-grid');
-      if(newGrid && newGrid.innerHTML !== container.innerHTML){
-        container.innerHTML = newGrid.innerHTML;
+      const r = await fetch('/admin/chats/list.json', {cache:'no-store'});
+      if(!r.ok) return;
+      const j = await r.json();
+      if(!j || !j.chats) return;
+      const chats = j.chats;
+      // Build minimal HTML for the grid
+      let out = '';
+      if(chats.length === 0){
+        out = '<p>No chats yet.</p>';
+      } else {
+        for(const c of chats){
+          const statusBadge = c.status === 'open' ? '<span style="padding:4px 8px;border-radius:8px;background:rgba(34,197,94,.18);color:var(--brand)">open</span>' : '<span style="padding:4px 8px;border-radius:8px;background:rgba(255,255,255,.08);color:var(--muted)">'+(c.status||'')+'</span>';
+          const last = (c.last_activity||'');
+          out += `\n<div class="card" style="position:relative;padding:20px;display:flex;flex-direction:column;gap:8px">`;
+          if(c.status === 'open') out += '<span style="position:absolute;top:12px;right:12px;width:10px;height:10px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.25)" title="Active chat"></span>';
+          out += `<div style="font-weight:600;font-size:1.05rem;display:flex;align-items:center;gap:8px"><span style="padding:4px 10px;border-radius:20px;background:rgba(34,197,94,.15);font-size:.75rem;letter-spacing:.5px;text-transform:uppercase">#${c.id}</span><span>${c.name||'Visitor'}</span></div>`;
+          out += `<div style="font-size:.8rem;color:var(--muted)">SID: ${c.sid||'—'}</div>`;
+          out += `<div style="display:flex;align-items:center;gap:6px;font-size:.75rem">${statusBadge}<span style="color:var(--muted)">Last: ${last}</span></div>`;
+          out += `<a href="/admin/chats/${c.id}" class="btn ghost" style="margin-top:4px;padding:10px 14px">Open</a>`;
+          if(c.status !== 'closed'){
+            out += `<form method="post" action="/admin/chats/close/${c.id}" style="margin-top:4px"><button class="btn" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;padding:10px 14px" type="submit">Close Chat</button></form>`;
+          } else {
+            out += `<form method="post" action="/admin/chats/delete/${c.id}" style="margin-top:6px" onsubmit="return confirm('Delete closed chat #${c.id}? This cannot be undone.')"><button class="btn" style="background:#444;color:#fff;padding:10px 14px" type="submit">Delete</button></form>`;
+          }
+          out += `</div>`;
+        }
       }
+      if(out !== container.innerHTML) container.innerHTML = out;
     }catch(e){}
   }
   

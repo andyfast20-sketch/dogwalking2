@@ -389,6 +389,14 @@ def _make_engine():
 engine = _make_engine()
 
 def init_db():
+    # Avoid running DDL on every request — perform once per process.
+    global _db_initialized
+    try:
+        if _db_initialized:
+            return
+    except NameError:
+        _db_initialized = False
+
     with engine.begin() as conn:
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS enquiries (
@@ -650,6 +658,8 @@ def init_db():
                 user_agent TEXT
             )
         """))
+        # Mark DB init complete so subsequent requests skip DDL work
+        _db_initialized = True
 
 def save_enquiry(name: str, email: str, dog: str, message: str):
     init_db()
@@ -2026,6 +2036,21 @@ def admin_chats():
         rows = conn.execute(text("SELECT id, sid, name, status, created_at, last_activity FROM chats ORDER BY CASE status WHEN 'open' THEN 0 ELSE 1 END, last_activity DESC"))
         chats = [dict(id=r.id, sid=r.sid, name=r.name or '', status=r.status, created_at=r.created_at, last_activity=r.last_activity) for r in rows]
     return render_template('admin_chats.html', chats=chats)
+
+
+@app.get('/admin/chats/list.json')
+def admin_chats_list_json():
+    """Lightweight JSON list of chats for admin UI auto-refresh.
+    Returns minimal per-chat fields to render the grid on the client.
+    """
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    init_db()
+    with engine.begin() as conn:
+        rows = conn.execute(text("SELECT id, sid, name, status, created_at, last_activity FROM chats ORDER BY CASE status WHEN 'open' THEN 0 ELSE 1 END, last_activity DESC"))
+        chats = [dict(id=r.id, sid=r.sid, name=r.name or '', status=r.status, created_at=r.created_at, last_activity=r.last_activity) for r in rows]
+    return jsonify({'ok': True, 'chats': chats})
 
 @app.get('/admin/chats/<int:chat_id>')
 def admin_chat_view(chat_id: int):
