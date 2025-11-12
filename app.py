@@ -141,12 +141,40 @@ if not openai_client and legacy_openai:
             self.chat.completions = types.SimpleNamespace()
 
             def create(*, model=None, messages=None, max_tokens=None, temperature=None, **kwargs):
-                # The legacy OpenAI ChatCompletion.create expects messages and model
+                # Support multiple variants of the installed openai package:
+                # 1) Old openai (<1.0) exposes ChatCompletion.create
+                # 2) Newer openai may expose OpenAI class (OpenAI()) which supports client.chat.completions.create
+                # 3) As a last resort, make an HTTP POST to the OpenAI-compatible REST endpoint
                 try:
-                    return self._mod.ChatCompletion.create(model=model, messages=messages, max_tokens=max_tokens, temperature=temperature)
+                    if hasattr(self._mod, 'ChatCompletion'):
+                        return self._mod.ChatCompletion.create(model=model, messages=messages, max_tokens=max_tokens, temperature=temperature)
+
+                    # If the module exposes an OpenAI class, instantiate and call its client
+                    if hasattr(self._mod, 'OpenAI'):
+                        try:
+                            ClientCls = getattr(self._mod, 'OpenAI')
+                            client = ClientCls(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else ClientCls()
+                            return client.chat.completions.create(model=model, messages=messages, max_tokens=max_tokens, temperature=temperature)
+                        except Exception:
+                            pass
+
+                    # Fallback: direct HTTP to OpenAI-compatible REST API
+                    try:
+                        import requests
+                        api_key = getattr(self._mod, 'api_key', None) or OPENAI_API_KEY
+                        headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
+                        payload = {'model': model, 'messages': messages, 'max_tokens': max_tokens, 'temperature': temperature}
+                        r = requests.post('https://api.openai.com/v1/chat/completions', json=payload, headers=headers, timeout=15)
+                        r.raise_for_status()
+                        j = r.json()
+                        # Create a minimal compatible response object
+                        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=j['choices'][0]['message']['content']))])
+                    except Exception:
+                        pass
                 except Exception:
-                    # Re-raise so callers can handle exceptions
-                    raise
+                    pass
+                # If we reached here nothing worked — raise to let caller handle
+                raise RuntimeError('OpenAI client invocation failed')
 
             self.chat.completions.create = create
 
@@ -1864,7 +1892,8 @@ def admin_content():
     ai_keys = {
         'OPENAI_API_KEY': get_site_setting('OPENAI_API_KEY'),
         'GEMINI_API_KEY': get_site_setting('GEMINI_API_KEY'),
-        'DEEPSEEK_API_KEY': get_site_setting('DEEPSEEK_API_KEY')
+        'DEEPSEEK_API_KEY': get_site_setting('DEEPSEEK_API_KEY'),
+        'DEEPSEEK_MODEL': get_site_setting('DEEPSEEK_MODEL')
     }
     # Last AI test result (for quick visibility)
     ai_test_result = get_site_setting('ai_test_result')
@@ -1996,6 +2025,7 @@ def admin_api_keys_update():
     openai = (request.form.get('OPENAI_API_KEY') or '').strip()
     gemini = (request.form.get('GEMINI_API_KEY') or '').strip()
     deepseek = (request.form.get('DEEPSEEK_API_KEY') or '').strip()
+    deepseek_model = (request.form.get('DEEPSEEK_MODEL') or '').strip()
     # Save into site_settings for testing environments (admin-only)
     if openai:
         set_site_setting('OPENAI_API_KEY', openai)
@@ -2009,6 +2039,11 @@ def admin_api_keys_update():
         set_site_setting('DEEPSEEK_API_KEY', deepseek)
     else:
         set_site_setting('DEEPSEEK_API_KEY', '')
+    # Persist optional DeepSeek model string so admin can test specific models
+    if deepseek_model:
+        set_site_setting('DEEPSEEK_MODEL', deepseek_model)
+    else:
+        set_site_setting('DEEPSEEK_MODEL', '')
 
     # Refresh runtime clients so changes take effect immediately
     try:
@@ -2034,20 +2069,43 @@ def admin_api_test():
     result = None
     try:
         # OpenAI / Legacy adapter
-        if provider == 'openai' and openai_client:
-            resp = openai_client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": prompt}],
-                max_tokens=120,
-                temperature=0.2,
-            )
-            result = None
-            if resp and getattr(resp, 'choices', None):
-                # Compatible with modern and legacy wrappers
+        if provider == 'openai':
+            if openai_client:
                 try:
-                    result = resp.choices[0].message.content
-                except Exception:
-                    result = getattr(resp.choices[0], 'text', str(resp))
+                    resp = openai_client.chat.completions.create(
+                        model="gpt-3.5-turbo",
+                        messages=[{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": prompt}],
+                        max_tokens=120,
+                        temperature=0.2,
+                    )
+                    result = None
+                    if resp and getattr(resp, 'choices', None):
+                        # Compatible with modern and legacy wrappers
+                        try:
+                            result = resp.choices[0].message.content
+                        except Exception:
+                            result = getattr(resp.choices[0], 'text', str(resp))
+                except Exception as e:
+                    # Fallback: some openai versions no longer provide ChatCompletion — try direct HTTP
+                    err = str(e)
+                    try:
+                        import requests
+                        api_key = getattr(openai_client, 'api_key', None) or OPENAI_API_KEY
+                        headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
+                        payload = {'model': 'gpt-3.5-turbo', 'messages': [{"role":"system","content":"You are a helpful assistant."},{"role":"user","content":prompt}], 'max_tokens': 120, 'temperature': 0.2}
+                        r = requests.post('https://api.openai.com/v1/chat/completions', json=payload, headers=headers, timeout=15)
+                        if r.status_code == 200:
+                            j = r.json()
+                            try:
+                                result = j['choices'][0]['message']['content']
+                            except Exception:
+                                result = str(j)
+                        else:
+                            result = f"Error: {r.status_code} {r.text}"
+                    except Exception:
+                        result = f"Error: \n\n{err}\n"
+            else:
+                result = "No OpenAI client configured."
 
         # DeepSeek (OpenAI-compatible) - use direct HTTP fallback to avoid SDK incompatibilities
         elif provider == 'deepseek':
@@ -2059,7 +2117,10 @@ def admin_api_test():
                         'Authorization': f'Bearer {DEEPSEEK_API_KEY}',
                         'Content-Type': 'application/json'
                     }
-                    models = ['gpt-4o', 'gpt-3.5-turbo', 'gpt-3.5', 'gpt-35-turbo', 'gpt-3.5-mini']
+                    # If admin provided a specific DeepSeek model in settings, try it first
+                    ds_model = get_site_setting('DEEPSEEK_MODEL') or ''
+                    default_models = ['gpt-4o', 'gpt-3.5-turbo', 'gpt-3.5', 'gpt-35-turbo', 'gpt-3.5-mini']
+                    models = [ds_model] + [m for m in default_models if m != ds_model] if ds_model else default_models
                     result = None
                     for m in models:
                         payload = {
@@ -2077,13 +2138,30 @@ def admin_api_test():
                             # Network/timeout — try next model
                             continue
                         if r.status_code == 200:
+                            # Try to parse JSON and extract the message; if absent, capture JSON for debugging
                             try:
                                 j = r.json()
-                                result = j['choices'][0]['message']['content']
+                                # Prefer choices -> message -> content path
+                                got = None
+                                if isinstance(j, dict) and j.get('choices'):
+                                    try:
+                                        got = j['choices'][0]['message']['content']
+                                    except Exception:
+                                        # Older/alternate shapes
+                                        try:
+                                            got = j['choices'][0].get('text')
+                                        except Exception:
+                                            got = None
+                                if got:
+                                    result = got
+                                else:
+                                    # No usable content - store the JSON for inspection
+                                    result = "DeepSeek 200 but no choices/content: " + (str(j)[:1400])
                             except Exception:
-                                result = str(r.text)
+                                # Non-JSON body
+                                result = f"DeepSeek 200 but non-JSON body: {r.text[:1400]}"
                             break
-                        # If model not found, try next in list; otherwise capture error and break
+                        # If model not found, try next in list; otherwise capture error and stop
                         try:
                             errj = r.json()
                             if isinstance(errj, dict) and errj.get('error', {}).get('code') == 'invalid_request_error' and 'Model Not Exist' in errj.get('error', {}).get('message', ''):

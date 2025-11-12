@@ -90,6 +90,12 @@
               style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:var(--text);font-size:.9rem" />
           </label>
           <label style="display:flex;flex-direction:column;gap:6px">
+            <strong style="font-size:.85rem">DeepSeek Model (optional)</strong>
+            <input type="text" name="DEEPSEEK_MODEL" value="{{ ai_keys['DEEPSEEK_MODEL'] }}" placeholder="e.g. gpt-4o" autocomplete="off"
+              style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:var(--text);font-size:.9rem" />
+            <small style="color:var(--muted);font-size:.8rem">If set, Quick AI Test will try this model first when contacting DeepSeek.</small>
+          </label>
+          <label style="display:flex;flex-direction:column;gap:6px">
             <strong style="font-size:.85rem">Gemini API Key</strong>
             <input type="password" name="GEMINI_API_KEY" value="{{ ai_keys['GEMINI_API_KEY'] }}" placeholder="ya29..."
               style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:var(--text);font-size:.9rem" />
