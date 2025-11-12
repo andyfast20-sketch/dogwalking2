@@ -205,7 +205,7 @@
       // Separate AI-only panel: does not rely on chat DB; calls /chat/ai-reply which uses selected provider
       const aiBtn = document.getElementById('chat-ai-launch');
       if(!aiBtn) return;
-      let panelAi, pollTimerAi;
+      let panelAi;
 
       function buildAiPanel(){
         if(panelAi) return;
@@ -231,19 +231,56 @@
         wrap.scrollTop=wrap.scrollHeight;
       }
 
+      function setAiPanelDisabled(disabled, notice){
+        if(!panelAi) return;
+        const inp = panelAi.querySelector('.chat-input');
+        const btn = panelAi.querySelector('.chat-send');
+        if(inp) inp.disabled = !!disabled;
+        if(btn) btn.disabled = !!disabled;
+        if(notice){
+          const wrap = panelAi.querySelector('.chat-messages');
+          if(wrap){ wrap.innerHTML = ''; appendAi('system', notice); }
+        }
+      }
+
       async function onAiSend(e){
         e.preventDefault();
         const form=e.target;
         const inp=form.querySelector('.chat-input');
         const msg=(inp.value||'').trim();
         if(!msg) return;
+
+        // Prevent sending if panel currently disabled
+        if(inp && inp.disabled){
+          appendAi('system','Autopilot is currently OFF. Please use the live chat.');
+          return;
+        }
+
+        // Double-check server autopilot status before sending
+        try{
+          const statusRes = await fetch('/chat/autopilot-status');
+          if(!statusRes.ok){
+            setAiPanelDisabled(true,'Autopilot status unavailable.');
+            return;
+          }
+          const st = await statusRes.json();
+          if(!st || !st.autopilot){
+            setAiPanelDisabled(true,'Autopilot is currently OFF. This AI panel is disabled. Please use the live chat to speak with Andy.');
+            return;
+          }
+        }catch(err){
+          setAiPanelDisabled(true,'Autopilot status unavailable.');
+          return;
+        }
+
         appendAi('user',msg);
         inp.value='';
         try{
           const body = new URLSearchParams({message: msg});
           const r = await fetch('/chat/ai-reply',{method:'POST',body:body});
           if(!r.ok){
-            appendAi('system','AI service error');
+            const j = await r.json().catch(()=>null);
+            appendAi('system', j && j.error ? j.error : 'AI service error');
             return;
           }
           const j = await r.json();
@@ -260,34 +297,33 @@
       }
 
       aiBtn.addEventListener('click', async function(){
-        // Check server autopilot status before opening. If autopilot is OFF, inform user and do not open AI panel.
+        // Check server autopilot status before opening. If autopilot is OFF, show disabled panel
         try{
           const r = await fetch('/chat/autopilot-status');
           if(r && r.ok){
             const j = await r.json();
             if(!j || !j.autopilot){
-              // show temporary notification panel if not present
               buildAiPanel();
               panelAi.classList.add('open');
-              const msgs = panelAi.querySelector('.chat-messages');
-              msgs.innerHTML = '';
-              appendAi('system', "Autopilot is currently OFF. This AI panel is disabled. Please use the live chat to speak with Andy.");
+              setAiPanelDisabled(true, 'Autopilot is currently OFF. This AI panel is disabled. Please use the live chat to speak with Andy.');
               return;
             }
+          } else {
+            buildAiPanel();
+            panelAi.classList.add('open');
+            setAiPanelDisabled(true, 'Autopilot status unavailable. AI panel is disabled.');
+            return;
           }
         }catch(e){
-          // If status check fails, be conservative and show disabled message
           buildAiPanel();
           panelAi.classList.add('open');
-          const msgs = panelAi.querySelector('.chat-messages');
-          msgs.innerHTML = '';
-          appendAi('system', "Autopilot status unavailable. AI panel is disabled.");
+          setAiPanelDisabled(true, 'Autopilot status unavailable. AI panel is disabled.');
           return;
         }
 
         buildAiPanel();
         panelAi.classList.add('open');
-        // show intro
+        setAiPanelDisabled(false);
         const msgs = panelAi.querySelector('.chat-messages');
         if(!msgs.children.length) appendAi('system',"You're chatting with Andy's AI assistant (separate AI-only panel).");
       });
