@@ -1904,6 +1904,12 @@ def chat_start():
             VALUES (:sid, NULL, 'open', :created, :created, :ip)
         """), {"sid": sid or None, "created": now, "ip": ip})
         chat_id = result.lastrowid
+        # Notify admins of a new visitor chat (new_chat)
+        try:
+            payload_obj = {'excerpt': 'New visitor started a chat', 'sid': sid or ''}
+            conn.execute(text("INSERT INTO admin_notifications (type, chat_id, message_id, payload, created_at, seen) VALUES ('new_chat', :cid, NULL, :payload, :t, 0)"), {"cid": int(chat_id), "payload": json.dumps(payload_obj, default=str), "t": now})
+        except Exception:
+            pass
     
     return jsonify({"ok": True, "chat_id": chat_id})
 
@@ -2190,6 +2196,20 @@ def admin_chat_delete(chat_id: int):
         conn.execute(text("DELETE FROM chats WHERE id=:cid"), {"cid": chat_id})
     # Redirect back to chat list with a flag
     return redirect(url_for('admin_chats', deleted='1'))
+
+
+@app.post('/admin/chats/close_all')
+def admin_chats_close_all():
+    """Close all non-closed chats (mark status='closed')."""
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    init_db()
+    from datetime import datetime
+    now = datetime.utcnow().isoformat()
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE chats SET status='closed', last_activity=:t WHERE status != 'closed'"), {"t": now})
+    return redirect(url_for('admin_chats'))
 
 # ---------- Admin Content Management ----------
 @app.route('/admin/content')
@@ -2812,7 +2832,7 @@ def admin_ip_management():
     return render_template('admin_ip_management.html', ips=ips)
 
 
-@app.route('/admin/block-ip/<ip_address>', methods=['POST'])
+@app.route('/admin/block-ip/<path:ip_address>', methods=['POST'])
 def admin_block_ip(ip_address: str):
     """Block an IP address"""
     auth_result = require_admin()
@@ -2826,7 +2846,7 @@ def admin_block_ip(ip_address: str):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@app.route('/admin/unblock-ip/<ip_address>', methods=['POST'])
+@app.route('/admin/unblock-ip/<path:ip_address>', methods=['POST'])
 def admin_unblock_ip(ip_address: str):
     """Unblock an IP address"""
     auth_result = require_admin()
@@ -2840,7 +2860,7 @@ def admin_unblock_ip(ip_address: str):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@app.route('/admin/delete-ip/<ip_address>', methods=['POST'])
+@app.route('/admin/delete-ip/<path:ip_address>', methods=['POST'])
 def admin_delete_ip(ip_address: str):
     """Delete an IP address from tracking"""
     auth_result = require_admin()

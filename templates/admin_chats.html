@@ -1,14 +1,15 @@
 {% extends 'base.html' %}
 {% block title %}Live Chats{% endblock %}
 {% block content %}
-<div style="max-width:1100px;margin:0 auto;padding:20px 20px 0">
-  <a href="{{ url_for('admin_dashboard') }}" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:var(--text);text-decoration:none;font-weight:600;transition:all .2s;margin-bottom:20px" onmouseover="this.style.background='rgba(255,255,255,.12)';this.style.transform='translateX(-4px)'" onmouseout="this.style.background='rgba(255,255,255,.08)';this.style.transform='translateX(0)'">
+<div style="max-width:1100px;margin:0 auto;padding:8px 20px 6px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+  <a href="{{ url_for('admin_dashboard') }}" style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:var(--text);text-decoration:none;font-weight:600;transition:all .2s" onmouseover="this.style.background='rgba(255,255,255,.12)';this.style.transform='translateX(-4px)'" onmouseout="this.style.background='rgba(255,255,255,.08)';this.style.transform='translateX(0)'>
     ← Back to Dashboard
   </a>
+  <form method="post" action="{{ url_for('admin_chats_close_all') }}" onsubmit="return confirm('Close all open chats? This will mark them closed for visitors.')" style="margin:0">
+    <button class="btn danger" type="submit" style="padding:8px 14px;font-weight:700">Close all chats</button>
+  </form>
 </div>
-<section class="container" style="max-width:1100px">
-  <h1 style="margin-bottom:10px">Live Chats</h1>
-  <p style="margin-top:0;color:var(--muted)">Real‑time conversations initiated by visitors. Open chats first.</p>
+<section class="container" style="max-width:1100px;padding-top:6px">
   <div style="margin-top:20px">
     <table id="admin-chats-table" style="width:100%;border-collapse:collapse;background:var(--panel);box-shadow:0 8px 30px rgba(2,6,23,0.15);border-radius:10px;overflow:hidden">
       <thead style="background:linear-gradient(90deg,#0ea5a4,#06b6d4);color:#fff;text-align:left">

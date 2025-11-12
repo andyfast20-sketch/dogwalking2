@@ -468,12 +468,13 @@
         if(!j || !j.notifications) return;
         for(const n of j.notifications){
           try{
-            if(n.type === 'new_user_message'){
+            if(n.type === 'new_user_message' || n.type === 'new_chat'){
               let payload = {};
               try{ payload = JSON.parse(n.payload || '{}'); }catch(e){}
               const excerpt = payload.excerpt || 'New visitor message';
               showAdminBanner(excerpt, n.chat_id);
-              if(ADMIN_NOTIF_SOUND){ playRing(3000); }
+              // Play sound only for new visitor chats (not for every user message)
+              if(n.type === 'new_chat' && ADMIN_NOTIF_SOUND){ playRing(3000); }
             }
           }catch(e){/* ignore per-notification errors */}
         }
