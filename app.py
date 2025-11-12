@@ -904,17 +904,14 @@ def _maybe_send_autopilot_reply_db(conn, chat_id: int, conversation=None):
     except Exception:
         temperature = DEFAULT_AUTOPILOT_TEMPERATURE
 
-    reply_text = None
-
-    # OpenAI path
-    if provider == 'openai':
-        if not openai_key:
+    # Try providers in an order that respects admin preference but falls back.
+    def try_openai(key):
+        if not key:
             return None
-        reply_text = _request_autopilot_reply(messages, model=model, temperature=temperature, api_key=openai_key)
+        return _request_autopilot_reply(messages, model=model, temperature=temperature, api_key=key)
 
-    # DeepSeek path (HTTP-first, similar to admin test)
-    elif provider == 'deepseek':
-        if not ds_key:
+    def try_deepseek(key):
+        if not key:
             return None
         try:
             import requests
@@ -922,29 +919,23 @@ def _maybe_send_autopilot_reply_db(conn, chat_id: int, conversation=None):
                 'https://api.deepseek.com/v1/chat/completions',
                 'https://api.deepseek.com/v1/responses'
             ]
-            headers = {'Authorization': f'Bearer {ds_key}', 'Content-Type': 'application/json'}
+            headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
             default_models = ['deepseek-chat', 'deepseek-reasoner', 'gpt-4o', 'gpt-3.5-turbo', 'gpt-3.5']
             models = [m for m in ([model] + default_models) if m]
-            last_err = None
             for url in endpoints:
                 for m in models:
                     payload = {'model': m, 'messages': messages, 'max_tokens': 350, 'temperature': temperature}
                     try:
                         r = requests.post(url, json=payload, headers=headers, timeout=15)
                     except Exception:
-                        last_err = 'network'
                         continue
                     if r.status_code != 200:
-                        try:
-                            last_err = r.text[:800]
-                        except Exception:
-                            last_err = f'HTTP {r.status_code}'
                         continue
                     try:
                         j = r.json()
                     except Exception:
-                        reply_text = r.text
-                        break
+                        return (r.text or '').strip()
+                    # Extract content from common shapes
                     got = None
                     if isinstance(j, dict):
                         if j.get('choices'):
@@ -962,30 +953,89 @@ def _maybe_send_autopilot_reply_db(conn, chat_id: int, conversation=None):
                             except Exception:
                                 pass
                     if got:
-                        reply_text = got
-                        break
-                if reply_text:
-                    break
-            if not reply_text and last_err:
-                reply_text = f"DeepSeek error: {last_err}"
+                        return got.strip()
+            return None
         except Exception:
-            reply_text = None
+            return None
 
-    # Gemini path
-    elif provider == 'gemini':
+    def try_gemini(key):
+        if not key or not globals().get('genai'):
+            return None
         try:
-            if globals().get('genai') and (gemini_key or globals().get('GEMINI_API_KEY')):
-                model_obj = genai.GenerativeModel('gemini-1.5-mini')
-                r = model_obj.generate_content({'prompt': messages[-1]['text'] if messages else ''})
-                reply_text = getattr(r, 'text', None) or (r.candidates[0].content.parts[0].text if getattr(r, 'candidates', None) else None)
+            model_obj = genai.GenerativeModel('gemini-1.5-mini')
+            # Build a simple prompt from the last visitor message
+            last_user = None
+            for m in reversed(messages):
+                if m.get('role') == 'user':
+                    last_user = m.get('content')
+                    break
+            r = model_obj.generate_content(last_user or '')
+            result = getattr(r, 'text', None)
+            if not result and getattr(r, 'candidates', None):
+                try:
+                    result = r.candidates[0].content.parts[0].text
+                except Exception:
+                    result = None
+            return result
         except Exception:
-            reply_text = None
+            return None
 
+    diagnostics = []
+    # Determine ordered list based on admin preference
+    attempts = []
+    p = provider
+    # If DeepSeek key is present, prefer it (worked in Quick AI Test); this makes autopilot more likely to succeed
+    if ds_key:
+        attempts = [('deepseek', ds_key), ('openai', openai_key), ('gemini', gemini_key)]
     else:
-        # unknown provider
-        return None
+        if p == 'openai':
+            attempts = [('openai', openai_key), ('deepseek', ds_key), ('gemini', gemini_key)]
+        elif p == 'deepseek':
+            attempts = [('deepseek', ds_key), ('openai', openai_key), ('gemini', gemini_key)]
+        elif p == 'gemini':
+            attempts = [('gemini', gemini_key), ('deepseek', ds_key), ('openai', openai_key)]
+        else:
+            # default auto: prefer OpenAI if no DeepSeek present
+            attempts = [('openai', openai_key), ('deepseek', ds_key), ('gemini', gemini_key)]
+
+    reply_text = None
+    for name, key in attempts:
+        if not key:
+            continue
+        if name == 'openai':
+            try:
+                reply_text = try_openai(key)
+            except Exception as e:
+                diagnostics.append(f"openai_error:{str(e)[:180]}")
+        elif name == 'deepseek':
+            try:
+                reply_text = try_deepseek(key)
+            except Exception as e:
+                diagnostics.append(f"deepseek_error:{str(e)[:180]}")
+        elif name == 'gemini':
+            try:
+                reply_text = try_gemini(key)
+            except Exception as e:
+                diagnostics.append(f"gemini_error:{str(e)[:180]}")
+        if reply_text:
+            break
+
+    # If no reply, store diagnostics for visibility
+    if not reply_text:
+        diagnostics_text = ' | '.join(diagnostics[-6:]) if diagnostics else ''
+        try:
+            dbg = f"Autopilot attempts: {[(n) for n,_ in attempts]}; diagnostics: {diagnostics_text}"
+            conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": chat_id, "m": dbg, "t": datetime.utcnow().isoformat()})
+        except Exception:
+            pass
     clean_reply = (reply_text or "").strip()
     if not clean_reply:
+        # Insert a short debug/system message so admins can see why autopilot didn't reply
+        try:
+            debug_info = f"Autopilot debug: provider={provider}, has_openai={bool(openai_key)}, has_deepseek={bool(ds_key)}, has_gemini={bool(gemini_key)}, messages={len(messages)}"
+            conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": chat_id, "m": debug_info, "t": datetime.utcnow().isoformat()})
+        except Exception:
+            pass
         return None
 
     now = datetime.utcnow().isoformat()
