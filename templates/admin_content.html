@@ -80,6 +80,16 @@
       <form method="post" action="{{ url_for('admin_api_keys_update') }}" style="flex:1;margin:0">
         <div style="display:grid;gap:10px">
           <label style="display:flex;flex-direction:column;gap:6px">
+            <strong style="font-size:.85rem">Autopilot Provider</strong>
+            <select name="AUTOPILOT_PROVIDER" style="padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:var(--text);font-size:.9rem">
+              <option value="auto" {% if autopilot_provider == '' or autopilot_provider == 'auto' %}selected{% endif %}>Auto (choose best available)</option>
+              <option value="openai" {% if autopilot_provider == 'openai' %}selected{% endif %}>OpenAI</option>
+              <option value="deepseek" {% if autopilot_provider == 'deepseek' %}selected{% endif %}>DeepSeek</option>
+              <option value="gemini" {% if autopilot_provider == 'gemini' %}selected{% endif %}>Gemini</option>
+            </select>
+            <small style="color:var(--muted);font-size:.8rem">Choose which provider autopilot should prefer when replying to chats.</small>
+          </label>
+          <label style="display:flex;flex-direction:column;gap:6px">
             <strong style="font-size:.85rem">OpenAI API Key</strong>
             <input type="password" name="OPENAI_API_KEY" value="{{ ai_keys['OPENAI_API_KEY'] }}" placeholder="sk-..." autocomplete="new-password"
               style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:var(--text);font-size:.9rem" />

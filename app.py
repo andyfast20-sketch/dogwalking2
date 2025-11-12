@@ -872,9 +872,22 @@ def _maybe_send_autopilot_reply_db(conn, chat_id: int, conversation=None):
     except Exception:
         return None
 
-    api_key = get_site_setting('OPENAI_API_KEY') or os.environ.get('OPENAI_API_KEY') or ''
-    if not api_key:
-        return None
+    # Determine which provider to use (admin-selectable)
+    provider = (get_site_setting('AUTOPILOT_PROVIDER') or 'auto').lower()
+    openai_key = get_site_setting('OPENAI_API_KEY') or os.environ.get('OPENAI_API_KEY') or globals().get('OPENAI_API_KEY') or ''
+    ds_key = get_site_setting('DEEPSEEK_API_KEY') or globals().get('DEEPSEEK_API_KEY') or ''
+    gemini_key = get_site_setting('GEMINI_API_KEY') or globals().get('GEMINI_API_KEY') or ''
+
+    # Auto-select provider if requested
+    if provider == 'auto' or not provider:
+        if ds_key:
+            provider = 'deepseek'
+        elif openai_key:
+            provider = 'openai'
+        elif gemini_key:
+            provider = 'gemini'
+        else:
+            return None
 
     # If conversation not provided, load from DB
     if conversation is None:
@@ -885,14 +898,92 @@ def _maybe_send_autopilot_reply_db(conn, chat_id: int, conversation=None):
     messages = _build_autopilot_messages(conversation, business_profile=business_profile)
     if len(messages) <= 1:
         return None
-
     model = get_site_setting('DEEPSEEK_MODEL') or get_site_setting('OPENAI_MODEL') or DEFAULT_AUTOPILOT_MODEL
     try:
         temperature = float(get_site_setting('OPENAI_TEMPERATURE') or DEFAULT_AUTOPILOT_TEMPERATURE)
     except Exception:
         temperature = DEFAULT_AUTOPILOT_TEMPERATURE
 
-    reply_text = _request_autopilot_reply(messages, model=model, temperature=temperature, api_key=api_key)
+    reply_text = None
+
+    # OpenAI path
+    if provider == 'openai':
+        if not openai_key:
+            return None
+        reply_text = _request_autopilot_reply(messages, model=model, temperature=temperature, api_key=openai_key)
+
+    # DeepSeek path (HTTP-first, similar to admin test)
+    elif provider == 'deepseek':
+        if not ds_key:
+            return None
+        try:
+            import requests
+            endpoints = [
+                'https://api.deepseek.com/v1/chat/completions',
+                'https://api.deepseek.com/v1/responses'
+            ]
+            headers = {'Authorization': f'Bearer {ds_key}', 'Content-Type': 'application/json'}
+            default_models = ['deepseek-chat', 'deepseek-reasoner', 'gpt-4o', 'gpt-3.5-turbo', 'gpt-3.5']
+            models = [m for m in ([model] + default_models) if m]
+            last_err = None
+            for url in endpoints:
+                for m in models:
+                    payload = {'model': m, 'messages': messages, 'max_tokens': 350, 'temperature': temperature}
+                    try:
+                        r = requests.post(url, json=payload, headers=headers, timeout=15)
+                    except Exception:
+                        last_err = 'network'
+                        continue
+                    if r.status_code != 200:
+                        try:
+                            last_err = r.text[:800]
+                        except Exception:
+                            last_err = f'HTTP {r.status_code}'
+                        continue
+                    try:
+                        j = r.json()
+                    except Exception:
+                        reply_text = r.text
+                        break
+                    got = None
+                    if isinstance(j, dict):
+                        if j.get('choices'):
+                            try:
+                                got = j['choices'][0]['message']['content']
+                            except Exception:
+                                got = j['choices'][0].get('text')
+                        if not got:
+                            got = j.get('output') or j.get('output_text') or None
+                        if not got and j.get('data'):
+                            try:
+                                d0 = j['data'][0]
+                                if isinstance(d0, dict):
+                                    got = d0.get('text') or d0.get('content') or None
+                            except Exception:
+                                pass
+                    if got:
+                        reply_text = got
+                        break
+                if reply_text:
+                    break
+            if not reply_text and last_err:
+                reply_text = f"DeepSeek error: {last_err}"
+        except Exception:
+            reply_text = None
+
+    # Gemini path
+    elif provider == 'gemini':
+        try:
+            if globals().get('genai') and (gemini_key or globals().get('GEMINI_API_KEY')):
+                model_obj = genai.GenerativeModel('gemini-1.5-mini')
+                r = model_obj.generate_content({'prompt': messages[-1]['text'] if messages else ''})
+                reply_text = getattr(r, 'text', None) or (r.candidates[0].content.parts[0].text if getattr(r, 'candidates', None) else None)
+        except Exception:
+            reply_text = None
+
+    else:
+        # unknown provider
+        return None
     clean_reply = (reply_text or "").strip()
     if not clean_reply:
         return None
@@ -1869,9 +1960,10 @@ def admin_content():
         'DEEPSEEK_API_KEY': get_site_setting('DEEPSEEK_API_KEY'),
         'DEEPSEEK_MODEL': get_site_setting('DEEPSEEK_MODEL')
     }
+    autopilot_provider = get_site_setting('AUTOPILOT_PROVIDER') or 'auto'
     # Last AI test result (for quick visibility)
     ai_test_result = get_site_setting('ai_test_result')
-    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, autopilot_enabled=autopilot, hero_imgs=hero_imgs, meet_andy=meet_andy, contact_info=contact_info, service_areas=service_areas, homepage_sections=homepage_sections, business_description=business_desc, ai_keys=ai_keys, ai_test_result=ai_test_result)
+    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, autopilot_enabled=autopilot, hero_imgs=hero_imgs, meet_andy=meet_andy, contact_info=contact_info, service_areas=service_areas, homepage_sections=homepage_sections, business_description=business_desc, ai_keys=ai_keys, ai_test_result=ai_test_result, autopilot_provider=autopilot_provider)
 
 @app.post('/admin/content/service/<int:service_id>')
 def admin_content_update(service_id: int):
@@ -2018,6 +2110,14 @@ def admin_api_keys_update():
         set_site_setting('DEEPSEEK_MODEL', deepseek_model)
     else:
         set_site_setting('DEEPSEEK_MODEL', '')
+
+    # Save chosen autopilot provider (optional)
+    autopilot_provider = (request.form.get('AUTOPILOT_PROVIDER') or '').strip().lower()
+    if autopilot_provider:
+        set_site_setting('AUTOPILOT_PROVIDER', autopilot_provider)
+    else:
+        # Clear if empty
+        set_site_setting('AUTOPILOT_PROVIDER', '')
 
     # Refresh runtime clients so changes take effect immediately
     try:
