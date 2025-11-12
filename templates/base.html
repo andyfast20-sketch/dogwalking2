@@ -251,36 +251,80 @@
         }
       }
 
+      // Ensure a chat session exists for the AI panel when falling back to live chat
+      async function ensureChatForAiPanel(){
+        if(!panelAi) return null;
+        if(panelAi.dataset.chatId) return panelAi.dataset.chatId;
+        try{
+          const r = await fetch('/chat/start',{method:'POST'});
+          if(!r.ok) return null;
+          const j = await r.json().catch(()=>null);
+          if(j && j.chat_id){
+            panelAi.dataset.chatId = String(j.chat_id);
+            // start polling for admin replies
+            startAiPoll();
+            return panelAi.dataset.chatId;
+          }
+        }catch(e){ }
+        return null;
+      }
+
+      // Polling for live messages when using live-fallback mode
+      let aiPollTimer = null;
+      let aiLastId = 0;
+      function startAiPoll(){
+        if(aiPollTimer) return;
+        aiPollTimer = setInterval(pollAi, 1800);
+        pollAi();
+      }
+      async function pollAi(){
+        if(!panelAi || !panelAi.dataset.chatId) return;
+        try{
+          const r = await fetch(`/chat/poll/${panelAi.dataset.chatId}?after=${aiLastId}`);
+          if(!r.ok) return;
+          const j = await r.json().catch(()=>null);
+          if(j && j.messages){
+            for(const m of j.messages){
+              appendAi(m.sender, m.message);
+              aiLastId = m.id;
+            }
+          }
+        }catch(e){ }
+      }
+
       async function onAiSend(e){
         e.preventDefault();
         const form=e.target;
         const inp=form.querySelector('.chat-input');
         const msg=(inp.value||'').trim();
         if(!msg) return;
-
-        // Prevent sending if panel currently disabled
-        if(inp && inp.disabled){
-          appendAi('system','Autopilot is currently OFF. Please use the live chat.');
-          return;
-        }
-
-        // Double-check server autopilot status before sending
+        // Double-check server autopilot status before deciding which path to use
+        let st = null;
         try{
           const statusRes = await fetch('/chat/autopilot-status');
-          if(!statusRes.ok){
-            setAiPanelDisabled(true,'Autopilot status unavailable.');
+          if(statusRes.ok) st = await statusRes.json().catch(()=>null);
+        }catch(err){ /* ignore */ }
+
+        // If autopilot is OFF, route this panel to live chat: ensure a chat, send via /chat/send
+        if(!st || !st.autopilot){
+          // ensure chat exists
+          const cid = await ensureChatForAiPanel();
+          appendAi('user', msg);
+          inp.value='';
+          if(!cid){
+            appendAi('system','Unable to start live chat. Please try again later.');
             return;
           }
-          const st = await statusRes.json();
-          if(!st || !st.autopilot){
-            setAiPanelDisabled(true,'Autopilot is currently OFF. This AI panel is disabled. Please use the live chat to speak with Andy.');
-            return;
+          try{
+            const body = new URLSearchParams({chat_id: String(cid), message: msg, sender: 'user'});
+            await fetch('/chat/send',{method:'POST', body: body}).catch(()=>{});
+          }catch(err){
+            appendAi('system','Error sending message to live chat.');
           }
-        }catch(err){
-          setAiPanelDisabled(true,'Autopilot status unavailable.');
           return;
         }
 
+        // Otherwise regular AI-only flow
         appendAi('user',msg);
         inp.value='';
         try{
@@ -313,7 +357,12 @@
             if(!j || !j.autopilot){
               buildAiPanel();
               panelAi.classList.add('open');
-              setAiPanelDisabled(true, 'Autopilot is currently OFF. This AI panel is disabled. Please use the live chat to speak with Andy.');
+              // Instead of disabling, enable the panel but wire it to the live chat so messages reach Andy
+              setAiPanelDisabled(false);
+              panelAi.dataset.mode = 'live-fallback';
+              appendAi('system', 'Autopilot is currently OFF — this panel will send messages to the live chat so Andy can reply.');
+              // Ensure a chat session is created and start polling for replies
+              await ensureChatForAiPanel();
               return;
             }
           } else {
@@ -332,6 +381,7 @@
         buildAiPanel();
         panelAi.classList.add('open');
         setAiPanelDisabled(false);
+        panelAi.dataset.mode = 'ai-only';
         const msgs = panelAi.querySelector('.chat-messages');
         if(!msgs.children.length) appendAi('system',"You're chatting with Andy's AI assistant (separate AI-only panel).");
       });
