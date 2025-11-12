@@ -222,8 +222,23 @@ def refresh_ai_clients():
     # DeepSeek (OpenAI-compatible)
     try:
         if DEEPSEEK_API_KEY:
-            from openai import OpenAI as NewOpenAI2  # type: ignore
-            deepseek_client = NewOpenAI2(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+            try:
+                from openai import OpenAI as NewOpenAI2  # type: ignore
+                deepseek_client = NewOpenAI2(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+            except TypeError:
+                # Some OpenAI package versions pass unexpected kwargs to httpx/client construction
+                # Fall back to the older `openai` module if available and configure its base URL
+                try:
+                    import openai as _legacy_openai
+                    _legacy_openai.api_key = DEEPSEEK_API_KEY
+                    # legacy client uses api_base
+                    try:
+                        _legacy_openai.api_base = "https://api.deepseek.com"
+                    except Exception:
+                        pass
+                    deepseek_client = _legacy_openai
+                except Exception:
+                    deepseek_client = None
         else:
             deepseek_client = None
     except Exception:
@@ -239,7 +254,23 @@ except Exception:
 # DeepSeek (uses OpenAI-compatible API)
 try:
     from openai import OpenAI  # type: ignore
-    deepseek_client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com") if DEEPSEEK_API_KEY else None
+    try:
+        deepseek_client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com") if DEEPSEEK_API_KEY else None
+    except TypeError:
+        # Fall back to legacy openai module if the modern client constructor signature is incompatible
+        try:
+            import openai as _legacy_openai
+            if DEEPSEEK_API_KEY:
+                _legacy_openai.api_key = DEEPSEEK_API_KEY
+                try:
+                    _legacy_openai.api_base = "https://api.deepseek.com"
+                except Exception:
+                    pass
+                deepseek_client = _legacy_openai
+            else:
+                deepseek_client = None
+        except Exception:
+            deepseek_client = None
 except Exception:
     deepseek_client = None
 
@@ -2018,19 +2049,55 @@ def admin_api_test():
                 except Exception:
                     result = getattr(resp.choices[0], 'text', str(resp))
 
-        # DeepSeek (OpenAI-compatible)
-        elif provider == 'deepseek' and 'deepseek_client' in globals() and deepseek_client:
-            resp = deepseek_client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": prompt}],
-                max_tokens=120,
-                temperature=0.2,
-            )
-            if resp and getattr(resp, 'choices', None):
+        # DeepSeek (OpenAI-compatible) - use direct HTTP fallback to avoid SDK incompatibilities
+        elif provider == 'deepseek':
+            if DEEPSEEK_API_KEY:
                 try:
-                    result = resp.choices[0].message.content
-                except Exception:
-                    result = getattr(resp.choices[0], 'text', str(resp))
+                    import requests
+                    url = 'https://api.deepseek.com/v1/chat/completions'
+                    headers = {
+                        'Authorization': f'Bearer {DEEPSEEK_API_KEY}',
+                        'Content-Type': 'application/json'
+                    }
+                    models = ['gpt-4o', 'gpt-3.5-turbo', 'gpt-3.5', 'gpt-35-turbo', 'gpt-3.5-mini']
+                    result = None
+                    for m in models:
+                        payload = {
+                            'model': m,
+                            'messages': [
+                                {"role": "system", "content": "You are a helpful assistant."},
+                                {"role": "user", "content": prompt}
+                            ],
+                            'max_tokens': 120,
+                            'temperature': 0.2
+                        }
+                        try:
+                            r = requests.post(url, json=payload, headers=headers, timeout=12)
+                        except Exception as e:
+                            # Network/timeout — try next model
+                            continue
+                        if r.status_code == 200:
+                            try:
+                                j = r.json()
+                                result = j['choices'][0]['message']['content']
+                            except Exception:
+                                result = str(r.text)
+                            break
+                        # If model not found, try next in list; otherwise capture error and break
+                        try:
+                            errj = r.json()
+                            if isinstance(errj, dict) and errj.get('error', {}).get('code') == 'invalid_request_error' and 'Model Not Exist' in errj.get('error', {}).get('message', ''):
+                                # try next model
+                                continue
+                        except Exception:
+                            pass
+                        # Non-recoverable HTTP error for this model — capture and stop
+                        result = f"DeepSeek HTTP {r.status_code}: {r.text[:300]}"
+                        break
+                except Exception as e:
+                    result = f"DeepSeek error: {str(e)}"
+            else:
+                result = "No DEEPSEEK_API_KEY configured."
 
         # Gemini
         elif provider == 'gemini' and genai:
