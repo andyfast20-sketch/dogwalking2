@@ -54,11 +54,7 @@
     aria-label="{{ 'Chat with our AI assistant' if autopilot_enabled else 'Open live chat' }}"
     title="{{ 'AI Assistant Chat' if autopilot_enabled else 'Live Chat' }}"
   >
-    {% if autopilot_enabled %}
-      <img class="chat-icon" src="/static/img/dog-face.png" alt="Autopilot (dog)" />
-    {% else %}
-      💬
-    {% endif %}
+      <img src="/static/img/dog-face.svg" alt="Autopilot" class="chat-icon" />
   </button>
 
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
