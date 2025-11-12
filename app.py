@@ -1912,6 +1912,14 @@ def chat_ai_reply():
     if not message:
         return jsonify({"error": "No message provided"}), 400
 
+    # Respect global autopilot toggle: if admin has turned autopilot OFF, refuse to answer
+    try:
+        if not get_autopilot_enabled():
+            return jsonify({"error": "Autopilot is currently OFF"}), 403
+    except Exception:
+        # If the check fails for any reason, proceed conservatively and refuse
+        return jsonify({"error": "Autopilot unavailable"}), 503
+
     # Build a minimal conversation: system + user message, including business description
     business_profile = get_business_description()
     conv = [{'sender': 'user', 'message': message}]

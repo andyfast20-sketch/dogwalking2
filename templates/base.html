@@ -260,6 +260,31 @@
       }
 
       aiBtn.addEventListener('click', async function(){
+        // Check server autopilot status before opening. If autopilot is OFF, inform user and do not open AI panel.
+        try{
+          const r = await fetch('/chat/autopilot-status');
+          if(r && r.ok){
+            const j = await r.json();
+            if(!j || !j.autopilot){
+              // show temporary notification panel if not present
+              buildAiPanel();
+              panelAi.classList.add('open');
+              const msgs = panelAi.querySelector('.chat-messages');
+              msgs.innerHTML = '';
+              appendAi('system', "Autopilot is currently OFF. This AI panel is disabled. Please use the live chat to speak with Andy.");
+              return;
+            }
+          }
+        }catch(e){
+          // If status check fails, be conservative and show disabled message
+          buildAiPanel();
+          panelAi.classList.add('open');
+          const msgs = panelAi.querySelector('.chat-messages');
+          msgs.innerHTML = '';
+          appendAi('system', "Autopilot status unavailable. AI panel is disabled.");
+          return;
+        }
+
         buildAiPanel();
         panelAi.classList.add('open');
         // show intro
