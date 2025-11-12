@@ -174,8 +174,16 @@
       if(!panel) buildPanel();
       panel.classList.add('open');
       await ensureChat();
-      if(autopilotMode&&!introShown){
-        append('system',"You're chatting with Andy's AI assistant.");
+      // Show a short intro/system notice depending on mode.
+      if(!introShown){
+        if(autopilotMode){
+          append('system',"You're chatting with Andy's AI assistant.");
+        } else {
+          // When autopilot is OFF, explicitly tell the visitor this is a live chat
+          // and that an actual human (Andy) will reply, so they shouldn't expect
+          // an instant AI answer.
+          append('system',"Autopilot is currently OFF — this is a live chat. Please leave your message and Andy will reply when available.");
+        }
         introShown=true;
       }
       if(!pollTimer){
