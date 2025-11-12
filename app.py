@@ -152,6 +152,90 @@ if not openai_client and legacy_openai:
 
     openai_client = _LegacyOpenAIAdapter(legacy_openai)
 
+
+def refresh_ai_clients():
+    """Reload AI provider clients from environment or DB-backed settings.
+    Call this after an admin saves API keys so the running app picks them up.
+    """
+    global OPENAI_API_KEY, GEMINI_API_KEY, DEEPSEEK_API_KEY
+    global openai_client, legacy_openai, genai, deepseek_client
+
+    # Prefer environment variables but allow admin-saved DB values for testing
+    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY') or get_site_setting('OPENAI_API_KEY')
+    GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY') or get_site_setting('GEMINI_API_KEY')
+    DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY') or get_site_setting('DEEPSEEK_API_KEY')
+
+    # Configure Gemini if available
+    try:
+        if genai and GEMINI_API_KEY:
+            genai.configure(api_key=GEMINI_API_KEY)
+    except Exception:
+        pass
+
+    # Recreate OpenAI / legacy adapters
+    try:
+        from openai import OpenAI as NewOpenAI  # type: ignore
+        try:
+            openai_client = NewOpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+            legacy_openai = None
+        except Exception:
+            try:
+                import openai as _legacy
+                _legacy.api_key = OPENAI_API_KEY
+                legacy_openai = _legacy
+
+                class _LegacyOpenAIAdapterLocal:
+                    def __init__(self, legacy_mod):
+                        self._mod = legacy_mod
+                        self.chat = types.SimpleNamespace()
+                        self.chat.completions = types.SimpleNamespace()
+
+                        def create(*, model=None, messages=None, max_tokens=None, temperature=None, **kwargs):
+                            return self._mod.ChatCompletion.create(model=model, messages=messages, max_tokens=max_tokens, temperature=temperature)
+
+                        self.chat.completions.create = create
+
+                openai_client = _LegacyOpenAIAdapterLocal(legacy_openai)
+            except Exception:
+                openai_client = None
+    except Exception:
+        try:
+            import openai as _legacy
+            _legacy.api_key = OPENAI_API_KEY
+            legacy_openai = _legacy
+
+            class _LegacyOpenAIAdapterLocal2:
+                def __init__(self, legacy_mod):
+                    self._mod = legacy_mod
+                    self.chat = types.SimpleNamespace()
+                    self.chat.completions = types.SimpleNamespace()
+
+                    def create(*, model=None, messages=None, max_tokens=None, temperature=None, **kwargs):
+                        return self._mod.ChatCompletion.create(model=model, messages=messages, max_tokens=max_tokens, temperature=temperature)
+
+                    self.chat.completions.create = create
+
+            openai_client = _LegacyOpenAIAdapterLocal2(legacy_openai)
+        except Exception:
+            openai_client = None
+
+    # DeepSeek (OpenAI-compatible)
+    try:
+        if DEEPSEEK_API_KEY:
+            from openai import OpenAI as NewOpenAI2  # type: ignore
+            deepseek_client = NewOpenAI2(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+        else:
+            deepseek_client = None
+    except Exception:
+        deepseek_client = None
+
+
+# Attempt initial refresh on startup
+try:
+    refresh_ai_clients()
+except Exception:
+    pass
+
 # DeepSeek (uses OpenAI-compatible API)
 try:
     from openai import OpenAI  # type: ignore
@@ -738,6 +822,25 @@ def set_business_description(text_value: str):
         except Exception:
             # SQLite fallback
             conn.execute(text("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('business_description', :v)"), {"v": text_value})
+
+
+def get_site_setting(key: str) -> str:
+    """Return a site_settings value for the given key (or empty string)."""
+    init_db()
+    with engine.begin() as conn:
+        row = conn.execute(text("SELECT value FROM site_settings WHERE key=:k"), {"k": key}).fetchone()
+        return row.value if row and row.value is not None else ''
+
+
+def set_site_setting(key: str, value: str):
+    """Insert or replace a site_settings key/value pair."""
+    init_db()
+    with engine.begin() as conn:
+        try:
+            # Postgres UPSERT
+            conn.execute(text("INSERT INTO site_settings (key, value) VALUES (:k, :v) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"), {"k": key, "v": value})
+        except Exception:
+            conn.execute(text("INSERT OR REPLACE INTO site_settings (key, value) VALUES (:k, :v)"), {"k": key, "v": value})
 
 def get_autopilot_enabled():
     """Return True if chat autopilot is enabled."""
@@ -1727,7 +1830,14 @@ def admin_content():
     service_areas = fetch_service_areas()
     homepage_sections = fetch_homepage_sections()
     business_desc = get_business_description()
-    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, autopilot_enabled=autopilot, hero_imgs=hero_imgs, meet_andy=meet_andy, contact_info=contact_info, service_areas=service_areas, homepage_sections=homepage_sections, business_description=business_desc)
+    ai_keys = {
+        'OPENAI_API_KEY': get_site_setting('OPENAI_API_KEY'),
+        'GEMINI_API_KEY': get_site_setting('GEMINI_API_KEY'),
+        'DEEPSEEK_API_KEY': get_site_setting('DEEPSEEK_API_KEY')
+    }
+    # Last AI test result (for quick visibility)
+    ai_test_result = get_site_setting('ai_test_result')
+    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, autopilot_enabled=autopilot, hero_imgs=hero_imgs, meet_andy=meet_andy, contact_info=contact_info, service_areas=service_areas, homepage_sections=homepage_sections, business_description=business_desc, ai_keys=ai_keys, ai_test_result=ai_test_result)
 
 @app.post('/admin/content/service/<int:service_id>')
 def admin_content_update(service_id: int):
@@ -1844,6 +1954,107 @@ def admin_business_description_update():
         return auth_result
     desc = (request.form.get('business_description') or '').strip()
     set_business_description(desc)
+    return redirect(url_for('admin_content'))
+
+
+@app.post('/admin/content/api-keys')
+def admin_api_keys_update():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    openai = (request.form.get('OPENAI_API_KEY') or '').strip()
+    gemini = (request.form.get('GEMINI_API_KEY') or '').strip()
+    deepseek = (request.form.get('DEEPSEEK_API_KEY') or '').strip()
+    # Save into site_settings for testing environments (admin-only)
+    if openai:
+        set_site_setting('OPENAI_API_KEY', openai)
+    else:
+        set_site_setting('OPENAI_API_KEY', '')
+    if gemini:
+        set_site_setting('GEMINI_API_KEY', gemini)
+    else:
+        set_site_setting('GEMINI_API_KEY', '')
+    if deepseek:
+        set_site_setting('DEEPSEEK_API_KEY', deepseek)
+    else:
+        set_site_setting('DEEPSEEK_API_KEY', '')
+
+    # Refresh runtime clients so changes take effect immediately
+    try:
+        refresh_ai_clients()
+    except Exception:
+        pass
+
+    return redirect(url_for('admin_content'))
+
+
+@app.post('/admin/content/api-test')
+def admin_api_test():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+
+    provider = (request.form.get('provider') or '').lower()
+    prompt = (request.form.get('prompt') or '').strip()
+    if not prompt:
+        set_site_setting('ai_test_result', 'No prompt provided.')
+        return redirect(url_for('admin_content'))
+
+    result = None
+    try:
+        # OpenAI / Legacy adapter
+        if provider == 'openai' and openai_client:
+            resp = openai_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": prompt}],
+                max_tokens=120,
+                temperature=0.2,
+            )
+            result = None
+            if resp and getattr(resp, 'choices', None):
+                # Compatible with modern and legacy wrappers
+                try:
+                    result = resp.choices[0].message.content
+                except Exception:
+                    result = getattr(resp.choices[0], 'text', str(resp))
+
+        # DeepSeek (OpenAI-compatible)
+        elif provider == 'deepseek' and 'deepseek_client' in globals() and deepseek_client:
+            resp = deepseek_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": prompt}],
+                max_tokens=120,
+                temperature=0.2,
+            )
+            if resp and getattr(resp, 'choices', None):
+                try:
+                    result = resp.choices[0].message.content
+                except Exception:
+                    result = getattr(resp.choices[0], 'text', str(resp))
+
+        # Gemini
+        elif provider == 'gemini' and genai:
+            try:
+                model = genai.GenerativeModel('gemini-1.5-mini')
+                r = model.generate_content(prompt)
+                result = getattr(r, 'text', None)
+                if not result and getattr(r, 'candidates', None):
+                    result = r.candidates[0].content.parts[0].text
+            except Exception as e:
+                result = f"Gemini error: {str(e)}"
+        else:
+            result = f"No client available for provider '{provider}'."
+    except Exception as e:
+        result = f"Error: {str(e)}"
+
+    if not result:
+        result = "(no response)"
+    # Truncate to a reasonable length
+    if len(result) > 1500:
+        result = result[:1500] + '...'
+
+    # Persist the last test result for visibility
+    set_site_setting('ai_test_result', result)
     return redirect(url_for('admin_content'))
 
 @app.post('/admin/service-areas/add')
