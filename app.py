@@ -696,15 +696,6 @@ def init_db():
             conn.execute(text("INSERT INTO site_settings (key, value) VALUES ('chat_autopilot', 'false')"))
         except Exception:
             pass
-        # Settings snapshots: store JSON payloads of saved admin settings
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS settings_snapshots (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT,
-                created_at TEXT NOT NULL,
-                payload TEXT NOT NULL
-            )
-        """))
         # Booking slots table for admin-defined available times
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS booking_slots (
@@ -976,111 +967,6 @@ def set_site_setting(key: str, value: str):
             conn.execute(text("INSERT INTO site_settings (key, value) VALUES (:k, :v) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"), {"k": key, "v": value})
         except Exception:
             conn.execute(text("INSERT OR REPLACE INTO site_settings (key, value) VALUES (:k, :v)"), {"k": key, "v": value})
-
-
-def create_settings_snapshot(name: str | None = None) -> dict:
-    """Create a JSON snapshot of editable settings and return snapshot metadata."""
-    init_db()
-    now = datetime.utcnow().isoformat()
-    with engine.begin() as conn:
-        # Gather site_settings
-        s_rows = conn.execute(text("SELECT key, value FROM site_settings")).fetchall()
-        site_settings = [{'key': r.key, 'value': r.value} for r in s_rows]
-
-        # Gather site_content
-        sc_rows = conn.execute(text("SELECT section, key, title, content, price, sort_order FROM site_content ORDER BY section, sort_order, id")) .fetchall()
-        site_content = []
-        for r in sc_rows:
-            site_content.append({
-                'section': r.section,
-                'key': r.key,
-                'title': r.title,
-                'content': r.content,
-                'price': getattr(r, 'price', None),
-                'sort_order': r.sort_order
-            })
-
-        # Gather service areas
-        sa_rows = conn.execute(text("SELECT id, name, sort_order FROM service_areas ORDER BY sort_order ASC")).fetchall()
-        service_areas = [{'id': r.id, 'name': r.name, 'sort_order': r.sort_order} for r in sa_rows]
-
-        # Gather homepage sections
-        hs_rows = conn.execute(text("SELECT id, section_key, title, enabled, sort_order FROM homepage_sections ORDER BY sort_order ASC")).fetchall()
-        homepage_sections = [{'id': r.id, 'section_key': r.section_key, 'title': r.title, 'enabled': int(r.enabled) if getattr(r, 'enabled', None) is not None else 1, 'sort_order': r.sort_order} for r in hs_rows]
-
-        payload = {
-            'site_settings': site_settings,
-            'site_content': site_content,
-            'service_areas': service_areas,
-            'homepage_sections': homepage_sections
-        }
-
-        conn.execute(text("INSERT INTO settings_snapshots (name, created_at, payload) VALUES (:name, :created_at, :payload)"), {
-            'name': name or f"snapshot-{now}",
-            'created_at': now,
-            'payload': json.dumps(payload, default=str)
-        })
-        sid = conn.execute(text("SELECT last_insert_rowid() AS id")).fetchone()
-        snap_id = sid.id if sid else None
-        return {'ok': True, 'id': snap_id, 'created_at': now}
-
-
-def list_settings_snapshots() -> list:
-    init_db()
-    with engine.begin() as conn:
-        rows = conn.execute(text("SELECT id, name, created_at FROM settings_snapshots ORDER BY id DESC LIMIT 50")).fetchall()
-        return [{'id': r.id, 'name': r.name, 'created_at': r.created_at} for r in rows]
-
-
-def apply_settings_snapshot(snapshot_id: int | None = None) -> dict:
-    """Apply a snapshot onto the live editable tables. If snapshot_id is None, apply the latest."""
-    init_db()
-    with engine.begin() as conn:
-        if snapshot_id:
-            row = conn.execute(text("SELECT payload FROM settings_snapshots WHERE id=:id"), {'id': snapshot_id}).fetchone()
-        else:
-            row = conn.execute(text("SELECT payload FROM settings_snapshots ORDER BY id DESC LIMIT 1")).fetchone()
-        if not row:
-            return {'ok': False, 'error': 'snapshot not found'}
-        try:
-            payload = json.loads(row.payload)
-        except Exception as e:
-            return {'ok': False, 'error': f'invalid payload: {e}'}
-
-        # Replace site_settings
-        try:
-            conn.execute(text("DELETE FROM site_settings"))
-            for s in payload.get('site_settings', []):
-                conn.execute(text("INSERT OR REPLACE INTO site_settings (key, value) VALUES (:k, :v)"), {'k': s.get('key'), 'v': s.get('value')})
-
-            # Replace site_content
-            conn.execute(text("DELETE FROM site_content"))
-            for c in payload.get('site_content', []):
-                conn.execute(text("INSERT INTO site_content (section, key, title, price, content, sort_order) VALUES (:section, :key, :title, :price, :content, :sort_order)"), {
-                    'section': c.get('section'), 'key': c.get('key'), 'title': c.get('title'), 'price': c.get('price'), 'content': c.get('content'), 'sort_order': c.get('sort_order') or 0
-                })
-
-            # Replace service_areas
-            conn.execute(text("DELETE FROM service_areas"))
-            for a in payload.get('service_areas', []):
-                conn.execute(text("INSERT INTO service_areas (name, sort_order) VALUES (:name, :sort_order)"), {'name': a.get('name'), 'sort_order': a.get('sort_order') or 0})
-
-            # Replace homepage_sections
-            conn.execute(text("DELETE FROM homepage_sections"))
-            for h in payload.get('homepage_sections', []):
-                conn.execute(text("INSERT INTO homepage_sections (section_key, title, enabled, sort_order) VALUES (:key, :title, :enabled, :sort_order)"), {
-                    'key': h.get('section_key'), 'title': h.get('title') or '', 'enabled': int(h.get('enabled') or 0), 'sort_order': int(h.get('sort_order') or 0)
-                })
-        except Exception as e:
-            return {'ok': False, 'error': f'apply failed: {str(e)}'}
-
-        # After applying settings, refresh AI clients and any in-memory caches
-        try:
-            refresh_ai_clients()
-        except Exception:
-            pass
-
-        return {'ok': True}
 
 def get_autopilot_enabled():
     """Return True if chat autopilot is enabled."""
@@ -2111,59 +1997,6 @@ def admin_visitors():
     stats = fetch_visitor_stats()
     return render_template('admin_visitors.html', visitors=visitors, stats=stats)
 
-
-@app.route('/admin/settings')
-def admin_settings():
-    auth_result = require_admin()
-    if isinstance(auth_result, Response):
-        return auth_result
-    # Provide current hero images and available snapshots
-    snapshots = list_settings_snapshots()
-    hero = get_hero_images()
-    return render_template('admin_settings.html', snapshots=snapshots, hero_images=hero)
-
-
-@app.post('/admin/settings/save')
-def admin_settings_save():
-    auth_result = require_admin()
-    if isinstance(auth_result, Response):
-        return auth_result
-    name = request.form.get('name') or (request.get_json(silent=True) or {}).get('name')
-    res = create_settings_snapshot(name=name)
-    return jsonify(res)
-
-
-@app.post('/admin/settings/load')
-def admin_settings_load():
-    auth_result = require_admin()
-    if isinstance(auth_result, Response):
-        return auth_result
-    payload = request.get_json(silent=True) or {}
-    snap_id = payload.get('id') or request.form.get('id')
-    try:
-        snap_id = int(snap_id) if snap_id else None
-    except Exception:
-        snap_id = None
-    # Create a safety backup snapshot before applying a load so admins can recover if needed
-    try:
-        from datetime import datetime
-        backup_name = f"pre-load-backup-{datetime.utcnow().isoformat()}"
-        create_settings_snapshot(name=backup_name)
-    except Exception:
-        # If backup fails, continue to attempt apply (do not block load)
-        pass
-    res = apply_settings_snapshot(snapshot_id=snap_id)
-    return jsonify(res)
-
-
-@app.get('/admin/settings/snapshots.json')
-def admin_settings_snapshots_json():
-    auth_result = require_admin()
-    if isinstance(auth_result, Response):
-        return auth_result
-    snaps = list_settings_snapshots()
-    return jsonify({'ok': True, 'snapshots': snaps})
-
 @app.post('/chat/start')
 def chat_start():
     """Create a new chat session and return the chat_id"""
@@ -3066,6 +2899,26 @@ def admin_breeds_ai_update():
         "Each array should contain breed names (strings). Example: {\"add\": [\"Labrador\"], \"remove\": [\"Pitbull\"]}.\n\n"
         f"Instruction: {prompt}"
     )
+    
+
+    # If the prompt is a general instruction like "add generally small dog breeds",
+    # offer a curated deterministic list so admins get useful proposals even without API keys.
+    try:
+        low = prompt.lower()
+        if not proposed_add and ('small' in low or 'toy' in low or 'companion' in low):
+            curated_small = [
+                'Chihuahua', 'Pomeranian', 'Shih Tzu', 'Cavalier King Charles Spaniel', 'French Bulldog',
+                'Dachshund', 'Pug', 'Maltese', 'Yorkshire Terrier', 'Bichon Frise', 'Papillon', 'Miniature Schnauzer'
+            ]
+            # If user explicitly asked to "add", return curated list; if they asked to "remove" skip.
+            if 'add' in low or 'include' in low or 'suggest' in low or 'recommend' in low:
+                proposed_add = curated_small
+            # quick preview response
+            raw = f"Proposed to add {len(proposed_add)} and remove {len(proposed_remove)} items."
+            if not confirm:
+                return jsonify({'ok': True, 'raw': raw, 'proposed_add': proposed_add, 'proposed_remove': proposed_remove})
+    except Exception:
+        pass
 
     # Choose provider order: DeepSeek if present, else OpenAI, else Gemini
     openai_key = get_site_setting('OPENAI_API_KEY') or os.environ.get('OPENAI_API_KEY') or globals().get('OPENAI_API_KEY') or ''
@@ -3077,6 +2930,38 @@ def admin_breeds_ai_update():
         import requests
     except Exception:
         requests = None
+
+    # If no AI provider keys are configured, use the local heuristic/curated lists
+    # to provide a useful preview immediately (so admins don't need API keys for
+    # basic prompts). If any provider key is present, prefer calling the provider
+    # to get AI-generated suggestions.
+    if not (ds_key or openai_key or gemini_key):
+        try:
+            parsed_add, parsed_remove = _parse_prompt(prompt)
+            if (parsed_add or parsed_remove):
+                proposed_add = parsed_add
+                proposed_remove = parsed_remove
+                raw = f"Proposed to add {len(proposed_add)} and remove {len(proposed_remove)} items."
+                if not confirm:
+                    return jsonify({'ok': True, 'raw': raw, 'proposed_add': proposed_add, 'proposed_remove': proposed_remove})
+                # If confirm present, fall through to persist parsed lists
+        except Exception:
+            pass
+
+        try:
+            low = prompt.lower()
+            if not proposed_add and ('small' in low or 'toy' in low or 'companion' in low):
+                curated_small = [
+                    'Chihuahua', 'Pomeranian', 'Shih Tzu', 'Cavalier King Charles Spaniel', 'French Bulldog',
+                    'Dachshund', 'Pug', 'Maltese', 'Yorkshire Terrier', 'Bichon Frise', 'Papillon', 'Miniature Schnauzer'
+                ]
+                if 'add' in low or 'include' in low or 'suggest' in low or 'recommend' in low or 'small' in low:
+                    proposed_add = curated_small
+                raw = f"Proposed to add {len(proposed_add)} and remove {len(proposed_remove)} items."
+                if not confirm:
+                    return jsonify({'ok': True, 'raw': raw, 'proposed_add': proposed_add, 'proposed_remove': proposed_remove})
+        except Exception:
+            pass
 
     def _try_openai_api(key):
         nonlocal ai_result_text
@@ -3310,10 +3195,6 @@ def admin_breeds_list_json():
     if isinstance(auth_result, Response):
         return auth_result
     rows = fetch_breed_rows()
-    try:
-        rows = sorted(rows, key=lambda r: (r.get('title') or '').lower())
-    except Exception:
-        pass
     return jsonify({'ok': True, 'breeds': rows})
 
 
