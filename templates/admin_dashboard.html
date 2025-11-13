@@ -213,6 +213,11 @@ async function showSection(name){
   else if(name==='settings') url='/admin/settings';
     
     const r = await fetch(url);
+    // If fetch was unauthorized (Basic Auth) or redirected to a login, fall back to full navigation
+    if (r.status === 401 || r.redirected) {
+      window.location = url;
+      return;
+    }
     const html = await r.text();
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
