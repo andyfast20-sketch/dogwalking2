@@ -1,6 +1,9 @@
 {% extends 'base.html' %}
 {% block title %}Happy Paws Dog Walking{% endblock %}
 {% block content %}
+  {# Provide safe fallbacks for hero images to avoid template errors when hero_images is missing #}
+  {% set hero1 = (hero_images.hero_slide_1 if hero_images and hero_images.hero_slide_1 else url_for('static', filename='img/andy.jpg')) %}
+  {% set hero2 = (hero_images.hero_slide_2 if hero_images and hero_images.hero_slide_2 else url_for('static', filename='img/andy.jpg')) %}
   <section class="hero hero-split">
     <div class="inner">
       <div class="hero-content">
@@ -26,8 +29,8 @@
       <aside class="hero-visual" aria-hidden="true">
         <div class="image-frame">
           <div class="slideshow refined">
-            <img src="{{ hero_images.hero_slide_1 }}" alt="" width="1100" height="1400" loading="eager" decoding="async" fetchpriority="high">
-            <img src="{{ hero_images.hero_slide_2 }}" alt="" width="1100" height="1400" loading="lazy" decoding="async">
+            <img src="{{ hero1 }}" alt="" width="1100" height="1400" loading="eager" decoding="async" fetchpriority="high">
+            <img src="{{ hero2 }}" alt="" width="1100" height="1400" loading="lazy" decoding="async">
           </div>
         </div>
       </aside>
