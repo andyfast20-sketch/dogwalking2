@@ -2824,17 +2824,103 @@ def admin_breeds_ai_update():
     if not prompt:
         return jsonify({'ok': False, 'error': 'Please provide a prompt.'}), 400
 
-    # Preview mode (no confirm): return an informative, non-destructive preview
-    if not confirm:
-        return jsonify({
-            'ok': True,
-            'raw': 'AI preview currently not available in this environment. No changes proposed.',
-            'proposed_add': [],
-            'proposed_remove': []
-        })
+    # Lightweight heuristic parser to extract "add" and "remove" targets from natural language prompts.
+    # This keeps the feature working even when full AI backends are unavailable.
+    def _parse_prompt(p: str):
+        import re
+        adds = []
+        removes = []
 
-    # Confirmed apply: refuse/disable in this environment (safer than making DB changes unexpectedly)
-    return jsonify({'ok': False, 'error': 'Apply is disabled in this deployment.'}), 400
+        lp = p.lower()
+
+        # Look for explicit 'add' and 'remove' clauses. Examples supported:
+        #  - "add labrador, beagle and chihuahua"
+        #  - "remove rottweiler, pitbull"
+        #  - "add: labrador; beagle"
+        for m in re.finditer(r"\badd\b[:\s]+([^\.\n]+)", lp):
+            chunk = m.group(1)
+            # split on commas, semicolons, or ' and '
+            parts = re.split(r'[;,]|\sand\s', chunk)
+            for part in parts:
+                name = part.strip()
+                if name:
+                    adds.append(name)
+
+        for m in re.finditer(r"\bremove\b[:\s]+([^\.\n]+)", lp):
+            chunk = m.group(1)
+            parts = re.split(r'[;,]|\sand\s', chunk)
+            for part in parts:
+                name = part.strip()
+                if name:
+                    removes.append(name)
+
+        # Fallback: if the prompt looks like a raw comma-separated list, treat as adds
+        if not adds and not removes and (',' in p or '\n' in p):
+            parts = re.split(r'[;,\n]', p)
+            for part in parts:
+                name = part.strip()
+                if name:
+                    adds.append(name)
+
+        # Normalize to title-case names and deduplicate while preserving order
+        def _norm_list(lst):
+            seen = set()
+            out = []
+            for it in lst:
+                # remove extraneous words like 'small', 'large' if the item is clearly a phrase?
+                name = it.strip()
+                # strip leading adjectives like 'small', 'large' only if the remainder looks like a single word
+                name = name.strip(' .;:\'\"')
+                if not name:
+                    continue
+                title = ' '.join([w.capitalize() for w in re.split(r"\s+", name)])
+                if title.lower() in seen:
+                    continue
+                seen.add(title.lower())
+                out.append(title)
+            return out
+
+        return _norm_list(adds), _norm_list(removes)
+
+    proposed_add, proposed_remove = _parse_prompt(prompt)
+
+    # Preview mode (no confirm): return the proposed changes
+    if not confirm:
+        raw = f"Proposed to add {len(proposed_add)} and remove {len(proposed_remove)} items."
+        return jsonify({'ok': True, 'raw': raw, 'proposed_add': proposed_add, 'proposed_remove': proposed_remove})
+
+    # Confirmed apply: persist changes into site_content (section='breeds')
+    init_db()
+    applied = {'added': [], 'removed': []}
+    with engine.begin() as conn:
+        # Adds: create key from title, avoid duplicates
+        for title in proposed_add:
+            # simple existence check by title
+            exists = conn.execute(text("SELECT id FROM site_content WHERE section='breeds' AND lower(title)=:t"), {"t": title.lower()}).fetchone()
+            if exists:
+                continue
+            key = title.lower().replace(' ', '-').replace("'", '').replace('"', '')
+            max_order = conn.execute(text("SELECT MAX(sort_order) FROM site_content WHERE section='breeds'"))
+            try:
+                max_order_val = max_order.scalar() or 0
+            except Exception:
+                max_order_val = 0
+            conn.execute(text("INSERT INTO site_content (section, key, title, price, content, sort_order) VALUES ('breeds', :key, :title, '', '', :order)"), {"key": key, "title": title, "order": max_order_val + 1})
+            applied['added'].append(title)
+
+        # Removes: delete matching by title
+        for title in proposed_remove:
+            # delete rows where title matches (case-insensitive)
+            res = conn.execute(text("DELETE FROM site_content WHERE section='breeds' AND lower(title)=:t RETURNING id"), {"t": title.lower()})
+            # SQLAlchemy result may not expose rowcount consistently across DBs; infer from returned rows
+            try:
+                rows = [r for r in res]
+            except Exception:
+                rows = []
+            if rows:
+                applied['removed'].append(title)
+
+    return jsonify({'ok': True, 'applied': applied, 'added_count': len(applied['added']), 'removed_count': len(applied['removed'])})
 
 
 @app.post('/admin/breeds/add')
