@@ -717,6 +717,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // initial load
   loadBreeds();
 
+  // Show dropdown when the input is focused (show all items) or clicked
+  input.addEventListener('focus', (e) => {
+    const items = filterBreeds('');
+    if (items.length) renderDropdown(items);
+  });
+  input.addEventListener('click', (e) => {
+    // If dropdown already visible, keep it; otherwise show full list
+    if (dropdown.style.display === 'none' || !dropdown.style.display) {
+      const items = filterBreeds('');
+      if (items.length) renderDropdown(items);
+    }
+  });
+
   input.addEventListener('input', (e) => {
     const q = e.target.value || '';
     const items = filterBreeds(q);
