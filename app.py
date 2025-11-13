@@ -3135,6 +3135,74 @@ def admin_breed_delete(breed_id: int):
 
     return redirect(url_for('admin_content') + '#dog-breeds')
 
+
+@app.get('/admin/breeds/list.json')
+def admin_breeds_list_json():
+    """Return full list of breeds (admin JSON)"""
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    rows = fetch_breed_rows()
+    return jsonify({'ok': True, 'breeds': rows})
+
+
+@app.post('/admin/breeds/json/add')
+def admin_breeds_json_add():
+    """Add a new breed via JSON (expects 'title' and optional 'content'). Returns the created row."""
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    data = request.get_json(silent=True) or request.form or {}
+    title = (data.get('title') or '').strip()
+    content = (data.get('content') or '').strip()
+    if not title:
+        return jsonify({'ok': False, 'error': 'Title required'}), 400
+    key = title.lower().replace(' ', '-').replace("'", '').replace('"', '')
+    init_db()
+    with engine.begin() as conn:
+        max_order = conn.execute(text("SELECT MAX(sort_order) FROM site_content WHERE section='breeds'")).scalar() or 0
+        res = conn.execute(text("INSERT INTO site_content (section, key, title, price, content, sort_order) VALUES ('breeds', :key, :title, '', :content, :order) RETURNING id, title, content, sort_order"), {"key": key, "title": title, "content": content, "order": max_order + 1})
+        try:
+            row = res.fetchone()
+            new = {'id': row.id, 'key': key, 'title': row.title, 'content': row.content or '', 'sort_order': row.sort_order}
+        except Exception:
+            # Fallback for SQLite which may not support RETURNING
+            last_id = conn.execute(text('SELECT id FROM site_content WHERE section="breeds" AND lower(title)=:t ORDER BY id DESC LIMIT 1'), {"t": title.lower()}).fetchone()
+            nid = last_id.id if last_id else None
+            new = {'id': nid, 'key': key, 'title': title, 'content': content, 'sort_order': max_order + 1}
+    return jsonify({'ok': True, 'breed': new})
+
+
+@app.post('/admin/breeds/json/update/<int:breed_id>')
+def admin_breeds_json_update(breed_id: int):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    data = request.get_json(silent=True) or request.form or {}
+    title = (data.get('title') or '').strip()
+    content = (data.get('content') or '').strip()
+    if not title:
+        return jsonify({'ok': False, 'error': 'Title required'}), 400
+    init_db()
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE site_content SET title=:title, content=:content WHERE id=:id AND section='breeds'"), {"title": title, "content": content, "id": breed_id})
+        row = conn.execute(text("SELECT id, key, title, content, sort_order FROM site_content WHERE id=:id AND section='breeds'"), {"id": breed_id}).fetchone()
+        if not row:
+            return jsonify({'ok': False, 'error': 'Not found'}), 404
+        updated = {'id': row.id, 'key': row.key, 'title': row.title, 'content': row.content or '', 'sort_order': row.sort_order}
+    return jsonify({'ok': True, 'breed': updated})
+
+
+@app.post('/admin/breeds/json/delete/<int:breed_id>')
+def admin_breeds_json_delete(breed_id: int):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    init_db()
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM site_content WHERE id=:id AND section='breeds'"), {"id": breed_id})
+    return jsonify({'ok': True, 'deleted': breed_id})
+
 @app.post('/admin/sections/move-up/<int:section_id>')
 def admin_section_move_up(section_id: int):
     auth_result = require_admin()

@@ -376,36 +376,45 @@
   </div>
 
   <!-- Dog Breeds Editor -->
-  <div id="dog-breeds" style="background:linear-gradient(180deg,rgba(99,102,241,.06),rgba(99,102,241,.02));border:2px solid rgba(99,102,241,.18);border-radius:16px;padding:24px;margin-bottom:32px">
-    <h3 style="margin:0 0 16px;color:#6366f1;font-size:1.2rem">🐶 Dog Breeds</h3>
-    <p style="margin:0 0 20px;color:var(--muted);font-size:.9rem">Manage the list of dog breeds that appear in the booking form dropdowns.</p>
+  <div id="dog-breeds" style="background:linear-gradient(180deg,rgba(99,102,241,.06),rgba(99,102,241,.02));border:2px solid rgba(99,102,241,.18);border-radius:16px;padding:20px;margin-bottom:32px">
+    <h3 style="margin:0 0 12px;color:#6366f1;font-size:1.2rem">🐶 Dog Breeds</h3>
+    <p style="margin:0 0 16px;color:var(--muted);font-size:.9rem">A single searchable dropdown control — type to filter, select to edit or delete, or type a new breed and click Add.</p>
 
-    <!-- Existing Breeds -->
-    <div style="display:grid;gap:12px;margin-bottom:24px">
-      {% for b in breeds %}
-      <div style="display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:12px">
-        <form method="post" action="{{ url_for('admin_breed_update', breed_id=b.id) }}" style="flex:1;display:flex;gap:12px">
-          <input type="text" name="title" value="{{ b.title }}" required
-            style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem" />
-          <input type="text" name="content" value="{{ b.content }}" placeholder="Optional note" style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:var(--muted);font-size:.85rem;max-width:220px" />
-          <button class="btn" type="submit" style="background:var(--brand);color:#fff;padding:10px 20px;font-weight:600">Update</button>
-        </form>
-        <form method="post" action="{{ url_for('admin_breed_delete', breed_id=b.id) }}" onsubmit="return confirm('Delete this breed?')" style="margin:0">
-          <button class="btn" type="submit" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;padding:10px 16px;font-weight:600">Delete</button>
-        </form>
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+      <div style="flex:1;position:relative">
+        <input id="breed-search" type="text" placeholder="Type to search or add a new breed..." autocomplete="off"
+          style="width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:var(--text);font-size:.95rem" />
+  <div id="breed-dropdown" style="position:absolute;left:0;right:0;z-index:40;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;margin-top:8px;display:none;max-height:220px;overflow:auto;box-shadow:0 6px 18px rgba(0,0,0,.08);color:#000"></div>
       </div>
-      {% endfor %}
+      <button id="breed-add-btn" class="btn primary" type="button" style="padding:10px 18px;font-weight:700">Add</button>
     </div>
 
-    <!-- Add New Breed -->
-    <div style="background:rgba(99,102,241,.04);border:1px solid rgba(99,102,241,.08);border-radius:12px;padding:16px">
-      <h4 style="margin:0 0 12px;color:var(--text);font-size:1rem">Add New Breed</h4>
-      <form method="post" action="{{ url_for('admin_breed_add') }}" style="display:flex;gap:12px">
-        <input type="text" name="title" placeholder="Breed name (e.g. Labrador)" required
-          style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem" />
-        <input type="text" name="content" placeholder="Optional note" style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:var(--muted);font-size:.85rem;max-width:220px" />
-        <button class="btn primary" type="submit" style="padding:10px 24px;font-weight:600">Add Breed</button>
-      </form>
+    <div id="breed-selected" style="display:none;background:rgba(0,0,0,.12);border:1px solid rgba(255,255,255,.04);border-radius:12px;padding:12px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <strong id="sel-title" style="font-size:1rem;color:var(--text)"></strong>
+          <div id="sel-content" style="color:var(--muted);font-size:.9rem"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="sel-edit" class="btn" type="button" style="background:var(--brand);color:#fff;padding:8px 12px;font-weight:700">Edit</button>
+          <button id="sel-delete" class="btn" type="button" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;padding:8px 12px;font-weight:700">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="breed-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);align-items:center;justify-content:center;z-index:60">
+      <div style="background:var(--bg);padding:18px;border-radius:12px;max-width:520px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,.6)">
+        <h4 style="margin:0 0 8px;color:var(--text)">Edit Breed</h4>
+        <div style="display:grid;gap:10px">
+          <input id="modal-title" type="text" placeholder="Breed name" style="padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:var(--text)" />
+          <input id="modal-content" type="text" placeholder="Optional note" style="padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:var(--muted)" />
+        </div>
+        <div style="text-align:right;margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+          <button id="modal-cancel" class="btn" type="button" style="padding:8px 14px">Cancel</button>
+          <button id="modal-save" class="btn primary" type="button" style="padding:8px 14px">Save</button>
+        </div>
+      </div>
     </div>
 
     <!-- AI-driven Breeds Update (Preview + Confirm) -->
@@ -621,6 +630,198 @@ document.addEventListener('DOMContentLoaded', () => {
     resultPanel.style.display = 'none';
     applyBtn.style.display = 'none';
   });
+});
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Breeds admin AJAX UI
+  const listUrl = '{{ url_for("admin_breeds_list_json") }}';
+  const addUrl = '{{ url_for("admin_breeds_json_add") }}';
+  const updateUrlBase = '{{ url_for("admin_breeds_json_update", breed_id=0) }}'.replace('/0', '');
+  const deleteUrlBase = '{{ url_for("admin_breeds_json_delete", breed_id=0) }}'.replace('/0', '');
+
+  let breeds = [];
+  let highlighted = -1;
+  const input = document.getElementById('breed-search');
+  const dropdown = document.getElementById('breed-dropdown');
+  const addBtn = document.getElementById('breed-add-btn');
+  const selBox = document.getElementById('breed-selected');
+  const selTitle = document.getElementById('sel-title');
+  const selContent = document.getElementById('sel-content');
+  const selEdit = document.getElementById('sel-edit');
+  const selDelete = document.getElementById('sel-delete');
+  const modal = document.getElementById('breed-modal');
+  const modalTitle = document.getElementById('modal-title');
+  const modalContent = document.getElementById('modal-content');
+  const modalCancel = document.getElementById('modal-cancel');
+  const modalSave = document.getElementById('modal-save');
+
+  function renderDropdown(items) {
+    dropdown.innerHTML = '';
+    if (!items.length) {
+      dropdown.style.display = 'none';
+      return;
+    }
+    items.forEach((b, i) => {
+      const d = document.createElement('div');
+      d.textContent = b.title + (b.content ? ' — ' + b.content : '');
+      d.dataset.index = i;
+      d.style.padding = '8px 12px';
+      d.style.cursor = 'pointer';
+      d.style.borderBottom = '1px solid rgba(0,0,0,.04)';
+      d.style.background = '#fff';
+      d.style.color = '#000';
+      d.addEventListener('click', () => { selectBreed(b); hideDropdown(); });
+      d.addEventListener('mouseenter', () => { d.style.background = '#f3f4f6'; });
+      d.addEventListener('mouseleave', () => { d.style.background = '#fff'; });
+      dropdown.appendChild(d);
+    });
+    highlighted = -1;
+    dropdown.style.display = '';
+  }
+
+  function hideDropdown() {
+    dropdown.style.display = 'none';
+  }
+
+  function filterBreeds(q) {
+    q = (q || '').toLowerCase().trim();
+    if (!q) return breeds.slice(0, 50);
+    return breeds.filter(b => (b.title || '').toLowerCase().includes(q)).slice(0, 200);
+  }
+
+  function selectBreed(b) {
+    if (!b) return;
+    selBox.style.display = '';
+    selTitle.textContent = b.title;
+    selContent.textContent = b.content || '';
+    selBox.dataset.id = b.id;
+    input.value = b.title;
+  }
+
+  function clearSelection() {
+    selBox.style.display = 'none';
+    delete selBox.dataset.id;
+  }
+
+  function loadBreeds() {
+    fetch(listUrl).then(r => r.json()).then(j => {
+      if (j && j.ok) {
+        breeds = j.breeds || [];
+      } else {
+        breeds = [];
+      }
+    }).catch(() => { breeds = []; });
+  }
+
+  // initial load
+  loadBreeds();
+
+  input.addEventListener('input', (e) => {
+    const q = e.target.value || '';
+    const items = filterBreeds(q);
+    if (items.length) renderDropdown(items);
+    else {
+      // show suggestion of exact match only
+      dropdown.innerHTML = '';
+      dropdown.style.display = 'none';
+    }
+  });
+
+  input.addEventListener('keydown', (e) => {
+    const items = Array.from(dropdown.children);
+    if (!items.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault(); highlighted = Math.min(highlighted + 1, items.length - 1);
+      items.forEach((it, idx)=>{ it.style.background = '#fff'; });
+      items[highlighted].style.background = '#f3f4f6';
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault(); highlighted = Math.max(highlighted - 1, 0);
+      items.forEach((it, idx)=>{ it.style.background = '#fff'; });
+      items[highlighted].style.background = '#f3f4f6';
+    } else if (e.key === 'Enter') {
+      e.preventDefault(); if (highlighted >= 0 && items[highlighted]) items[highlighted].click();
+    } else if (e.key === 'Escape') { hideDropdown(); }
+  });
+
+  // Add new breed
+  addBtn.addEventListener('click', () => {
+    const val = (input.value || '').trim();
+    if (!val) return alert('Please type a breed name to add.');
+    // If an identical breed exists, select it
+    const existing = breeds.find(b => (b.title||'').toLowerCase() === val.toLowerCase());
+    if (existing) { selectBreed(existing); return; }
+    addBtn.disabled = true; addBtn.textContent = 'Adding...';
+    fetch(addUrl, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({title: val, content: ''}) })
+      .then(r => r.json())
+      .then(j => {
+        addBtn.disabled = false; addBtn.textContent = 'Add';
+        if (j && j.ok && j.breed) {
+          breeds.unshift(j.breed);
+          selectBreed(j.breed);
+        } else {
+          alert('Add failed: ' + (j && j.error ? j.error : JSON.stringify(j)));
+        }
+      }).catch(err => { addBtn.disabled = false; addBtn.textContent = 'Add'; alert('Add request failed: ' + err); });
+  });
+
+  selEdit.addEventListener('click', () => {
+    const id = selBox.dataset.id; if (!id) return;
+    const b = breeds.find(x => String(x.id) === String(id)); if (!b) return;
+    modal.style.display = 'flex';
+    modalTitle.value = b.title || '';
+    modalContent.value = b.content || '';
+    modal.dataset.editId = id;
+  });
+
+  modalCancel.addEventListener('click', () => { modal.style.display = 'none'; delete modal.dataset.editId; });
+
+  modalSave.addEventListener('click', () => {
+    const id = modal.dataset.editId; if (!id) return;
+    const title = (modalTitle.value || '').trim(); const content = (modalContent.value || '').trim();
+    if (!title) return alert('Title required');
+    modalSave.disabled = true; modalSave.textContent = 'Saving...';
+    fetch(updateUrlBase + '/' + id, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({title: title, content: content}) })
+      .then(r => r.json()).then(j => {
+        modalSave.disabled = false; modalSave.textContent = 'Save';
+        if (j && j.ok && j.breed) {
+          // update local list
+          const idx = breeds.findIndex(x => String(x.id) === String(id));
+          if (idx >= 0) breeds[idx] = j.breed;
+          selectBreed(j.breed);
+          modal.style.display = 'none';
+        } else {
+          alert('Update failed: ' + (j && j.error ? j.error : JSON.stringify(j)));
+        }
+      }).catch(err => { modalSave.disabled = false; modalSave.textContent = 'Save'; alert('Update failed: ' + err); });
+  });
+
+  selDelete.addEventListener('click', () => {
+    const id = selBox.dataset.id; if (!id) return;
+    if (!confirm('Delete this breed? This cannot be undone.')) return;
+    selDelete.disabled = true; selDelete.textContent = 'Deleting...';
+    fetch(deleteUrlBase + '/' + id, { method: 'POST' })
+      .then(r => r.json()).then(j => {
+        selDelete.disabled = false; selDelete.textContent = 'Delete';
+        if (j && j.ok) {
+          breeds = breeds.filter(x => String(x.id) !== String(id));
+          clearSelection();
+          input.value = '';
+        } else {
+          alert('Delete failed: ' + (j && j.error ? j.error : JSON.stringify(j)));
+        }
+      }).catch(err => { selDelete.disabled = false; selDelete.textContent = 'Delete'; alert('Delete failed: ' + err); });
+  });
+
+  // close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest || (!e.target.closest('#breed-search') && !e.target.closest('#breed-dropdown') && !e.target.closest('#breed-add-btn'))) {
+      hideDropdown();
+    }
+  });
+
+  // refresh list periodically (to pick up server changes)
+  setInterval(loadBreeds, 60 * 1000);
 });
 </script>
 {% endblock %}
