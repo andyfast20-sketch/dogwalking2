@@ -374,6 +374,40 @@
       </form>
     </div>
   </div>
+
+  <!-- Dog Breeds Editor -->
+  <div style="background:linear-gradient(180deg,rgba(99,102,241,.06),rgba(99,102,241,.02));border:2px solid rgba(99,102,241,.18);border-radius:16px;padding:24px;margin-bottom:32px">
+    <h3 style="margin:0 0 16px;color:#6366f1;font-size:1.2rem">🐶 Dog Breeds</h3>
+    <p style="margin:0 0 20px;color:var(--muted);font-size:.9rem">Manage the list of dog breeds that appear in the booking form dropdowns.</p>
+
+    <!-- Existing Breeds -->
+    <div style="display:grid;gap:12px;margin-bottom:24px">
+      {% for b in breeds %}
+      <div style="display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:12px">
+        <form method="post" action="{{ url_for('admin_breed_update', breed_id=b.id) }}" style="flex:1;display:flex;gap:12px">
+          <input type="text" name="title" value="{{ b.title }}" required
+            style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem" />
+          <input type="text" name="content" value="{{ b.content }}" placeholder="Optional note" style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:var(--muted);font-size:.85rem;max-width:220px" />
+          <button class="btn" type="submit" style="background:var(--brand);color:#fff;padding:10px 20px;font-weight:600">Update</button>
+        </form>
+        <form method="post" action="{{ url_for('admin_breed_delete', breed_id=b.id) }}" onsubmit="return confirm('Delete this breed?')" style="margin:0">
+          <button class="btn" type="submit" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;padding:10px 16px;font-weight:600">Delete</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Add New Breed -->
+    <div style="background:rgba(99,102,241,.04);border:1px solid rgba(99,102,241,.08);border-radius:12px;padding:16px">
+      <h4 style="margin:0 0 12px;color:var(--text);font-size:1rem">Add New Breed</h4>
+      <form method="post" action="{{ url_for('admin_breed_add') }}" style="display:flex;gap:12px">
+        <input type="text" name="title" placeholder="Breed name (e.g. Labrador)" required
+          style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.9rem" />
+        <input type="text" name="content" placeholder="Optional note" style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:var(--muted);font-size:.85rem;max-width:220px" />
+        <button class="btn primary" type="submit" style="padding:10px 24px;font-weight:600">Add Breed</button>
+      </form>
+    </div>
+  </div>
   
   <!-- Homepage Section Order -->
   <div style="background:linear-gradient(180deg,rgba(139,92,246,.08),rgba(139,92,246,.03));border:2px solid rgba(139,92,246,.25);border-radius:16px;padding:24px;margin-bottom:32px">

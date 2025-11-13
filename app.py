@@ -418,6 +418,8 @@ def book():
     
     # Provide service areas and breeds for the booking form
     service_areas = fetch_service_areas()
+    # Breeds for admin editing (full rows)
+    breeds = fetch_breed_rows()
     breeds = fetch_breeds()
     return render_template('book.html', slots=slots, success=success, ip=ip_address, service_areas=service_areas, breeds=breeds)
 
@@ -806,6 +808,29 @@ def fetch_breeds():
                     breeds.append(name)
             return breeds
     except Exception:
+        return []
+
+
+def fetch_breed_rows():
+    """Return full site_content rows for section 'breeds' (id, key, title, content, sort_order).
+    Used by the admin UI to edit/delete entries.
+    """
+    try:
+        init_db()
+        with engine.begin() as conn:
+            result = conn.execute(text("SELECT id, key, title, content, sort_order FROM site_content WHERE section='breeds' ORDER BY sort_order ASC"))
+            rows = []
+            for r in result:
+                rows.append({
+                    'id': r.id,
+                    'key': r.key,
+                    'title': r.title or '',
+                    'content': r.content or '',
+                    'sort_order': r.sort_order
+                })
+            return rows
+    except Exception as e:
+        print(f"Error fetching breed rows: {e}")
         return []
 
 def fetch_homepage_sections():
@@ -2343,7 +2368,7 @@ def admin_content():
     # Last AI test result (for quick visibility)
     ai_test_result = get_site_setting('ai_test_result')
     notif_sound = (get_site_setting('admin_notifications_sound') == 'true')
-    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, autopilot_enabled=autopilot, hero_imgs=hero_imgs, meet_andy=meet_andy, contact_info=contact_info, service_areas=service_areas, homepage_sections=homepage_sections, business_description=business_desc, ai_keys=ai_keys, ai_test_result=ai_test_result, autopilot_provider=autopilot_provider, admin_notifications_sound=notif_sound)
+    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, autopilot_enabled=autopilot, hero_imgs=hero_imgs, meet_andy=meet_andy, contact_info=contact_info, service_areas=service_areas, homepage_sections=homepage_sections, business_description=business_desc, ai_keys=ai_keys, ai_test_result=ai_test_result, autopilot_provider=autopilot_provider, admin_notifications_sound=notif_sound, breeds=breeds)
 
 @app.post('/admin/content/service/<int:service_id>')
 def admin_content_update(service_id: int):
@@ -2763,6 +2788,62 @@ def admin_service_area_delete(area_id: int):
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM service_areas WHERE id=:id"), {"id": area_id})
     
+    return redirect(url_for('admin_content'))
+
+
+@app.post('/admin/breeds/add')
+def admin_breed_add():
+    """Add a new dog breed (stored in site_content with section='breeds')."""
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+
+    title = (request.form.get('title') or '').strip()
+    content = (request.form.get('content') or '').strip()
+    if not title:
+        abort(400, "Breed title is required")
+
+    # create a key from title
+    key = title.lower().replace(' ', '-').replace("'", '').replace('"', '')
+
+    init_db()
+    with engine.begin() as conn:
+        max_order = conn.execute(text("SELECT MAX(sort_order) FROM site_content WHERE section='breeds'")).scalar() or 0
+        conn.execute(text(
+            "INSERT INTO site_content (section, key, title, price, content, sort_order) VALUES ('breeds', :key, :title, '', :content, :order)"
+        ), {"key": key, "title": title, "content": content, "order": max_order + 1})
+
+    return redirect(url_for('admin_content'))
+
+
+@app.post('/admin/breeds/update/<int:breed_id>')
+def admin_breed_update(breed_id: int):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+
+    title = (request.form.get('title') or '').strip()
+    content = (request.form.get('content') or '').strip()
+    if not title:
+        abort(400, "Breed title is required")
+
+    init_db()
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE site_content SET title=:title, content=:content WHERE id=:id AND section='breeds'"), {"title": title, "content": content, "id": breed_id})
+
+    return redirect(url_for('admin_content'))
+
+
+@app.post('/admin/breeds/delete/<int:breed_id>')
+def admin_breed_delete(breed_id: int):
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+
+    init_db()
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM site_content WHERE id=:id AND section='breeds'"), {"id": breed_id})
+
     return redirect(url_for('admin_content'))
 
 @app.post('/admin/sections/move-up/<int:section_id>')
