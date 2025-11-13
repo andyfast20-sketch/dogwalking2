@@ -3143,6 +3143,10 @@ def admin_breeds_list_json():
     if isinstance(auth_result, Response):
         return auth_result
     rows = fetch_breed_rows()
+    try:
+        rows = sorted(rows, key=lambda r: (r.get('title') or '').lower())
+    except Exception:
+        pass
     return jsonify({'ok': True, 'breeds': rows})
 
 

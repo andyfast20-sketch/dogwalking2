@@ -664,14 +664,79 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     items.forEach((b, i) => {
       const d = document.createElement('div');
-      d.textContent = b.title + (b.content ? ' — ' + b.content : '');
       d.dataset.index = i;
+      d.style.display = 'flex';
+      d.style.alignItems = 'center';
+      d.style.justifyContent = 'space-between';
       d.style.padding = '8px 12px';
-      d.style.cursor = 'pointer';
+      d.style.cursor = 'default';
       d.style.borderBottom = '1px solid rgba(0,0,0,.04)';
       d.style.background = '#fff';
-      d.style.color = '#000';
-      d.addEventListener('click', () => { selectBreed(b); hideDropdown(); });
+
+      const left = document.createElement('div');
+      left.style.flex = '1';
+      left.style.color = '#000';
+      left.style.paddingRight = '12px';
+      left.style.userSelect = 'none';
+      left.textContent = b.title + (b.content ? ' — ' + b.content : '');
+      left.addEventListener('click', () => { selectBreed(b); hideDropdown(); });
+
+      const actions = document.createElement('div');
+      actions.style.display = 'flex';
+      actions.style.gap = '6px';
+
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.title = 'Edit';
+      editBtn.style.padding = '6px 8px';
+      editBtn.style.borderRadius = '6px';
+      editBtn.style.border = '1px solid rgba(0,0,0,.06)';
+      editBtn.style.background = 'transparent';
+      editBtn.style.cursor = 'pointer';
+      editBtn.style.fontSize = '13px';
+      editBtn.textContent = 'Edit';
+      editBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        // open modal to edit this breed
+        modal.style.display = 'flex';
+        modalTitle.value = b.title || '';
+        modalContent.value = b.content || '';
+        modal.dataset.editId = b.id;
+      });
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.title = 'Delete';
+      delBtn.style.padding = '6px 8px';
+      delBtn.style.borderRadius = '6px';
+      delBtn.style.border = '1px solid rgba(0,0,0,.06)';
+      delBtn.style.background = '#fee2e2';
+      delBtn.style.cursor = 'pointer';
+      delBtn.style.fontSize = '13px';
+      delBtn.textContent = 'Delete';
+      delBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (!confirm('Delete this breed? This cannot be undone.')) return;
+        delBtn.disabled = true; delBtn.textContent = 'Deleting...';
+        fetch(deleteUrlBase + '/' + b.id, { method: 'POST' })
+          .then(r => r.json()).then(j => {
+            if (j && j.ok) {
+              // remove from local list and refresh dropdown
+              breeds = breeds.filter(x => String(x.id) !== String(b.id));
+              const items = filterBreeds(input.value || '');
+              renderDropdown(items);
+              clearSelection();
+            } else {
+              alert('Delete failed: ' + (j && j.error ? j.error : JSON.stringify(j)));
+            }
+          }).catch(err => { alert('Delete failed: ' + err); }).finally(()=>{ delBtn.disabled = false; delBtn.textContent = 'Delete'; });
+      });
+
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
+
+      d.appendChild(left);
+      d.appendChild(actions);
       d.addEventListener('mouseenter', () => { d.style.background = '#f3f4f6'; });
       d.addEventListener('mouseleave', () => { d.style.background = '#fff'; });
       dropdown.appendChild(d);
@@ -707,7 +772,14 @@ document.addEventListener('DOMContentLoaded', () => {
   function loadBreeds() {
     fetch(listUrl).then(r => r.json()).then(j => {
       if (j && j.ok) {
-        breeds = j.breeds || [];
+        // Ensure client-side alphabetical order (case-insensitive)
+        breeds = (j.breeds || []).slice().sort((a, b) => {
+          const A = (a.title || '').toLowerCase();
+          const B = (b.title || '').toLowerCase();
+          if (A < B) return -1;
+          if (A > B) return 1;
+          return 0;
+        });
       } else {
         breeds = [];
       }
