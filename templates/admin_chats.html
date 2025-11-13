@@ -99,9 +99,9 @@
           const disp = c.display_status || c.status;
           if(disp === 'open'){
             out += '<td style="padding:12px 16px"><span class="chat-badge waiting">Waiting</span></td>';
-          } else if(disp === 'idle'){
+          } else if(disp === 'ended'){
             const ago = c.age_minutes ? Math.round(c.age_minutes/60) + 'h ago' : '';
-            out += '<td style="padding:12px 16px"><span class="chat-badge idle">Idle'+(ago ? ' • '+ago : '')+'</span></td>';
+            out += '<td style="padding:12px 16px"><span class="chat-badge ended">Ended'+(ago ? ' • '+ago : '')+'</span></td>';
           } else if(disp === 'closed'){
             out += '<td style="padding:12px 16px"><span class="chat-badge closed">Closed</span></td>';
           } else {

@@ -2119,7 +2119,7 @@ def admin_chats():
                     age_minutes = None
             display_status = r.status
             if r.status == 'open' and stale:
-                display_status = 'idle'
+                display_status = 'ended'
             chats.append(dict(id=r.id, sid=r.sid, name=r.name or '', status=r.status, display_status=display_status, stale=stale, age_minutes=age_minutes, created_at=r.created_at, last_activity=r.last_activity))
     return render_template('admin_chats.html', chats=chats)
 
@@ -2155,7 +2155,7 @@ def admin_chats_list_json():
                     age_minutes = None
             display_status = r.status
             if r.status == 'open' and stale:
-                display_status = 'idle'
+                display_status = 'ended'
             chats.append(dict(id=r.id, sid=r.sid, name=r.name or '', status=r.status, display_status=display_status, stale=stale, age_minutes=age_minutes, created_at=r.created_at, last_activity=r.last_activity))
     return jsonify({'ok': True, 'chats': chats})
 
