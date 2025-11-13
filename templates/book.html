@@ -366,10 +366,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const container = document.getElementById('breeds-container');
 
   // Fetch breeds from the JSON endpoint to avoid template-to-JS injection
-  fetch('{{ url_for("book_breeds_json") }}')
+      fetch('{{ url_for("book_breeds_json") }}')
     .then(r => r.json())
     .then(data => {
-      const breeds = (data && data.breeds) ? data.breeds : [];
+      let breeds = (data && data.breeds) ? data.breeds : [];
+      // Defensive client-side sort: ensure alphabetical order (case-insensitive) regardless of server ordering
+      try {
+        breeds = breeds.slice().sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+      } catch (e) {
+        // ignore sort errors and use original order
+      }
 
       function buildBreedSelect(index, selected) {
         const label = document.createElement('label');
