@@ -2144,6 +2144,14 @@ def admin_settings_load():
         snap_id = int(snap_id) if snap_id else None
     except Exception:
         snap_id = None
+    # Create a safety backup snapshot before applying a load so admins can recover if needed
+    try:
+        from datetime import datetime
+        backup_name = f"pre-load-backup-{datetime.utcnow().isoformat()}"
+        create_settings_snapshot(name=backup_name)
+    except Exception:
+        # If backup fails, continue to attempt apply (do not block load)
+        pass
     res = apply_settings_snapshot(snapshot_id=snap_id)
     return jsonify(res)
 
