@@ -820,7 +820,11 @@ def fetch_breeds():
                 name = (r.title or r.content or r.key or '').strip()
                 if name:
                     breeds.append(name)
-            return breeds
+            # Return a case-insensitive alphabetical list for booking UI convenience
+            try:
+                return sorted(breeds, key=lambda s: s.lower())
+            except Exception:
+                return breeds
     except Exception:
         return []
 
