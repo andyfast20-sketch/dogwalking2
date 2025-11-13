@@ -426,6 +426,18 @@ def book():
     return render_template('book.html', slots=slots, success=success, ip=ip_address, service_areas=service_areas, breeds=breeds)
 
 
+@app.get('/book/breeds.json')
+def book_breeds_json():
+    """Return a JSON list of allowed breed names for the booking form.
+    The admin template expects url_for('book_breeds_json') to exist; provide a safe, read-only endpoint.
+    """
+    try:
+        breeds = fetch_breeds()
+    except Exception:
+        breeds = []
+    return jsonify({'ok': True, 'breeds': breeds})
+
+
 """Persistence layer
 Chooses Postgres (if DATABASE_URL env var is set) otherwise falls back to local SQLite.
 Uses SQLAlchemy Core for portability and minimal overhead.
