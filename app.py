@@ -2970,7 +2970,7 @@ def admin_breeds_ai_update():
         try:
             if openai_client:
                 resp = openai_client.chat.completions.create(
-                    model=(get_site_setting('OPENAI_MODEL') or 'gpt-4o-mini'),
+                    model=(get_site_setting('OPENAI_MODEL') or 'gpt-3.5-turbo'),
                     messages=[{"role": "system", "content": ai_instruction}, {"role": "user", "content": prompt}],
                     max_tokens=400,
                     temperature=0.2,
@@ -2983,7 +2983,7 @@ def admin_breeds_ai_update():
                     return True
             if requests:
                 api_key = key
-                payload = {'model': (get_site_setting('OPENAI_MODEL') or 'gpt-4o-mini'), 'messages': [{"role": "system", "content": ai_instruction}, {"role": "user", "content": prompt}], 'max_tokens': 400, 'temperature': 0.2}
+                payload = {'model': (get_site_setting('OPENAI_MODEL') or 'gpt-3.5-turbo'), 'messages': [{"role": "system", "content": ai_instruction}, {"role": "user", "content": prompt}], 'max_tokens': 400, 'temperature': 0.2}
                 headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
                 r = requests.post('https://api.openai.com/v1/chat/completions', json=payload, headers=headers, timeout=15)
                 if r.status_code == 200:
@@ -3006,7 +3006,7 @@ def admin_breeds_ai_update():
         if not key or not requests:
             return False
         endpoints = ['https://api.deepseek.com/v1/chat/completions', 'https://api.deepseek.com/v1/responses']
-        model = get_site_setting('DEEPSEEK_MODEL') or get_site_setting('OPENAI_MODEL') or 'gpt-4o-mini'
+        model = get_site_setting('DEEPSEEK_MODEL') or get_site_setting('OPENAI_MODEL') or 'gpt-3.5-turbo'
         headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
         for url in endpoints:
             try:
@@ -3060,6 +3060,16 @@ def admin_breeds_ai_update():
     if not ai_result_text and gemini_key:
         tried.append('gemini')
         _try_gemini_api(gemini_key)
+
+    # If no reply, attach diagnostics for admin visibility (which providers tried, and a short note).
+    if not ai_result_text:
+        try:
+            diagnostics = {
+                'tried': tried,
+                'note': 'No AI response generated; check provider keys, model availability and any API error messages (see admin AI test).' 
+            }
+        except Exception:
+            diagnostics = {'tried': tried}
 
     # If AI returned text, try to parse JSON; otherwise fallback to heuristic parse
     if ai_result_text:
