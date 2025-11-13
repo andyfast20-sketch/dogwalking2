@@ -13,3 +13,6 @@ venv/
 # Mac/Windows
 .DS_Store
 Thumbs.db
+
+enquiries.db
+*.db
