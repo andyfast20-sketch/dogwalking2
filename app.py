@@ -1,75 +1,6 @@
-def chat_send():
-    init_db()
-    # Refresh AI clients at the start of handling a send so admin-saved keys are picked up
-    try:
-        refresh_ai_clients()
-    except Exception:
-        pass
-    chat_id = request.form.get('chat_id') or (request.get_json(silent=True) or {}).get('chat_id')
-    message = request.form.get('message') or (request.get_json(silent=True) or {}).get('message')
-    sender = (request.form.get('sender') or (request.get_json(silent=True) or {}).get('sender') or 'user').lower()
-    if not chat_id or not message:
-        # Support preview mode: if form 'confirm' != '1' we only return parsed add/remove lists for preview
-        to_add = [n.strip() for n in (parsed.get('add', []) if isinstance(parsed, dict) else []) if (n or '').strip()]
-        to_remove = [n.strip() for n in (parsed.get('remove', []) if isinstance(parsed, dict) else []) if (n or '').strip()]
-
-        confirm = (request.form.get('confirm') == '1')
-        added = []
-        removed = []
-        if confirm:
-            init_db()
-            with engine.begin() as conn:
-                # Apply removes first
-                for name in to_remove:
-                    conn.execute(text("DELETE FROM site_content WHERE section='breeds' AND LOWER(title)=LOWER(:t)"), {"t": name})
-                    removed.append(name)
-
-                # Add new breeds (limit to prevent accidental huge insertions)
-                MAX_ADD = 50
-                if len(to_add) > MAX_ADD:
-                    # Truncate and record that we limited the additions
-                    to_add = to_add[:MAX_ADD]
-                for name in to_add:
-                    # check exists
-                    exists = conn.execute(text("SELECT id FROM site_content WHERE section='breeds' AND LOWER(title)=LOWER(:t)"), {"t": name}).fetchone()
-                    if exists:
-                        continue
-                    # create key
-                    key = name.lower().replace(' ', '-').replace("'", '').replace('"', '')
-                    max_order = conn.execute(text("SELECT MAX(sort_order) FROM site_content WHERE section='breeds'" )).scalar() or 0
-                    conn.execute(text("INSERT INTO site_content (section, key, title, price, content, sort_order) VALUES ('breeds', :key, :title, '', '', :order)"), {"key": key, "title": name, "order": max_order + 1})
-                    added.append(name)
-
-        # Return preview or commit summary
-        return jsonify({'ok': True, 'preview': not confirm, 'proposed_add': to_add, 'proposed_remove': to_remove, 'added': added, 'removed': removed, 'raw': reply_text})
-
-
-    @app.route('/book/breeds.json')
-    def book_breeds_json():
-        """Return the list of breed names as JSON for client-side consumption."""
-        try:
-            breeds = fetch_breeds()
-            return jsonify({'ok': True, 'breeds': breeds})
-        except Exception as e:
-            return jsonify({'ok': False, 'error': str(e)[:200]}), 500
-                    # Fetch a bit of chat context for the payload
-                    chat_row = conn.execute(text("SELECT sid, name FROM chats WHERE id=:cid"), {"cid": int(chat_id)}).fetchone()
-                    payload_obj = {
-                        'excerpt': (message or '')[:180],
-                        'sid': getattr(chat_row, 'sid', None) if chat_row else None,
-                        'name': getattr(chat_row, 'name', None) if chat_row else None,
-                    }
-                    conn.execute(text("INSERT INTO admin_notifications (type, chat_id, message_id, payload, created_at, seen) VALUES ('new_user_message', :cid, NULL, :payload, :t, 0)"), {"cid": int(chat_id), "payload": json.dumps(payload_obj, default=str), "t": now})
-                except Exception:
-                    # Swallow notification failures to avoid impacting chat flow
-                    pass
-        except Exception as e:
-            # Log error and guarantee fallback message
-            err_msg = f"(Autopilot error: {str(e)[:120]})"
-            conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": chat_id, "m": err_msg, "t": datetime.utcnow().isoformat()})
-            fallback = "Sorry, there was a technical issue. I'm Andy's assistant. Could you share your dog's breed, age, and preferred walk times?"
-            conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :m, :t)"), {"cid": chat_id, "m": fallback, "t": datetime.utcnow().isoformat()})
-    return jsonify({"ok": True})
+# chat_send route is defined below (after imports and app creation) to avoid indentation/import order issues.
+# The original top-of-file definition caused an IndentationError in some environments; a clean
+# decorated definition appears after app = Flask(__name__).
 from flask import Flask, render_template, request, redirect, url_for, abort, Response, jsonify
 import sqlite3
 import os
@@ -252,8 +183,65 @@ except Exception:
     deepseek_client = None
 
 app = Flask(__name__)
-# Register chat_send route after app is created so decorators don't run before app exists
-app.post('/chat/send')(chat_send)
+@app.post('/chat/send')
+def chat_send():
+    init_db()
+    # Refresh AI clients at the start of handling a send so admin-saved keys are picked up
+    try:
+        refresh_ai_clients()
+    except Exception:
+        pass
+    chat_id = request.form.get('chat_id') or (request.get_json(silent=True) or {}).get('chat_id')
+    message = request.form.get('message') or (request.get_json(silent=True) or {}).get('message')
+    sender = (request.form.get('sender') or (request.get_json(silent=True) or {}).get('sender') or 'user').lower()
+    if not chat_id or not message:
+        abort(400)
+    # Only allow 'admin' sender if authenticated
+    if sender == 'admin':
+        auth_ok = require_admin()
+        if isinstance(auth_ok, Response):
+            return auth_ok
+    else:
+        sender = 'user'
+    now = datetime.utcnow().isoformat()
+    with engine.begin() as conn:
+        try:
+            conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, :s, :m, :t)"), {"cid": int(chat_id), "s": sender, "m": message.strip()[:2000], "t": now})
+            conn.execute(text("UPDATE chats SET last_activity=:t WHERE id=:cid"), {"cid": int(chat_id), "t": now})
+            autopilot_on = get_autopilot_enabled()
+            if sender == 'user' and autopilot_on:
+                # Insert a short system typing indicator, then delegate to the centralized HTTP-first autopilot helper.
+                conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": "[AI is responding...]", "t": datetime.utcnow().isoformat()})
+                try:
+                    autopilot_entry = _maybe_send_autopilot_reply_db(conn, int(chat_id))
+                    if not autopilot_entry:
+                        # No AI reply — insert a friendly fallback from admin
+                        fallback = "Thanks for your message! I'm Andy's assistant. Could you please share your dog's breed, age, and your preferred walk times?"
+                        conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :m, :t)"), {"cid": int(chat_id), "m": fallback, "t": datetime.utcnow().isoformat()})
+                except Exception as e:
+                    conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": int(chat_id), "m": f"(Autopilot error: {str(e)[:120]})", "t": datetime.utcnow().isoformat()})
+            elif sender == 'user' and not autopilot_on:
+                # Autopilot is off: do not insert repetitive system messages for every user message.
+                # Instead, create a lightweight admin notification so admin pages can alert staff.
+                try:
+                    # Fetch a bit of chat context for the payload
+                    chat_row = conn.execute(text("SELECT sid, name FROM chats WHERE id=:cid"), {"cid": int(chat_id)}).fetchone()
+                    payload_obj = {
+                        'excerpt': (message or '')[:180],
+                        'sid': getattr(chat_row, 'sid', None) if chat_row else None,
+                        'name': getattr(chat_row, 'name', None) if chat_row else None,
+                    }
+                    conn.execute(text("INSERT INTO admin_notifications (type, chat_id, message_id, payload, created_at, seen) VALUES ('new_user_message', :cid, NULL, :payload, :t, 0)"), {"cid": int(chat_id), "payload": json.dumps(payload_obj, default=str), "t": now})
+                except Exception:
+                    # Swallow notification failures to avoid impacting chat flow
+                    pass
+        except Exception as e:
+            # Log error and guarantee fallback message
+            err_msg = f"(Autopilot error: {str(e)[:120]})"
+            conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'system', :m, :t)"), {"cid": chat_id, "m": err_msg, "t": datetime.utcnow().isoformat()})
+            fallback = "Sorry, there was a technical issue. I'm Andy's assistant. Could you share your dog's breed, age, and preferred walk times?"
+            conn.execute(text("INSERT INTO chat_messages (chat_id, sender, message, created_at) VALUES (:cid, 'admin', :m, :t)"), {"cid": chat_id, "m": fallback, "t": datetime.utcnow().isoformat()})
+    return jsonify({"ok": True})
 
 @app.context_processor
 def inject_globals():
