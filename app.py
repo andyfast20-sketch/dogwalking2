@@ -2368,6 +2368,8 @@ def admin_content():
     # Last AI test result (for quick visibility)
     ai_test_result = get_site_setting('ai_test_result')
     notif_sound = (get_site_setting('admin_notifications_sound') == 'true')
+    # Provide full breed rows for admin editing
+    breeds = fetch_breed_rows()
     return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, autopilot_enabled=autopilot, hero_imgs=hero_imgs, meet_andy=meet_andy, contact_info=contact_info, service_areas=service_areas, homepage_sections=homepage_sections, business_description=business_desc, ai_keys=ai_keys, ai_test_result=ai_test_result, autopilot_provider=autopilot_provider, admin_notifications_sound=notif_sound, breeds=breeds)
 
 @app.post('/admin/content/service/<int:service_id>')
