@@ -67,6 +67,12 @@
     <h2>Website Settings</h2>
     <p>Edit services, pricing, and page content.</p>
   </div>
+  
+  <div class="admin-card" onclick="showSection('settings')">
+    <div class="admin-card-icon">💾</div>
+    <h2>Settings Snapshots</h2>
+    <p>Save and load site settings (hero images, breeds, content).</p>
+  </div>
 </div>
 
 <!-- Live Chats Section -->
@@ -203,7 +209,8 @@ async function showSection(name){
     else if(name==='bookings') url='/admin/bookings';
     else if(name==='visitors') url='/admin/visitors';
     else if(name==='ip-management') url='/admin/ip-management';
-    else if(name==='content') url='/admin/content';
+  else if(name==='content') url='/admin/content';
+  else if(name==='settings') url='/admin/settings';
     
     const r = await fetch(url);
     const html = await r.text();
