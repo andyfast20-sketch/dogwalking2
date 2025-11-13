@@ -2409,7 +2409,7 @@ def admin_content_update(service_id: int):
             "UPDATE site_content SET title=:title, price=:price, content=:content WHERE id=:id"
         ), {"title": title, "price": price, "content": content, "id": service_id})
     
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#services-list')
 
 @app.post('/admin/content/hero-images')
 def admin_hero_images_update():
@@ -2423,7 +2423,7 @@ def admin_hero_images_update():
         if url:  # Only update if URL is provided
             set_hero_image(key, url)
     
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#hero-images')
 
 @app.post('/admin/content/meet-andy')
 def admin_meet_andy_update():
@@ -2444,7 +2444,7 @@ def admin_meet_andy_update():
     
     update_meet_andy(data)
     
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#meet-andy')
 
 @app.post('/admin/content/contact')
 def admin_contact_update():
@@ -2475,7 +2475,7 @@ def admin_contact_update():
             "UPDATE site_content SET content=:content WHERE section='contact' AND key='email'"
         ), {"content": email})
     
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#contact')
 
 @app.post('/admin/content/maintenance-mode')
 def admin_maintenance_toggle():
@@ -2486,7 +2486,7 @@ def admin_maintenance_toggle():
     enabled = request.form.get('enabled') == 'true'
     set_maintenance_mode(enabled)
     
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#maintenance')
 
 @app.post('/admin/content/chat-autopilot')
 def admin_chat_autopilot_toggle():
@@ -2495,7 +2495,7 @@ def admin_chat_autopilot_toggle():
         return auth_result
     enabled = request.form.get('enabled') == 'true'
     set_autopilot_enabled(enabled)
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#chat-autopilot')
 
 
 @app.post('/admin/content/business-description')
@@ -2505,7 +2505,7 @@ def admin_business_description_update():
         return auth_result
     desc = (request.form.get('business_description') or '').strip()
     set_business_description(desc)
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#business-description')
 
 
 @app.post('/admin/content/api-keys')
@@ -2544,8 +2544,8 @@ def admin_api_keys_update():
         # Clear if empty
         set_site_setting('AUTOPILOT_PROVIDER', '')
 
-    # Preserve previous page
-    return redirect(url_for('admin_content'))
+    # Preserve previous page (jump back to API keys block)
+    return redirect(url_for('admin_content') + '#api-keys')
 
 
 @app.post('/admin/content/notifications-sound')
@@ -2555,7 +2555,7 @@ def admin_notifications_sound_toggle():
         return auth_result
     enabled = request.form.get('enabled') == 'true'
     set_site_setting('admin_notifications_sound', 'true' if enabled else 'false')
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#notifications-sound')
 
     # Refresh runtime clients so changes take effect immediately
     try:
@@ -2563,7 +2563,7 @@ def admin_notifications_sound_toggle():
     except Exception:
         pass
 
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#dog-breeds')
 
 
 @app.post('/admin/content/api-test')
@@ -2576,7 +2576,7 @@ def admin_api_test():
     prompt = (request.form.get('prompt') or '').strip()
     if not prompt:
         set_site_setting('ai_test_result', 'No prompt provided.')
-        return redirect(url_for('admin_content'))
+        return redirect(url_for('admin_content') + '#ai-test')
 
     result = None
     diagnostics = []
@@ -2758,7 +2758,7 @@ def admin_api_test():
 
     # Persist the last test result for visibility
     set_site_setting('ai_test_result', result)
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#ai-test')
 
 @app.post('/admin/service-areas/add')
 def admin_service_area_add():
@@ -2778,7 +2778,7 @@ def admin_service_area_add():
             "INSERT INTO service_areas (name, sort_order) VALUES (:name, :order)"
         ), {"name": name, "order": max_order + 1})
     
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#service-areas')
 
 @app.post('/admin/service-areas/update/<int:area_id>')
 def admin_service_area_update(area_id: int):
@@ -2796,7 +2796,7 @@ def admin_service_area_update(area_id: int):
             "UPDATE service_areas SET name=:name WHERE id=:id"
         ), {"name": name, "id": area_id})
     
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#service-areas')
 
 @app.post('/admin/service-areas/delete/<int:area_id>')
 def admin_service_area_delete(area_id: int):
@@ -2808,7 +2808,7 @@ def admin_service_area_delete(area_id: int):
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM service_areas WHERE id=:id"), {"id": area_id})
     
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#service-areas')
 
 
 @app.post('/admin/breeds/ai_update')
@@ -2889,166 +2889,161 @@ def admin_breeds_ai_update():
     proposed_add = []
     proposed_remove = []
 
-    if not confirm:
-        ai_result_text = None
-        # Build a strict instruction that asks for JSON output to simplify parsing
-        ai_instruction = (
-            "You are a website admin assistant for a dog-walking site. "
-            "Given the administrator instruction below, respond ONLY with a JSON object containing two arrays: \"add\" and \"remove\". "
-            "Each array should contain breed names (strings). Example: {\"add\": [\"Labrador\"], \"remove\": [\"Pitbull\"]}.\n\n"
-            f"Instruction: {prompt}"
-        )
+    # We'll attempt the same proposal computation for both preview and apply so the server
+    # always derives the same proposed_add/proposed_remove from the provided prompt.
+    ai_result_text = None
+    # Build a strict instruction that asks for JSON output to simplify parsing
+    ai_instruction = (
+        "You are a website admin assistant for a dog-walking site. "
+        "Given the administrator instruction below, respond ONLY with a JSON object containing two arrays: \"add\" and \"remove\". "
+        "Each array should contain breed names (strings). Example: {\"add\": [\"Labrador\"], \"remove\": [\"Pitbull\"]}.\n\n"
+        f"Instruction: {prompt}"
+    )
 
-        # Choose provider order: DeepSeek if present, else OpenAI, else Gemini
-        openai_key = get_site_setting('OPENAI_API_KEY') or os.environ.get('OPENAI_API_KEY') or globals().get('OPENAI_API_KEY') or ''
-        ds_key = get_site_setting('DEEPSEEK_API_KEY') or globals().get('DEEPSEEK_API_KEY') or ''
-        gemini_key = get_site_setting('GEMINI_API_KEY') or globals().get('GEMINI_API_KEY') or ''
+    # Choose provider order: DeepSeek if present, else OpenAI, else Gemini
+    openai_key = get_site_setting('OPENAI_API_KEY') or os.environ.get('OPENAI_API_KEY') or globals().get('OPENAI_API_KEY') or ''
+    ds_key = get_site_setting('DEEPSEEK_API_KEY') or globals().get('DEEPSEEK_API_KEY') or ''
+    gemini_key = get_site_setting('GEMINI_API_KEY') or globals().get('GEMINI_API_KEY') or ''
 
-        tried = []
-        # Try DeepSeek/OpenAI-compatible endpoints via HTTP if keys present (works with OpenAI-compatible DeepSeek)
+    tried = []
+    try:
+        import requests
+    except Exception:
+        requests = None
+
+    def _try_openai_api(key):
+        nonlocal ai_result_text
+        if not key:
+            return False
         try:
-            import requests
-        except Exception:
-            requests = None
-
-        def _try_openai_api(key):
-            nonlocal ai_result_text
-            if not key:
-                return False
-            # Prefer SDK client when available
-            try:
-                if openai_client:
-                    resp = openai_client.chat.completions.create(
-                        model=(get_site_setting('OPENAI_MODEL') or 'gpt-4o-mini'),
-                        messages=[{"role": "system", "content": ai_instruction}, {"role": "user", "content": prompt}],
-                        max_tokens=400,
-                        temperature=0.2,
-                    )
-                    if resp and getattr(resp, 'choices', None):
-                        try:
-                            ai_result_text = resp.choices[0].message.content
-                        except Exception:
-                            ai_result_text = getattr(resp.choices[0], 'text', str(resp))
-                        return True
-                # Fallback to HTTP REST call
-                if requests:
-                    api_key = key
-                    payload = {'model': (get_site_setting('OPENAI_MODEL') or 'gpt-4o-mini'), 'messages': [{"role": "system", "content": ai_instruction}, {"role": "user", "content": prompt}], 'max_tokens': 400, 'temperature': 0.2}
-                    headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
-                    r = requests.post('https://api.openai.com/v1/chat/completions', json=payload, headers=headers, timeout=15)
-                    if r.status_code == 200:
-                        try:
-                            j = r.json()
-                            if j.get('choices'):
-                                try:
-                                    ai_result_text = j['choices'][0]['message']['content']
-                                except Exception:
-                                    ai_result_text = j['choices'][0].get('text') or str(j)
-                                return True
-                        except Exception:
-                            pass
-            except Exception:
-                pass
-            return False
-
-        def _try_deepseek_api(key):
-            nonlocal ai_result_text
-            if not key or not requests:
-                return False
-            endpoints = ['https://api.deepseek.com/v1/chat/completions', 'https://api.deepseek.com/v1/responses']
-            model = get_site_setting('DEEPSEEK_MODEL') or get_site_setting('OPENAI_MODEL') or 'gpt-4o-mini'
-            headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
-            for url in endpoints:
-                try:
-                    payload = {'model': model, 'messages': [{"role": "system", "content": ai_instruction}, {"role": "user", "content": prompt}], 'max_tokens': 400, 'temperature': 0.2}
-                    r = requests.post(url, json=payload, headers=headers, timeout=12)
-                except Exception:
-                    continue
-                if r.status_code != 200:
-                    continue
-                try:
-                    j = r.json()
-                except Exception:
-                    ai_result_text = (r.text or '').strip()
-                    return True
-                if isinstance(j, dict):
-                    if j.get('choices'):
-                        try:
-                            ai_result_text = j['choices'][0]['message']['content']
-                        except Exception:
-                            ai_result_text = j['choices'][0].get('text') or str(j)
-                        return True
-                    # response-style
-                    if j.get('output') or j.get('output_text'):
-                        ai_result_text = j.get('output') or j.get('output_text')
-                        return True
-            return False
-
-        def _try_gemini_api(key):
-            nonlocal ai_result_text
-            if not key or not globals().get('genai'):
-                return False
-            try:
-                model_obj = genai.GenerativeModel('gemini-1.5-mini')
-                r = model_obj.generate_content(ai_instruction)
-                ai_result_text = getattr(r, 'text', None)
-                if not ai_result_text and getattr(r, 'candidates', None):
+            if openai_client:
+                resp = openai_client.chat.completions.create(
+                    model=(get_site_setting('OPENAI_MODEL') or 'gpt-4o-mini'),
+                    messages=[{"role": "system", "content": ai_instruction}, {"role": "user", "content": prompt}],
+                    max_tokens=400,
+                    temperature=0.2,
+                )
+                if resp and getattr(resp, 'choices', None):
                     try:
-                        ai_result_text = r.candidates[0].content.parts[0].text
+                        ai_result_text = resp.choices[0].message.content
                     except Exception:
-                        ai_result_text = None
-                return bool(ai_result_text)
-            except Exception:
-                return False
-
-        # Try providers in order
-        if ds_key:
-            tried.append('deepseek')
-            _try_deepseek_api(ds_key)
-        if not ai_result_text and openai_key:
-            tried.append('openai')
-            _try_openai_api(openai_key)
-        if not ai_result_text and gemini_key:
-            tried.append('gemini')
-            _try_gemini_api(gemini_key)
-
-        # If AI returned text, try to parse JSON; otherwise fallback to heuristic parse
-        if ai_result_text:
-            try:
-                # Try to locate JSON object in the response
-                import re
-                import json as _json
-                m = re.search(r"\{[\s\S]*\}", ai_result_text)
-                if m:
-                    j = _json.loads(m.group(0))
-                    adds = j.get('add') or j.get('adds') or j.get('proposed_add') or []
-                    removes = j.get('remove') or j.get('removes') or j.get('proposed_remove') or []
-                    # Normalize lists
-                    def _norm(lst):
-                        out = []
-                        for it in lst or []:
+                        ai_result_text = getattr(resp.choices[0], 'text', str(resp))
+                    return True
+            if requests:
+                api_key = key
+                payload = {'model': (get_site_setting('OPENAI_MODEL') or 'gpt-4o-mini'), 'messages': [{"role": "system", "content": ai_instruction}, {"role": "user", "content": prompt}], 'max_tokens': 400, 'temperature': 0.2}
+                headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
+                r = requests.post('https://api.openai.com/v1/chat/completions', json=payload, headers=headers, timeout=15)
+                if r.status_code == 200:
+                    try:
+                        j = r.json()
+                        if j.get('choices'):
                             try:
-                                s = str(it).strip()
+                                ai_result_text = j['choices'][0]['message']['content']
                             except Exception:
-                                continue
-                            if s:
-                                out.append(s)
-                        return out
-                    proposed_add = _norm(adds)
-                    proposed_remove = _norm(removes)
-                else:
-                    # No JSON found - try to parse plain text for add/remove lines
-                    adds, removes = _parse_prompt(ai_result_text)
-                    proposed_add = adds
-                    proposed_remove = removes
+                                ai_result_text = j['choices'][0].get('text') or str(j)
+                            return True
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        return False
+
+    def _try_deepseek_api(key):
+        nonlocal ai_result_text
+        if not key or not requests:
+            return False
+        endpoints = ['https://api.deepseek.com/v1/chat/completions', 'https://api.deepseek.com/v1/responses']
+        model = get_site_setting('DEEPSEEK_MODEL') or get_site_setting('OPENAI_MODEL') or 'gpt-4o-mini'
+        headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
+        for url in endpoints:
+            try:
+                payload = {'model': model, 'messages': [{"role": "system", "content": ai_instruction}, {"role": "user", "content": prompt}], 'max_tokens': 400, 'temperature': 0.2}
+                r = requests.post(url, json=payload, headers=headers, timeout=12)
             except Exception:
-                proposed_add, proposed_remove = _parse_prompt(ai_result_text or prompt)
+                continue
+            if r.status_code != 200:
+                continue
+            try:
+                j = r.json()
+            except Exception:
+                ai_result_text = (r.text or '').strip()
+                return True
+            if isinstance(j, dict):
+                if j.get('choices'):
+                    try:
+                        ai_result_text = j['choices'][0]['message']['content']
+                    except Exception:
+                        ai_result_text = j['choices'][0].get('text') or str(j)
+                    return True
+                if j.get('output') or j.get('output_text'):
+                    ai_result_text = j.get('output') or j.get('output_text')
+                    return True
+        return False
 
-        # If AI not used or returned nothing, fallback to heuristic parsing of the original prompt
-        if not proposed_add and not proposed_remove:
-            proposed_add, proposed_remove = _parse_prompt(prompt)
+    def _try_gemini_api(key):
+        nonlocal ai_result_text
+        if not key or not globals().get('genai'):
+            return False
+        try:
+            model_obj = genai.GenerativeModel('gemini-1.5-mini')
+            r = model_obj.generate_content(ai_instruction)
+            ai_result_text = getattr(r, 'text', None)
+            if not ai_result_text and getattr(r, 'candidates', None):
+                try:
+                    ai_result_text = r.candidates[0].content.parts[0].text
+                except Exception:
+                    ai_result_text = None
+            return bool(ai_result_text)
+        except Exception:
+            return False
 
-        raw = f"Proposed to add {len(proposed_add)} and remove {len(proposed_remove)} items."
+    # Try providers in order
+    if ds_key:
+        tried.append('deepseek')
+        _try_deepseek_api(ds_key)
+    if not ai_result_text and openai_key:
+        tried.append('openai')
+        _try_openai_api(openai_key)
+    if not ai_result_text and gemini_key:
+        tried.append('gemini')
+        _try_gemini_api(gemini_key)
+
+    # If AI returned text, try to parse JSON; otherwise fallback to heuristic parse
+    if ai_result_text:
+        try:
+            import re
+            import json as _json
+            m = re.search(r"\{[\s\S]*\}", ai_result_text)
+            if m:
+                j = _json.loads(m.group(0))
+                adds = j.get('add') or j.get('adds') or j.get('proposed_add') or []
+                removes = j.get('remove') or j.get('removes') or j.get('proposed_remove') or []
+                def _norm(lst):
+                    out = []
+                    for it in lst or []:
+                        try:
+                            s = str(it).strip()
+                        except Exception:
+                            continue
+                        if s:
+                            out.append(s)
+                    return out
+                proposed_add = _norm(adds)
+                proposed_remove = _norm(removes)
+            else:
+                adds, removes = _parse_prompt(ai_result_text)
+                proposed_add = adds
+                proposed_remove = removes
+        except Exception:
+            proposed_add, proposed_remove = _parse_prompt(ai_result_text or prompt)
+
+    # If AI not used or returned nothing, fallback to heuristic parsing of the original prompt
+    if not proposed_add and not proposed_remove:
+        proposed_add, proposed_remove = _parse_prompt(prompt)
+
+    raw = f"Proposed to add {len(proposed_add)} and remove {len(proposed_remove)} items."
+    if not confirm:
         return jsonify({'ok': True, 'raw': raw, 'proposed_add': proposed_add, 'proposed_remove': proposed_remove})
 
     # Confirmed apply: persist changes into site_content (section='breeds')
@@ -3107,7 +3102,7 @@ def admin_breed_add():
             "INSERT INTO site_content (section, key, title, price, content, sort_order) VALUES ('breeds', :key, :title, '', :content, :order)"
         ), {"key": key, "title": title, "content": content, "order": max_order + 1})
 
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#dog-breeds')
 
 
 @app.post('/admin/breeds/update/<int:breed_id>')
@@ -3125,7 +3120,7 @@ def admin_breed_update(breed_id: int):
     with engine.begin() as conn:
         conn.execute(text("UPDATE site_content SET title=:title, content=:content WHERE id=:id AND section='breeds'"), {"title": title, "content": content, "id": breed_id})
 
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#dog-breeds')
 
 
 @app.post('/admin/breeds/delete/<int:breed_id>')
@@ -3138,7 +3133,7 @@ def admin_breed_delete(breed_id: int):
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM site_content WHERE id=:id AND section='breeds'"), {"id": breed_id})
 
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#dog-breeds')
 
 @app.post('/admin/sections/move-up/<int:section_id>')
 def admin_section_move_up(section_id: int):
@@ -3147,7 +3142,7 @@ def admin_section_move_up(section_id: int):
         return auth_result
     
     move_section_up(section_id)
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#homepage-sections')
 
 @app.post('/admin/sections/move-down/<int:section_id>')
 def admin_section_move_down(section_id: int):
@@ -3156,7 +3151,7 @@ def admin_section_move_down(section_id: int):
         return auth_result
     
     move_section_down(section_id)
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#homepage-sections')
 
 @app.post('/admin/sections/toggle/<int:section_id>')
 def admin_section_toggle(section_id: int):
@@ -3165,7 +3160,7 @@ def admin_section_toggle(section_id: int):
         return auth_result
     
     toggle_section_visibility(section_id)
-    return redirect(url_for('admin_content'))
+    return redirect(url_for('admin_content') + '#homepage-sections')
 
 
 # ---------- Admin Booking Management ----------
