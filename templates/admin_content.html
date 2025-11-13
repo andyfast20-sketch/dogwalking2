@@ -407,6 +407,24 @@
         <button class="btn primary" type="submit" style="padding:10px 24px;font-weight:600">Add Breed</button>
       </form>
     </div>
+
+    <!-- AI-driven Breeds Update (Preview + Confirm) -->
+    <div id="ai-breeds-panel" style="background:linear-gradient(180deg,rgba(14,165,233,.04),rgba(14,165,233,.01));border:1px solid rgba(14,165,233,.08);border-radius:12px;padding:16px;margin-top:12px">
+      <h4 style="margin:0 0 12px;color:var(--text);font-size:1rem">AI Prompt (natural language)</h4>
+      <p style="margin:0 0 10px;color:var(--muted);font-size:.85rem">Type instructions like: "Add generally small companion breeds" or "Remove aggressive breeds". Click <strong>Run (Preview)</strong> to see proposed changes, then <strong>Apply Changes</strong> to commit them.</p>
+      <textarea id="ai-breeds-prompt" rows="3" placeholder="E.g. add small companion breeds, remove aggressive working breeds" style="width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:var(--text);font-size:.95rem"></textarea>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button id="ai-run-preview" class="btn" type="button" style="background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;padding:8px 16px;font-weight:700">Run (Preview)</button>
+        <button id="ai-apply" class="btn" type="button" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;padding:8px 16px;font-weight:700;display:none">Apply Changes</button>
+        <button id="ai-clear" class="btn" type="button" style="background:rgba(255,255,255,.04);padding:8px 12px;color:var(--muted)">Clear</button>
+      </div>
+
+      <div id="ai-breeds-result" style="margin-top:12px;display:none">
+        <h5 style="margin:0 0 8px;color:var(--text);font-size:.95rem">AI Result</h5>
+        <div id="ai-breeds-summary" style="background:rgba(0,0,0,.05);padding:12px;border-radius:8px;color:var(--muted);white-space:pre-wrap"></div>
+        <div id="ai-breeds-proposed" style="margin-top:8px;display:flex;gap:12px;flex-wrap:wrap"></div>
+      </div>
+    </div>
   </div>
   
   <!-- Homepage Section Order -->
@@ -518,4 +536,91 @@
     {% endfor %}
   </div>
 </section>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const runBtn = document.getElementById('ai-run-preview');
+  const applyBtn = document.getElementById('ai-apply');
+  const clearBtn = document.getElementById('ai-clear');
+  const promptEl = document.getElementById('ai-breeds-prompt');
+  const resultPanel = document.getElementById('ai-breeds-result');
+  const resultSummary = document.getElementById('ai-breeds-summary');
+  const resultProposed = document.getElementById('ai-breeds-proposed');
+
+  function showPreview(data) {
+    resultPanel.style.display = '';
+    resultSummary.textContent = (data.raw || '').slice(0, 300);
+    resultProposed.innerHTML = '';
+    const adds = data.proposed_add || [];
+    const removes = data.proposed_remove || [];
+    if (adds.length) {
+      const addBox = document.createElement('div');
+      addBox.style.padding = '8px'; addBox.style.borderRadius='8px'; addBox.style.background='rgba(16,185,129,.06)'; addBox.style.color='var(--text)';
+      addBox.innerHTML = `<strong>To add (${adds.length})</strong><br>${adds.join(', ')}`;
+      resultProposed.appendChild(addBox);
+    }
+    if (removes.length) {
+      const remBox = document.createElement('div');
+      remBox.style.padding = '8px'; remBox.style.borderRadius='8px'; remBox.style.background='rgba(239,68,68,.06)'; remBox.style.color='var(--text)';
+      remBox.innerHTML = `<strong>To remove (${removes.length})</strong><br>${removes.join(', ')}`;
+      resultProposed.appendChild(remBox);
+    }
+    // Show apply button when there is something to apply
+    if ((adds.length + removes.length) > 0) {
+      applyBtn.style.display = '';
+    } else {
+      applyBtn.style.display = 'none';
+    }
+  }
+
+  runBtn.addEventListener('click', () => {
+    const prompt = (promptEl.value || '').trim();
+    if (!prompt) return alert('Please enter a prompt.');
+    runBtn.disabled = true; runBtn.textContent = 'Running...';
+    const fd = new FormData(); fd.append('prompt', prompt);
+    fetch('{{ url_for("admin_breeds_ai_update") }}', { method: 'POST', body: fd })
+      .then(r => r.json())
+      .then(j => {
+        runBtn.disabled = false; runBtn.textContent = 'Run (Preview)';
+        if (!j || !j.ok) {
+          resultPanel.style.display = '';
+          resultSummary.textContent = j && j.raw ? j.raw : (j && j.error ? j.error : 'No result');
+          applyBtn.style.display = 'none';
+          return;
+        }
+        showPreview(j);
+      })
+      .catch(err => {
+        runBtn.disabled = false; runBtn.textContent = 'Run (Preview)';
+        alert('AI request failed: ' + err);
+      });
+  });
+
+  applyBtn.addEventListener('click', () => {
+    if (!confirm('Apply the proposed changes to the breeds list? This will modify the database.')) return;
+    applyBtn.disabled = true; applyBtn.textContent = 'Applying...';
+    const fd = new FormData(); fd.append('prompt', promptEl.value || ''); fd.append('confirm', '1');
+    fetch('{{ url_for("admin_breeds_ai_update") }}', { method: 'POST', body: fd })
+      .then(r => r.json())
+      .then(j => {
+        applyBtn.disabled = false; applyBtn.textContent = 'Apply Changes';
+        if (j && j.ok) {
+          // Reload the page to refresh the breeds list
+          window.location.reload();
+        } else {
+          alert('Apply failed: ' + (j && j.error ? j.error : JSON.stringify(j)));
+        }
+      })
+      .catch(err => {
+        applyBtn.disabled = false; applyBtn.textContent = 'Apply Changes';
+        alert('Apply request failed: ' + err);
+      });
+  });
+
+  clearBtn.addEventListener('click', () => {
+    promptEl.value = '';
+    resultPanel.style.display = 'none';
+    applyBtn.style.display = 'none';
+  });
+});
+</script>
 {% endblock %}

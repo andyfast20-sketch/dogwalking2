@@ -362,65 +362,75 @@ document.addEventListener('keydown', (e) => {
 
 // Dynamic breed selects based on number of dogs
 document.addEventListener('DOMContentLoaded', () => {
-  const breeds = {{ breeds|tojson }} || [];
   const numDogsEl = document.getElementById('num-dogs');
   const container = document.getElementById('breeds-container');
 
-  function buildBreedSelect(index, selected) {
-    const label = document.createElement('label');
-    label.style.display = 'flex';
-    label.style.flexDirection = 'column';
-    label.style.gap = '6px';
-    const strong = document.createElement('strong');
-    strong.style.color = 'var(--text)';
-    strong.style.fontSize = '0.95rem';
-    strong.textContent = index === 1 ? 'Dog breed/type *' : `Dog ${index} breed/type *`;
-    const sel = document.createElement('select');
-    sel.name = `breed_${index}`;
-    sel.className = 'breed-select';
-    sel.required = true;
-    sel.style.padding = '12px 14px';
-    sel.style.borderRadius = '10px';
-    sel.style.border = '1px solid rgba(255,255,255,.16)';
-    sel.style.background = 'rgba(255,255,255,.06)';
-    sel.style.color = 'var(--text)';
-    sel.style.fontSize = '0.95rem';
-    const empty = document.createElement('option'); empty.value = ''; empty.textContent = 'Select a breed...'; sel.appendChild(empty);
-    breeds.forEach(b => {
-      const o = document.createElement('option'); o.value = b; o.textContent = b; sel.appendChild(o);
+  // Fetch breeds from the JSON endpoint to avoid template-to-JS injection
+  fetch('{{ url_for("book_breeds_json") }}')
+    .then(r => r.json())
+    .then(data => {
+      const breeds = (data && data.breeds) ? data.breeds : [];
+
+      function buildBreedSelect(index, selected) {
+        const label = document.createElement('label');
+        label.style.display = 'flex';
+        label.style.flexDirection = 'column';
+        label.style.gap = '6px';
+        const strong = document.createElement('strong');
+        strong.style.color = 'var(--text)';
+        strong.style.fontSize = '0.95rem';
+        strong.textContent = index === 1 ? 'Dog breed/type *' : `Dog ${index} breed/type *`;
+        const sel = document.createElement('select');
+        sel.name = `breed_${index}`;
+        sel.className = 'breed-select';
+        sel.required = true;
+        sel.style.padding = '12px 14px';
+        sel.style.borderRadius = '10px';
+        sel.style.border = '1px solid rgba(255,255,255,.16)';
+        sel.style.background = 'rgba(255,255,255,.06)';
+        sel.style.color = 'var(--text)';
+        sel.style.fontSize = '0.95rem';
+        const empty = document.createElement('option'); empty.value = ''; empty.textContent = 'Select a breed...'; sel.appendChild(empty);
+        breeds.forEach(b => {
+          const o = document.createElement('option'); o.value = b; o.textContent = b; sel.appendChild(o);
+        });
+        if (selected) sel.value = selected;
+        label.appendChild(strong);
+        label.appendChild(sel);
+        return label;
+      }
+
+      function renderBreedFields(n) {
+        container.innerHTML = '';
+        for (let i = 1; i <= n; i++) {
+          container.appendChild(buildBreedSelect(i));
+        }
+      }
+
+      // Initialize based on default/select value
+      const initial = parseInt(numDogsEl.value || '1', 10) || 1;
+      renderBreedFields(initial);
+
+      numDogsEl.addEventListener('change', () => {
+        const val = parseInt(numDogsEl.value || '1', 10) || 1;
+        renderBreedFields(Math.min(5, Math.max(1, val)));
+      });
+
+      // If URL contains slot_id, auto-open that slot's modal
+      const params = new URLSearchParams(window.location.search);
+      const urlSlot = params.get('slot_id');
+      if (urlSlot) {
+        const btn = document.querySelector(`[data-slot-id='${urlSlot}']`);
+        if (btn) {
+          // wait a tick to ensure layout stable
+          setTimeout(() => openBookingModal(btn), 120);
+        }
+      }
+    })
+    .catch(err => {
+      console.error('Failed to load breeds list', err);
+      // fallback: keep the initial select in the template
     });
-    if (selected) sel.value = selected;
-    label.appendChild(strong);
-    label.appendChild(sel);
-    return label;
-  }
-
-  function renderBreedFields(n) {
-    container.innerHTML = '';
-    for (let i = 1; i <= n; i++) {
-      container.appendChild(buildBreedSelect(i));
-    }
-  }
-
-  // Initialize based on default/select value
-  const initial = parseInt(numDogsEl.value || '1', 10) || 1;
-  renderBreedFields(initial);
-
-  numDogsEl.addEventListener('change', () => {
-    const val = parseInt(numDogsEl.value || '1', 10) || 1;
-    renderBreedFields(Math.min(5, Math.max(1, val)));
-  });
-
-  // If URL contains slot_id, auto-open that slot's modal
-  const params = new URLSearchParams(window.location.search);
-  const urlSlot = params.get('slot_id');
-  if (urlSlot) {
-    const btn = document.querySelector(`[data-slot-id='${urlSlot}']`);
-    if (btn) {
-      // wait a tick to ensure layout stable
-      setTimeout(() => openBookingModal(btn), 120);
-    }
-  }
 });
 </script>
 
