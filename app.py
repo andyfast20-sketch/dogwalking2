@@ -2795,6 +2795,36 @@ def admin_service_area_delete(area_id: int):
     return redirect(url_for('admin_content'))
 
 
+@app.post('/admin/breeds/ai_update')
+def admin_breeds_ai_update():
+    """Lightweight AI preview/apply endpoint for breeds.
+    This provides a safe no-op preview so the admin template can call url_for() without
+    raising a BuildError when a full AI backend is not available.
+    """
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+
+    prompt = (request.form.get('prompt') or '').strip()
+    confirm = request.form.get('confirm')
+
+    # If no prompt provided, return a helpful error for the UI
+    if not prompt:
+        return jsonify({'ok': False, 'error': 'Please provide a prompt.'}), 400
+
+    # Preview mode (no confirm): return an informative, non-destructive preview
+    if not confirm:
+        return jsonify({
+            'ok': True,
+            'raw': 'AI preview currently not available in this environment. No changes proposed.',
+            'proposed_add': [],
+            'proposed_remove': []
+        })
+
+    # Confirmed apply: refuse/disable in this environment (safer than making DB changes unexpectedly)
+    return jsonify({'ok': False, 'error': 'Apply is disabled in this deployment.'}), 400
+
+
 @app.post('/admin/breeds/add')
 def admin_breed_add():
     """Add a new dog breed (stored in site_content with section='breeds')."""
