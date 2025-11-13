@@ -1,24 +1,33 @@
-{% extends 'base.html' %}
-
-{% block title %}Settings Snapshots{% endblock %}
-
-{% block content %}
-<div class="container">
-	<div style="max-width:900px;margin:20px auto;padding:16px;border:1px solid #e5e7eb;border-radius:8px;background:#fff">
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Admin Settings</title>
+	<style>
+		.panel{max-width:900px;margin:20px auto;padding:16px;border:1px solid #e5e7eb;border-radius:8px;background:#fff}
+		.row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+		button{padding:8px 12px;border-radius:6px;border:1px solid #d1d5db;background:#111;color:#fff;cursor:pointer}
+		button.secondary{background:#6b7280}
+		select,input[type=text]{padding:8px;border:1px solid #d1d5db;border-radius:6px}
+		pre{background:#f8fafc;padding:12px;border-radius:6px;border:1px solid #e6eef6}
+	</style>
+</head>
+<body>
+	<div class="panel">
 		<h2>Site Settings Snapshot</h2>
 		<p>Use Save to snapshot current editable settings (hero images, content, breeds, service areas, homepage order). Use Load to restore a previously saved snapshot. Loading will overwrite current site settings.</p>
 
-		<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-			<input id="snapshot-name" type="text" placeholder="Optional name for this snapshot" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;flex:1" />
-			<button id="save-btn" style="padding:8px 12px;border-radius:6px;border:1px solid #d1d5db;background:#111;color:#fff;cursor:pointer;margin-left:8px">Save</button>
-			<button id="save-latest-btn" style="padding:8px 12px;border-radius:6px;border:1px solid #d1d5db;background:#6b7280;color:#fff;cursor:pointer;margin-left:6px">Save (no name)</button>
+		<div class="row">
+			<input id="snapshot-name" type="text" placeholder="Optional name for this snapshot" />
+			<button id="save-btn">Save</button>
+			<button id="save-latest-btn" class="secondary">Save (no name)</button>
 		</div>
 
-		<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+		<div class="row">
 			<label for="snap-select">Saved snapshots:</label>
-			<select id="snap-select" style="padding:8px;border:1px solid #d1d5db;border-radius:6px;flex:1"></select>
-			<button id="load-btn" style="padding:8px 12px;border-radius:6px;border:1px solid #d1d5db;background:#111;color:#fff;cursor:pointer;margin-left:8px">Load selected</button>
-			<button id="load-latest-btn" style="padding:8px 12px;border-radius:6px;border:1px solid #d1d5db;background:#6b7280;color:#fff;cursor:pointer;margin-left:6px">Load latest</button>
+			<select id="snap-select"></select>
+			<button id="load-btn">Load selected</button>
+			<button id="load-latest-btn" class="secondary">Load latest</button>
 		</div>
 
 		<div id="status" style="margin-top:12px"></div>
@@ -29,27 +38,31 @@
 		<h3 style="margin-top:18px">Notes</h3>
 		<p>Loading a snapshot replaces site settings and content tables. It will also refresh in-memory AI keys so saved API keys are picked up. Bookings and enquiries are not modified.</p>
 	</div>
-</div>
 
-{% endblock %}
-
-{% block extra_js %}
-<script>
-	async function fetchSnapshots(){
-		const r = await fetch('/admin/settings/snapshots.json');
-		const j = await r.json();
-		const sel = document.getElementById('snap-select');
-		sel.innerHTML='';
-		if(j && j.snapshots){
-			j.snapshots.forEach(s=>{
-				const o = document.createElement('option');
-				o.value = s.id; o.textContent = `${s.id} — ${s.name || '(no name)'} — ${s.created_at}`;
-				sel.appendChild(o);
-			})
+	<script>
+		async function fetchSnapshots(){
+			const r = await fetch('/admin/settings/snapshots.json');
+			const j = await r.json();
+			const sel = document.getElementById('snap-select');
+			sel.innerHTML='';
+			if(j && j.snapshots){
+				j.snapshots.forEach(s=>{
+					const o = document.createElement('option');
+					o.value = s.id; o.textContent = `${s.id} — ${s.name || '(no name)'} — ${s.created_at}`;
+					sel.appendChild(o);
+				})
+			}
 		}
-	}
 
-	document.addEventListener('DOMContentLoaded', ()=>{
+		async function fetchHero(){
+			const r = await fetch('/');
+			// hero images are injected via context on the template side; alternatively call dedicated endpoint
+			try{
+				// Try calling the JSON helper by requesting admin page variables via /admin/settings (server injects hero_images?)
+				const resp = await fetch('/admin/settings');
+			}catch(e){}
+		}
+
 		document.getElementById('save-btn').addEventListener('click', async ()=>{
 			const name = document.getElementById('snapshot-name').value || null;
 			document.getElementById('status').textContent = 'Saving...';
@@ -84,9 +97,9 @@
 			else { document.getElementById('status').textContent = 'Load failed: ' + JSON.stringify(j); }
 		});
 
+		// Initialize list
 		fetchSnapshots();
-
-		// Render hero images preview if provided by context
+		// Render hero images preview if provided by global variable (injected by template context)
 		try{
 			const heroImages = {{ hero_images|tojson }};
 			const hdiv = document.getElementById('hero-list');
@@ -100,7 +113,7 @@
 				p.appendChild(img); p.appendChild(t); hdiv.appendChild(p);
 			}
 		}catch(e){ /* ignore if server-side not available */ }
-	});
-</script>
-{% endblock %}
+	</script>
+</body>
+</html>
 
