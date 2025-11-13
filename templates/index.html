@@ -34,6 +34,23 @@
     </div>
   </section>
 
+  {% if featured_slot %}
+  <section class="promo-banner" aria-live="polite">
+    <div class="container">
+      <div class="promo-card">
+        <div class="promo-icon">🐶</div>
+        <div class="promo-text">
+          <div class="promo-headline">Free slot available — would you like to book?</div>
+          <div class="promo-sub">We have a free slot on <strong>{{ featured_slot.date }}</strong> at <strong>{{ featured_slot.time }}</strong> — only <strong>{{ featured_slot.price or 'check price' }}</strong>.</div>
+        </div>
+        <div class="promo-cta">
+          <a class="btn primary" href="{{ url_for('book') }}?slot_id={{ featured_slot.id }}">Book this slot</a>
+        </div>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
   {# Dynamic Section Rendering #}
   {% for section in homepage_sections %}
     {% if section.enabled %}

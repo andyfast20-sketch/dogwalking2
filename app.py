@@ -284,7 +284,27 @@ def home():
         service_areas = fetch_service_areas()
         contact_info = get_contact_info()
         homepage_sections = fetch_homepage_sections()
-        return render_template('index.html', services=services, service_areas=service_areas, contact_info=contact_info, homepage_sections=homepage_sections)
+        # Optionally show a highlighted free slot randomly (1-10 roll). If roll==4 and slots exist,
+        # pass the earliest available slot as `featured_slot` to the template. If no slots or roll!=4,
+        # featured_slot will be None and nothing will display.
+        try:
+            import random
+            slots = fetch_booking_slots()
+            featured_slot = None
+            if slots:
+                roll = random.randint(1, 10)
+                if roll == 4:
+                    # pick the earliest available slot (first in list)
+                    s = slots[0]
+                    featured_slot = {
+                        'id': s.get('id'),
+                        'date': s.get('date'),
+                        'time': s.get('time'),
+                        'price': s.get('price') or ''
+                    }
+        except Exception:
+            featured_slot = None
+        return render_template('index.html', services=services, service_areas=service_areas, contact_info=contact_info, homepage_sections=homepage_sections, featured_slot=featured_slot)
     except Exception as e:
         import traceback
         error_msg = f"Error in home route: {str(e)}\n{traceback.format_exc()}"
@@ -328,9 +348,18 @@ def book():
         customer_name = request.form.get('name', '').strip()
         customer_email = request.form.get('email', '').strip()
         customer_phone = request.form.get('phone', '').strip()
-        dog_name = request.form.get('dog_name', '').strip()
-        dog_info = request.form.get('dog_info', '').strip()
-        service_type = request.form.get('service_type', '').strip()
+        location = request.form.get('location', '').strip()
+        num_dogs = request.form.get('num_dogs', '1').strip()
+        # Collect breeds: breed_1, breed_2, ... up to num_dogs
+        try:
+            num_dogs_i = int(num_dogs)
+        except Exception:
+            num_dogs_i = 1
+        breeds = []
+        for i in range(1, min(6, max(1, num_dogs_i)) + 1):
+            v = request.form.get(f'breed_{i}')
+            if v:
+                breeds.append(v.strip())
         message = request.form.get('message', '').strip()
         
         # Get IP address
@@ -338,20 +367,36 @@ def book():
         if ip_address and ',' in ip_address:
             ip_address = ip_address.split(',')[0].strip()
         
-        # Validation
-        if not all([slot_id, customer_name, customer_email, dog_name]):
+        # Validation: require slot, name, email, location and breed(s)
+        service_areas = fetch_service_areas()
+        area_names = [a['name'] for a in service_areas]
+        breeds_allowed = fetch_breeds()
+        if not slot_id or not customer_name or not customer_email or not location:
             slots = fetch_booking_slots()
-            return render_template('book.html', slots=slots, error="Please fill in all required fields.", form=request.form, ip=ip_address), 400
+            return render_template('book.html', slots=slots, error="Please fill in all required fields.", form=request.form, ip=ip_address, service_areas=service_areas, breeds=breeds_allowed), 400
+        if location not in area_names:
+            slots = fetch_booking_slots()
+            return render_template('book.html', slots=slots, error="Please select a valid location from the list.", form=request.form, ip=ip_address, service_areas=service_areas, breeds=breeds_allowed), 400
+        if len(breeds) < 1:
+            slots = fetch_booking_slots()
+            return render_template('book.html', slots=slots, error="Please select the dog breed(s).", form=request.form, ip=ip_address, service_areas=service_areas, breeds=breeds_allowed), 400
+        # Ensure selected breeds are allowed
+        for b in breeds:
+            if b not in breeds_allowed:
+                slots = fetch_booking_slots()
+                return render_template('book.html', slots=slots, error="Invalid dog breed selected.", form=request.form, ip=ip_address, service_areas=service_areas, breeds=breeds_allowed), 400
         
-        # Create booking
+        # Create booking: compose dog_name and dog_info from breeds/num
+        dog_name_field = breeds[0] if breeds else 'Dog'
+        dog_info_field = f"Location: {location}; Breeds: {', '.join(breeds)}; Count: {len(breeds)}"
         booking_id = create_booking(
             slot_id=int(slot_id),
             customer_name=customer_name,
             customer_email=customer_email,
             customer_phone=customer_phone,
-            dog_name=dog_name,
-            dog_info=dog_info,
-            service_type=service_type,
+            dog_name=dog_name_field,
+            dog_info=dog_info_field,
+            service_type=request.form.get('service_type', '').strip(),
             message=message,
             ip_address=ip_address
         )
@@ -371,7 +416,10 @@ def book():
     if ip_address and ',' in ip_address:
         ip_address = ip_address.split(',')[0].strip()
     
-    return render_template('book.html', slots=slots, success=success, ip=ip_address)
+    # Provide service areas and breeds for the booking form
+    service_areas = fetch_service_areas()
+    breeds = fetch_breeds()
+    return render_template('book.html', slots=slots, success=success, ip=ip_address, service_areas=service_areas, breeds=breeds)
 
 
 """Persistence layer
@@ -742,6 +790,23 @@ def fetch_service_areas():
     except Exception as e:
         print(f"Error fetching service areas: {e}")
         return []  # Return empty list on error
+
+
+def fetch_breeds():
+    """Fetch configured dog breeds from site_content section 'breeds'. Returns list of names."""
+    try:
+        init_db()
+        with engine.begin() as conn:
+            result = conn.execute(text("SELECT key, title, content FROM site_content WHERE section='breeds' ORDER BY sort_order ASC"))
+            breeds = []
+            for r in result:
+                # Use title if present otherwise content/key
+                name = (r.title or r.content or r.key or '').strip()
+                if name:
+                    breeds.append(name)
+            return breeds
+    except Exception:
+        return []
 
 def fetch_homepage_sections():
     """Fetch all homepage sections in display order"""
@@ -2098,7 +2163,7 @@ def admin_chats():
         return auth_result
     init_db()
     from datetime import datetime, timezone
-    STALE_MINUTES = 120
+    STALE_MINUTES = 60
     with engine.begin() as conn:
         rows = conn.execute(text("SELECT id, sid, name, status, created_at, last_activity FROM chats ORDER BY CASE status WHEN 'open' THEN 0 ELSE 1 END, last_activity DESC"))
         chats = []
@@ -2134,7 +2199,7 @@ def admin_chats_list_json():
         return auth_result
     init_db()
     from datetime import datetime, timezone
-    STALE_MINUTES = 120
+    STALE_MINUTES = 60
     with engine.begin() as conn:
         rows = conn.execute(text("SELECT id, sid, name, status, created_at, last_activity FROM chats ORDER BY CASE status WHEN 'open' THEN 0 ELSE 1 END, last_activity DESC"))
         chats = []

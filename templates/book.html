@@ -77,54 +77,61 @@
     
     <form method="post" action="{{ url_for('book') }}" id="booking-form">
       <input type="hidden" name="slot_id" id="modal-slot-id" required>
-      
+
       <div style="display:grid;gap:16px">
         <label style="display:flex;flex-direction:column;gap:6px">
-          <strong style="color:var(--text);font-size:.9rem">Your Name *</strong>
+          <strong style="color:var(--text);font-size:.95rem">Your Name *</strong>
           <input type="text" name="name" required 
             style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem" />
         </label>
-        
+
         <label style="display:flex;flex-direction:column;gap:6px">
-          <strong style="color:var(--text);font-size:.9rem">Email Address *</strong>
+          <strong style="color:var(--text);font-size:.95rem">Location *</strong>
+          <select name="location" id="location-select" required style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem">
+            <option value="">Select your area...</option>
+            {% for a in service_areas %}
+            <option value="{{ a.name }}">{{ a.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <strong style="color:var(--text);font-size:.95rem">Number of dogs *</strong>
+          <select name="num_dogs" id="num-dogs" required style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+          </select>
+        </label>
+
+        <div id="breeds-container">
+          <label style="display:flex;flex-direction:column;gap:6px">
+            <strong style="color:var(--text);font-size:.95rem">Dog breed/type *</strong>
+            <select name="breed_1" class="breed-select" required style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem">
+              <option value="">Select a breed...</option>
+              {% for b in breeds %}
+              <option value="{{ b }}">{{ b }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <strong style="color:var(--text);font-size:.95rem">Email Address *</strong>
           <input type="email" name="email" required 
             style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem" />
         </label>
-        
+
         <label style="display:flex;flex-direction:column;gap:6px">
-          <strong style="color:var(--text);font-size:.9rem">Phone Number</strong>
+          <strong style="color:var(--text);font-size:.95rem">Phone Number</strong>
           <input type="tel" name="phone" 
             style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem" />
         </label>
-        
+
         <label style="display:flex;flex-direction:column;gap:6px">
-          <strong style="color:var(--text);font-size:.9rem">Dog's Name *</strong>
-          <input type="text" name="dog_name" required 
-            style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem" />
-        </label>
-        
-        <label style="display:flex;flex-direction:column;gap:6px">
-          <strong style="color:var(--text);font-size:.9rem">Dog Info (breed, age, temperament)</strong>
-          <textarea name="dog_info" rows="2" placeholder="e.g., Labrador, 3 years old, friendly"
-            style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem;font-family:inherit;resize:vertical"></textarea>
-        </label>
-        
-        <label style="display:flex;flex-direction:column;gap:6px">
-          <strong style="color:var(--text);font-size:.9rem">Service Type</strong>
-          <select name="service_type" 
-            style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem">
-            <option value="">Select a service...</option>
-            <option value="Group Walk">Group Walk</option>
-            <option value="Solo Walk">Solo Walk</option>
-            <option value="Puppy Visit">Puppy Visit</option>
-            <option value="Senior Care">Senior Care</option>
-          </select>
-        </label>
-        
-        <label style="display:flex;flex-direction:column;gap:6px">
-          <strong style="color:var(--text);font-size:.9rem">Additional Message</strong>
-          <textarea name="message" rows="2" placeholder="Any special requirements?"
-            style="padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-size:.95rem;font-family:inherit;resize:vertical"></textarea>
+          <strong style="color:var(--muted);font-size:.85rem">We will contact you to verify and confirm the booking after you submit this request.</strong>
         </label>
         
         <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:10px;padding:12px">
@@ -132,7 +139,7 @@
             <strong style="color:var(--text)">📍 Connection:</strong> <code style="background:rgba(255,255,255,.08);padding:1px 6px;border-radius:4px;font-family:monospace;font-size:.7rem;color:var(--brand)">{{ ip }}</code>
           </p>
         </div>
-        
+
         <button type="submit" class="btn primary" style="padding:14px 28px;font-size:1.05rem;font-weight:700;margin-top:8px">
           Submit Booking Request
         </button>
@@ -350,6 +357,69 @@ function closeModalOnBackdrop(event) {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     closeBookingModal();
+  }
+});
+
+// Dynamic breed selects based on number of dogs
+document.addEventListener('DOMContentLoaded', () => {
+  const breeds = {{ breeds|tojson }} || [];
+  const numDogsEl = document.getElementById('num-dogs');
+  const container = document.getElementById('breeds-container');
+
+  function buildBreedSelect(index, selected) {
+    const label = document.createElement('label');
+    label.style.display = 'flex';
+    label.style.flexDirection = 'column';
+    label.style.gap = '6px';
+    const strong = document.createElement('strong');
+    strong.style.color = 'var(--text)';
+    strong.style.fontSize = '0.95rem';
+    strong.textContent = index === 1 ? 'Dog breed/type *' : `Dog ${index} breed/type *`;
+    const sel = document.createElement('select');
+    sel.name = `breed_${index}`;
+    sel.className = 'breed-select';
+    sel.required = true;
+    sel.style.padding = '12px 14px';
+    sel.style.borderRadius = '10px';
+    sel.style.border = '1px solid rgba(255,255,255,.16)';
+    sel.style.background = 'rgba(255,255,255,.06)';
+    sel.style.color = 'var(--text)';
+    sel.style.fontSize = '0.95rem';
+    const empty = document.createElement('option'); empty.value = ''; empty.textContent = 'Select a breed...'; sel.appendChild(empty);
+    breeds.forEach(b => {
+      const o = document.createElement('option'); o.value = b; o.textContent = b; sel.appendChild(o);
+    });
+    if (selected) sel.value = selected;
+    label.appendChild(strong);
+    label.appendChild(sel);
+    return label;
+  }
+
+  function renderBreedFields(n) {
+    container.innerHTML = '';
+    for (let i = 1; i <= n; i++) {
+      container.appendChild(buildBreedSelect(i));
+    }
+  }
+
+  // Initialize based on default/select value
+  const initial = parseInt(numDogsEl.value || '1', 10) || 1;
+  renderBreedFields(initial);
+
+  numDogsEl.addEventListener('change', () => {
+    const val = parseInt(numDogsEl.value || '1', 10) || 1;
+    renderBreedFields(Math.min(5, Math.max(1, val)));
+  });
+
+  // If URL contains slot_id, auto-open that slot's modal
+  const params = new URLSearchParams(window.location.search);
+  const urlSlot = params.get('slot_id');
+  if (urlSlot) {
+    const btn = document.querySelector(`[data-slot-id='${urlSlot}']`);
+    if (btn) {
+      // wait a tick to ensure layout stable
+      setTimeout(() => openBookingModal(btn), 120);
+    }
   }
 });
 </script>
