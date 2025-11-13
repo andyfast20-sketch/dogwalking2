@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Admin Settings</title>
+	<style>
+		.panel{max-width:900px;margin:20px auto;padding:16px;border:1px solid #e5e7eb;border-radius:8px;background:#fff}
+		.row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+		button{padding:8px 12px;border-radius:6px;border:1px solid #d1d5db;background:#111;color:#fff;cursor:pointer}
+		button.secondary{background:#6b7280}
+		select,input[type=text]{padding:8px;border:1px solid #d1d5db;border-radius:6px}
+		pre{background:#f8fafc;padding:12px;border-radius:6px;border:1px solid #e6eef6}
+	</style>
+</head>
+<body>
+	<div class="panel">
+		<h2>Site Settings Snapshot</h2>
+		<p>Use Save to snapshot current editable settings (hero images, content, breeds, service areas, homepage order). Use Load to restore a previously saved snapshot. Loading will overwrite current site settings.</p>
+
+		<div class="row">
+			<input id="snapshot-name" type="text" placeholder="Optional name for this snapshot" />
+			<button id="save-btn">Save</button>
+			<button id="save-latest-btn" class="secondary">Save (no name)</button>
+		</div>
+
+		<div class="row">
+			<label for="snap-select">Saved snapshots:</label>
+			<select id="snap-select"></select>
+			<button id="load-btn">Load selected</button>
+			<button id="load-latest-btn" class="secondary">Load latest</button>
+		</div>
+
+		<div id="status" style="margin-top:12px"></div>
+
+		<h3 style="margin-top:18px">Current hero images (preview)</h3>
+		<div id="hero-list"></div>
+
+		<h3 style="margin-top:18px">Notes</h3>
+		<p>Loading a snapshot replaces site settings and content tables. It will also refresh in-memory AI keys so saved API keys are picked up. Bookings and enquiries are not modified.</p>
+	</div>
+
+	<script>
+		async function fetchSnapshots(){
+			const r = await fetch('/admin/settings/snapshots.json');
+			const j = await r.json();
+			const sel = document.getElementById('snap-select');
+			sel.innerHTML='';
+			if(j && j.snapshots){
+				j.snapshots.forEach(s=>{
+					const o = document.createElement('option');
+					o.value = s.id; o.textContent = `${s.id} — ${s.name || '(no name)'} — ${s.created_at}`;
+					sel.appendChild(o);
+				})
+			}
+		}
+
+		async function fetchHero(){
+			const r = await fetch('/');
+			// hero images are injected via context on the template side; alternatively call dedicated endpoint
+			try{
+				// Try calling the JSON helper by requesting admin page variables via /admin/settings (server injects hero_images?)
+				const resp = await fetch('/admin/settings');
+			}catch(e){}
+		}
+
+		document.getElementById('save-btn').addEventListener('click', async ()=>{
+			const name = document.getElementById('snapshot-name').value || null;
+			document.getElementById('status').textContent = 'Saving...';
+			const res = await fetch('/admin/settings/save', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name})});
+			const j = await res.json();
+			if(j && j.ok){
+				document.getElementById('status').textContent = 'Snapshot saved: id=' + (j.id||'(unknown)');
+				await fetchSnapshots();
+			} else {
+				document.getElementById('status').textContent = 'Save failed: ' + JSON.stringify(j);
+			}
+		});
+		document.getElementById('save-latest-btn').addEventListener('click', async ()=>{ document.getElementById('snapshot-name').value=''; document.getElementById('save-btn').click(); });
+
+		document.getElementById('load-btn').addEventListener('click', async ()=>{
+			const sel = document.getElementById('snap-select');
+			if(!sel.value){ alert('Select a snapshot to load'); return; }
+			if(!confirm('This will overwrite current site settings. Continue?')) return;
+			document.getElementById('status').textContent = 'Loading...';
+			const res = await fetch('/admin/settings/load', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: sel.value})});
+			const j = await res.json();
+			if(j && j.ok){ document.getElementById('status').textContent = 'Loaded snapshot '+sel.value + '. Refresh pages to see changes.'; }
+			else { document.getElementById('status').textContent = 'Load failed: ' + JSON.stringify(j); }
+		});
+
+		document.getElementById('load-latest-btn').addEventListener('click', async ()=>{
+			if(!confirm('Load the latest snapshot and overwrite current settings?')) return;
+			document.getElementById('status').textContent = 'Loading latest...';
+			const res = await fetch('/admin/settings/load', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({})});
+			const j = await res.json();
+			if(j && j.ok){ document.getElementById('status').textContent = 'Loaded latest snapshot. Refresh pages to see changes.'; await fetchSnapshots(); }
+			else { document.getElementById('status').textContent = 'Load failed: ' + JSON.stringify(j); }
+		});
+
+		// Initialize list
+		fetchSnapshots();
+		// Render hero images preview if provided by global variable (injected by template context)
+		try{
+			const heroImages = {{ hero_images|tojson }};
+			const hdiv = document.getElementById('hero-list');
+			for(const k in heroImages){
+				const url = heroImages[k];
+				const p = document.createElement('div');
+				p.style.display='flex'; p.style.alignItems='center'; p.style.gap='8px'; p.style.marginBottom='8px';
+				const img = document.createElement('img'); img.src = url || '';
+				img.style.maxWidth='180px'; img.style.maxHeight='100px'; img.alt = k;
+				const t = document.createElement('div'); t.textContent = `${k}: ${url || '(empty)'}`;
+				p.appendChild(img); p.appendChild(t); hdiv.appendChild(p);
+			}
+		}catch(e){ /* ignore if server-side not available */ }
+	</script>
+</body>
+</html>
+
