@@ -1130,3 +1130,10 @@ li{margin-bottom:8px;line-height:1.6}
 /* Admin chats table: waiting row highlight */
 .chat-row.row-waiting{background:linear-gradient(90deg, rgba(255,250,205,0.06), transparent);}
 .chat-row.row-waiting td{transition:background .25s ease;border-left:4px solid rgba(250,204,21,.12);}
+
+/* Chat badges */
+.chat-badge{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.04);color:var(--muted);font-weight:700}
+.chat-badge.waiting{background:#fffbeb;color:#92400e;border:1px solid rgba(250,204,21,.08)}
+.chat-badge.idle{background:rgba(255,255,255,.04);color:var(--muted);border:1px solid rgba(255,255,255,.06)}
+.chat-badge.closed{background:rgba(255,255,255,.06);color:var(--muted)}
+

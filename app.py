@@ -2097,9 +2097,30 @@ def admin_chats():
     if isinstance(auth_result, Response):
         return auth_result
     init_db()
+    from datetime import datetime, timezone
+    STALE_MINUTES = 120
     with engine.begin() as conn:
         rows = conn.execute(text("SELECT id, sid, name, status, created_at, last_activity FROM chats ORDER BY CASE status WHEN 'open' THEN 0 ELSE 1 END, last_activity DESC"))
-        chats = [dict(id=r.id, sid=r.sid, name=r.name or '', status=r.status, created_at=r.created_at, last_activity=r.last_activity) for r in rows]
+        chats = []
+        now = datetime.utcnow().replace(tzinfo=timezone.utc)
+        for r in rows:
+            last = r.last_activity
+            stale = False
+            age_minutes = None
+            if last:
+                try:
+                    dt = datetime.fromisoformat(last)
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    age_minutes = (now - dt).total_seconds() / 60.0
+                    if age_minutes > STALE_MINUTES and r.status == 'open':
+                        stale = True
+                except Exception:
+                    age_minutes = None
+            display_status = r.status
+            if r.status == 'open' and stale:
+                display_status = 'idle'
+            chats.append(dict(id=r.id, sid=r.sid, name=r.name or '', status=r.status, display_status=display_status, stale=stale, age_minutes=age_minutes, created_at=r.created_at, last_activity=r.last_activity))
     return render_template('admin_chats.html', chats=chats)
 
 
@@ -2112,9 +2133,30 @@ def admin_chats_list_json():
     if isinstance(auth_result, Response):
         return auth_result
     init_db()
+    from datetime import datetime, timezone
+    STALE_MINUTES = 120
     with engine.begin() as conn:
         rows = conn.execute(text("SELECT id, sid, name, status, created_at, last_activity FROM chats ORDER BY CASE status WHEN 'open' THEN 0 ELSE 1 END, last_activity DESC"))
-        chats = [dict(id=r.id, sid=r.sid, name=r.name or '', status=r.status, created_at=r.created_at, last_activity=r.last_activity) for r in rows]
+        chats = []
+        now = datetime.utcnow().replace(tzinfo=timezone.utc)
+        for r in rows:
+            last = r.last_activity
+            stale = False
+            age_minutes = None
+            if last:
+                try:
+                    dt = datetime.fromisoformat(last)
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    age_minutes = (now - dt).total_seconds() / 60.0
+                    if age_minutes > STALE_MINUTES and r.status == 'open':
+                        stale = True
+                except Exception:
+                    age_minutes = None
+            display_status = r.status
+            if r.status == 'open' and stale:
+                display_status = 'idle'
+            chats.append(dict(id=r.id, sid=r.sid, name=r.name or '', status=r.status, display_status=display_status, stale=stale, age_minutes=age_minutes, created_at=r.created_at, last_activity=r.last_activity))
     return jsonify({'ok': True, 'chats': chats})
 
 @app.get('/admin/chats/<int:chat_id>')
