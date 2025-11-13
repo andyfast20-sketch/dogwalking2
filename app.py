@@ -2824,8 +2824,13 @@ def admin_breeds_ai_update():
     if not prompt:
         return jsonify({'ok': False, 'error': 'Please provide a prompt.'}), 400
 
+    # Refresh AI clients so admin-saved keys are picked up
+    try:
+        refresh_ai_clients()
+    except Exception:
+        pass
+
     # Lightweight heuristic parser to extract "add" and "remove" targets from natural language prompts.
-    # This keeps the feature working even when full AI backends are unavailable.
     def _parse_prompt(p: str):
         import re
         adds = []
@@ -2834,12 +2839,8 @@ def admin_breeds_ai_update():
         lp = p.lower()
 
         # Look for explicit 'add' and 'remove' clauses. Examples supported:
-        #  - "add labrador, beagle and chihuahua"
-        #  - "remove rottweiler, pitbull"
-        #  - "add: labrador; beagle"
         for m in re.finditer(r"\badd\b[:\s]+([^\.\n]+)", lp):
             chunk = m.group(1)
-            # split on commas, semicolons, or ' and '
             parts = re.split(r'[;,]|\sand\s', chunk)
             for part in parts:
                 name = part.strip()
@@ -2867,9 +2868,7 @@ def admin_breeds_ai_update():
             seen = set()
             out = []
             for it in lst:
-                # remove extraneous words like 'small', 'large' if the item is clearly a phrase?
                 name = it.strip()
-                # strip leading adjectives like 'small', 'large' only if the remainder looks like a single word
                 name = name.strip(' .;:\'\"')
                 if not name:
                     continue
@@ -2882,10 +2881,169 @@ def admin_breeds_ai_update():
 
         return _norm_list(adds), _norm_list(removes)
 
-    proposed_add, proposed_remove = _parse_prompt(prompt)
+    # Attempt to get AI-generated proposals when an AI provider is available. Falls back to heuristic parse.
+    proposed_add = []
+    proposed_remove = []
 
-    # Preview mode (no confirm): return the proposed changes
     if not confirm:
+        ai_result_text = None
+        # Build a strict instruction that asks for JSON output to simplify parsing
+        ai_instruction = (
+            "You are a website admin assistant for a dog-walking site. "
+            "Given the administrator instruction below, respond ONLY with a JSON object containing two arrays: \"add\" and \"remove\". "
+            "Each array should contain breed names (strings). Example: {\"add\": [\"Labrador\"], \"remove\": [\"Pitbull\"]}.\n\n"
+            f"Instruction: {prompt}"
+        )
+
+        # Choose provider order: DeepSeek if present, else OpenAI, else Gemini
+        openai_key = get_site_setting('OPENAI_API_KEY') or os.environ.get('OPENAI_API_KEY') or globals().get('OPENAI_API_KEY') or ''
+        ds_key = get_site_setting('DEEPSEEK_API_KEY') or globals().get('DEEPSEEK_API_KEY') or ''
+        gemini_key = get_site_setting('GEMINI_API_KEY') or globals().get('GEMINI_API_KEY') or ''
+
+        tried = []
+        # Try DeepSeek/OpenAI-compatible endpoints via HTTP if keys present (works with OpenAI-compatible DeepSeek)
+        try:
+            import requests
+        except Exception:
+            requests = None
+
+        def _try_openai_api(key):
+            nonlocal ai_result_text
+            if not key:
+                return False
+            # Prefer SDK client when available
+            try:
+                if openai_client:
+                    resp = openai_client.chat.completions.create(
+                        model=(get_site_setting('OPENAI_MODEL') or 'gpt-4o-mini'),
+                        messages=[{"role": "system", "content": ai_instruction}, {"role": "user", "content": prompt}],
+                        max_tokens=400,
+                        temperature=0.2,
+                    )
+                    if resp and getattr(resp, 'choices', None):
+                        try:
+                            ai_result_text = resp.choices[0].message.content
+                        except Exception:
+                            ai_result_text = getattr(resp.choices[0], 'text', str(resp))
+                        return True
+                # Fallback to HTTP REST call
+                if requests:
+                    api_key = key
+                    payload = {'model': (get_site_setting('OPENAI_MODEL') or 'gpt-4o-mini'), 'messages': [{"role": "system", "content": ai_instruction}, {"role": "user", "content": prompt}], 'max_tokens': 400, 'temperature': 0.2}
+                    headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
+                    r = requests.post('https://api.openai.com/v1/chat/completions', json=payload, headers=headers, timeout=15)
+                    if r.status_code == 200:
+                        try:
+                            j = r.json()
+                            if j.get('choices'):
+                                try:
+                                    ai_result_text = j['choices'][0]['message']['content']
+                                except Exception:
+                                    ai_result_text = j['choices'][0].get('text') or str(j)
+                                return True
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+            return False
+
+        def _try_deepseek_api(key):
+            nonlocal ai_result_text
+            if not key or not requests:
+                return False
+            endpoints = ['https://api.deepseek.com/v1/chat/completions', 'https://api.deepseek.com/v1/responses']
+            model = get_site_setting('DEEPSEEK_MODEL') or get_site_setting('OPENAI_MODEL') or 'gpt-4o-mini'
+            headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
+            for url in endpoints:
+                try:
+                    payload = {'model': model, 'messages': [{"role": "system", "content": ai_instruction}, {"role": "user", "content": prompt}], 'max_tokens': 400, 'temperature': 0.2}
+                    r = requests.post(url, json=payload, headers=headers, timeout=12)
+                except Exception:
+                    continue
+                if r.status_code != 200:
+                    continue
+                try:
+                    j = r.json()
+                except Exception:
+                    ai_result_text = (r.text or '').strip()
+                    return True
+                if isinstance(j, dict):
+                    if j.get('choices'):
+                        try:
+                            ai_result_text = j['choices'][0]['message']['content']
+                        except Exception:
+                            ai_result_text = j['choices'][0].get('text') or str(j)
+                        return True
+                    # response-style
+                    if j.get('output') or j.get('output_text'):
+                        ai_result_text = j.get('output') or j.get('output_text')
+                        return True
+            return False
+
+        def _try_gemini_api(key):
+            nonlocal ai_result_text
+            if not key or not globals().get('genai'):
+                return False
+            try:
+                model_obj = genai.GenerativeModel('gemini-1.5-mini')
+                r = model_obj.generate_content(ai_instruction)
+                ai_result_text = getattr(r, 'text', None)
+                if not ai_result_text and getattr(r, 'candidates', None):
+                    try:
+                        ai_result_text = r.candidates[0].content.parts[0].text
+                    except Exception:
+                        ai_result_text = None
+                return bool(ai_result_text)
+            except Exception:
+                return False
+
+        # Try providers in order
+        if ds_key:
+            tried.append('deepseek')
+            _try_deepseek_api(ds_key)
+        if not ai_result_text and openai_key:
+            tried.append('openai')
+            _try_openai_api(openai_key)
+        if not ai_result_text and gemini_key:
+            tried.append('gemini')
+            _try_gemini_api(gemini_key)
+
+        # If AI returned text, try to parse JSON; otherwise fallback to heuristic parse
+        if ai_result_text:
+            try:
+                # Try to locate JSON object in the response
+                import re
+                import json as _json
+                m = re.search(r"\{[\s\S]*\}", ai_result_text)
+                if m:
+                    j = _json.loads(m.group(0))
+                    adds = j.get('add') or j.get('adds') or j.get('proposed_add') or []
+                    removes = j.get('remove') or j.get('removes') or j.get('proposed_remove') or []
+                    # Normalize lists
+                    def _norm(lst):
+                        out = []
+                        for it in lst or []:
+                            try:
+                                s = str(it).strip()
+                            except Exception:
+                                continue
+                            if s:
+                                out.append(s)
+                        return out
+                    proposed_add = _norm(adds)
+                    proposed_remove = _norm(removes)
+                else:
+                    # No JSON found - try to parse plain text for add/remove lines
+                    adds, removes = _parse_prompt(ai_result_text)
+                    proposed_add = adds
+                    proposed_remove = removes
+            except Exception:
+                proposed_add, proposed_remove = _parse_prompt(ai_result_text or prompt)
+
+        # If AI not used or returned nothing, fallback to heuristic parsing of the original prompt
+        if not proposed_add and not proposed_remove:
+            proposed_add, proposed_remove = _parse_prompt(prompt)
+
         raw = f"Proposed to add {len(proposed_add)} and remove {len(proposed_remove)} items."
         return jsonify({'ok': True, 'raw': raw, 'proposed_add': proposed_add, 'proposed_remove': proposed_remove})
 
