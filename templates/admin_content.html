@@ -402,6 +402,7 @@
       </form>
 
       <div style="min-width:220px;display:flex;align-items:center;gap:10px">
+        <input id="ai-status-prompt" type="text" placeholder="Ask a short test question" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:var(--text);width:220px" />
         <button id="ai-status-btn" class="btn" type="button" style="padding:8px 12px;font-weight:700;display:inline-flex;align-items:center;gap:8px">Check AI API</button>
         <div id="ai-status-indicator" title="API status" style="width:18px;height:18px;border-radius:50%;background:#bdbdbd;border:2px solid rgba(0,0,0,.06)"></div>
         <div id="ai-status-provider" style="font-weight:700;color:var(--text);font-size:.9rem;margin-left:6px">Provider: —</div>
@@ -602,41 +603,86 @@ document.addEventListener('DOMContentLoaded', () => {
       resultProposed.appendChild(addBox);
     }
     if (removes.length) {
-      const remBox = document.createElement('div');
-      remBox.style.padding = '8px'; remBox.style.borderRadius='8px'; remBox.style.background='rgba(239,68,68,.06)'; remBox.style.color='var(--text)';
-      remBox.innerHTML = `<strong>To remove (${removes.length})</strong><br>${removes.join(', ')}`;
-      resultProposed.appendChild(remBox);
-    }
-    // Show apply button when there is something to apply
-    if ((adds.length + removes.length) > 0) {
-      applyBtn.style.display = '';
-    } else {
-      applyBtn.style.display = 'none';
-    }
-  }
-
-  runBtn.addEventListener('click', () => {
-    const prompt = (promptEl.value || '').trim();
-    if (!prompt) return alert('Please enter a prompt.');
-    runBtn.disabled = true; runBtn.textContent = 'Running...';
-    const fd = new FormData(); fd.append('prompt', prompt);
-    // include admin guidance so AI respects configured guidance
-    const guidanceEl = document.querySelector('textarea[name="ai_breeds_guidance"]');
-    if (guidanceEl) fd.append('guidance', guidanceEl.value || '');
-    fetch('{{ url_for("admin_breeds_ai_update") }}', { method: 'POST', body: fd, credentials: 'include' })
-      .then(r => r.json())
-      .then(j => {
-        runBtn.disabled = false; runBtn.textContent = 'Run (Preview)';
-        if (!j || !j.ok) {
-          resultPanel.style.display = '';
-          resultSummary.textContent = j && j.raw ? j.raw : (j && j.error ? j.error : 'No result');
-          // show diagnostics when present
-          if (j && j.diagnostics) {
-            resultSummary.textContent += '\n\nDiagnostics: ' + JSON.stringify(j.diagnostics);
-          }
-          applyBtn.style.display = 'none';
+      statusBtn.addEventListener('click', () => {
+        // Ask the chosen provider a short question and display response; flash green when provider answers
+        const promptInput = document.getElementById('ai-status-prompt');
+        const prompt = (promptInput && promptInput.value) ? promptInput.value.trim() : '';
+        if (!prompt) {
+          // If no prompt, keep previous behaviour of checking status
+          statusBtn.disabled = true; statusBtn.textContent = 'Checking...';
+          statusInd.style.background = '#f59e0b'; // amber while checking
+          statusMsg.textContent = '';
+          fetch('{{ url_for("admin_ai_status") }}', { credentials: 'include' })
+            .then(r => r.json())
+            .then(j => {
+              statusBtn.disabled = false; statusBtn.textContent = 'Check AI API';
+              try {
+                const ok = (j.openai && j.openai.model_ok) || (j.deepseek && j.deepseek.model_ok) || (j.gemini && j.gemini.model_ok) || (j.provider && j.provider !== 'none' && ((j.openai && j.openai.env_present) || (j.deepseek && j.deepseek.env_present) || (j.gemini && j.gemini.env_present)));
+                const detailsEl = document.getElementById('ai-status-details');
+                if (ok) {
+                  statusInd.style.background = '#10b981'; // green
+                  statusMsg.textContent = 'API reachable';
+                } else {
+                  statusInd.style.background = '#ef4444'; // red
+                  statusMsg.textContent = (j.deepseek && j.deepseek.error) ? j.deepseek.error : (j.openai && j.openai.error ? j.openai.error : (j.gemini && j.gemini.error ? j.gemini.error : 'No provider responded.'));
+                }
+                if (detailsEl) {
+                  detailsEl.textContent = JSON.stringify(j, null, 2);
+                }
+              } catch (e) {
+                statusInd.style.background = '#ef4444';
+                statusMsg.textContent = 'Error parsing status';
+              }
+            })
+            .catch(err => {
+              statusBtn.disabled = false; statusBtn.textContent = 'Check AI API';
+              statusInd.style.background = '#ef4444';
+              statusMsg.textContent = 'Network error';
+              const detailsEl = document.getElementById('ai-status-details');
+              if (detailsEl) detailsEl.textContent = String(err);
+            });
           return;
         }
+
+        // Determine provider preference from admin select if present
+        let provider = 'auto';
+        const sel = document.querySelector('select[name="AUTOPILOT_PROVIDER"]');
+        if (sel) provider = (sel.value || 'auto').toLowerCase();
+
+        statusBtn.disabled = true; statusBtn.textContent = 'Checking...';
+        statusInd.style.background = '#f59e0b';
+        statusMsg.textContent = '';
+
+        const fd = new FormData(); fd.append('provider', provider); fd.append('prompt', prompt);
+        fetch('{{ url_for("admin_api_test_json") }}', { method: 'POST', body: fd, credentials: 'include' })
+          .then(r => r.json())
+          .then(j => {
+            statusBtn.disabled = false; statusBtn.textContent = 'Check AI API';
+            const detailsEl = document.getElementById('ai-status-details');
+            const provLabel = document.getElementById('ai-status-provider');
+            if (j && j.ok && j.result) {
+              // success: flash green and show provider and result
+              statusInd.style.background = '#10b981';
+              statusMsg.textContent = 'API responded';
+              if (provLabel) provLabel.textContent = 'Provider: ' + (j.provider || 'auto');
+              if (detailsEl) detailsEl.textContent = j.result + (j.diagnostics && j.diagnostics.length ? '\n\nDiagnostics: ' + JSON.stringify(j.diagnostics, null, 2) : '');
+              // subtle flash animation
+              statusInd.animate([{ boxShadow: '0 0 0 4px rgba(16,185,129,0.0)' }, { boxShadow: '0 0 0 8px rgba(16,185,129,0.25)' }, { boxShadow: '0 0 0 0 rgba(16,185,129,0.0)' }], { duration: 900 });
+            } else {
+              statusInd.style.background = '#ef4444';
+              statusMsg.textContent = (j && j.error) ? j.error : 'No response';
+              if (detailsEl) detailsEl.textContent = JSON.stringify(j, null, 2);
+              if (provLabel) provLabel.textContent = 'Provider: ' + (j.provider || provider || 'none');
+            }
+          })
+          .catch(err => {
+            statusBtn.disabled = false; statusBtn.textContent = 'Check AI API';
+            statusInd.style.background = '#ef4444';
+            statusMsg.textContent = 'Network error';
+            const detailsEl = document.getElementById('ai-status-details');
+            if (detailsEl) detailsEl.textContent = String(err);
+          });
+      });
         showPreview(j);
       })
       .catch(err => {

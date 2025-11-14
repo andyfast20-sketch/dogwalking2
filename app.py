@@ -2772,6 +2772,171 @@ def admin_api_test():
     set_site_setting('ai_test_result', result)
     return redirect(url_for('admin_content') + '#ai-test')
 
+
+@app.post('/admin/content/api-test-json')
+def admin_api_test_json():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+
+    provider = (request.form.get('provider') or '').lower() or 'auto'
+    prompt = (request.form.get('prompt') or '').strip()
+    if not prompt:
+        return jsonify({'ok': False, 'error': 'No prompt provided.'}), 400
+
+    diagnostics = []
+    result = None
+    # Resolve provider when 'auto' — respect AUTOPILOT_PROVIDER site setting if set
+    if provider == 'auto' or not provider:
+        p = (get_site_setting('AUTOPILOT_PROVIDER') or 'auto').lower()
+        if p and p != 'auto':
+            provider = p
+        else:
+            # Prefer DeepSeek, then OpenAI, then Gemini
+            if get_site_setting('DEEPSEEK_API_KEY') or DEEPSEEK_API_KEY:
+                provider = 'deepseek'
+            elif get_site_setting('OPENAI_API_KEY') or OPENAI_API_KEY:
+                provider = 'openai'
+            elif get_site_setting('GEMINI_API_KEY') or GEMINI_API_KEY:
+                provider = 'gemini'
+            else:
+                provider = 'none'
+
+    try:
+        if provider == 'openai':
+            # reuse admin_api_test OpenAI logic
+            if openai_client:
+                try:
+                    resp = openai_client.chat.completions.create(
+                        model="gpt-3.5-turbo",
+                        messages=[{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": prompt}],
+                        max_tokens=200,
+                        temperature=0.2,
+                    )
+                    if resp and getattr(resp, 'choices', None):
+                        try:
+                            result = resp.choices[0].message.content
+                        except Exception:
+                            result = getattr(resp.choices[0], 'text', str(resp))
+                except Exception as e:
+                    diagnostics.append(f"OpenAI SDK error: {str(e)}")
+                    # try HTTP fallback
+                    try:
+                        import requests
+                        api_key = get_site_setting('OPENAI_API_KEY') or OPENAI_API_KEY or getattr(openai_client, 'api_key', None)
+                        headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
+                        payload = {'model': 'gpt-3.5-turbo', 'messages': [{"role":"system","content":"You are a helpful assistant."},{"role":"user","content":prompt}], 'max_tokens': 200, 'temperature': 0.2}
+                        r = requests.post('https://api.openai.com/v1/chat/completions', json=payload, headers=headers, timeout=15)
+                        diagnostics.append(f"OpenAI HTTP status: {r.status_code}")
+                        if r.status_code == 200:
+                            try:
+                                j = r.json()
+                                result = j['choices'][0]['message']['content']
+                            except Exception:
+                                diagnostics.append(f"OpenAI HTTP non-JSON body: {r.text[:1000]}")
+                    except Exception as e2:
+                        diagnostics.append(f"OpenAI HTTP fallback failed: {str(e2)}")
+            else:
+                result = "No OpenAI client configured."
+
+        elif provider == 'deepseek':
+            ds_key = DEEPSEEK_API_KEY or get_site_setting('DEEPSEEK_API_KEY')
+            if ds_key:
+                try:
+                    import requests
+                    endpoints = ['https://api.deepseek.com/v1/chat/completions', 'https://api.deepseek.com/v1/responses']
+                    headers = {'Authorization': f'Bearer {ds_key}', 'Content-Type': 'application/json'}
+                    ds_model = get_site_setting('DEEPSEEK_MODEL') or ''
+                    default_models = ['deepseek-chat', 'deepseek-reasoner', 'gpt-4o', 'gpt-3.5-turbo', 'gpt-3.5']
+                    models = [m for m in ([ds_model] + default_models) if m]
+                    last_err = None
+                    for url in endpoints:
+                        for m in models:
+                            payload = {'model': m, 'messages': [{"role":"system","content":"You are a helpful assistant."},{"role":"user","content":prompt}], 'max_tokens': 200, 'temperature': 0.2}
+                            try:
+                                r = requests.post(url, json=payload, headers=headers, timeout=12)
+                            except Exception as e:
+                                diagnostics.append(f"DeepSeek network error for model {m} at {url}: {str(e)}")
+                                last_err = str(e)
+                                continue
+                            diagnostics.append(f"DeepSeek HTTP {r.status_code} for model {m} at {url}")
+                            if r.status_code == 200:
+                                try:
+                                    j = r.json()
+                                except Exception:
+                                    diagnostics.append(f"DeepSeek 200 non-JSON body: {r.text[:1000]}")
+                                    result = f"DeepSeek 200 non-JSON body: {r.text[:1000]}"
+                                    break
+                                got = None
+                                if isinstance(j, dict):
+                                    if j.get('choices'):
+                                        try:
+                                            got = j['choices'][0]['message']['content']
+                                        except Exception:
+                                            got = j['choices'][0].get('text') or None
+                                    if not got:
+                                        got = j.get('output') or j.get('output_text') or None
+                                    if not got and j.get('data'):
+                                        try:
+                                            d0 = j['data'][0]
+                                            if isinstance(d0, dict):
+                                                got = d0.get('text') or d0.get('content') or None
+                                        except Exception:
+                                            pass
+                                if got:
+                                    result = got
+                                    break
+                                else:
+                                    diagnostics.append(f"DeepSeek 200 but no content in JSON for model {m} at {url}: {str(j)[:800]}")
+                                    last_err = f"No content in JSON for model {m} at {url}"
+                                    continue
+                            else:
+                                try:
+                                    body = r.text[:800]
+                                    diagnostics.append(f"DeepSeek error body for model {m} at {url}: {body}")
+                                except Exception:
+                                    diagnostics.append(f"DeepSeek HTTP {r.status_code} with unreadable body for {m} at {url}")
+                                try:
+                                    errj = r.json()
+                                    msg = str(errj)
+                                except Exception:
+                                    msg = r.text[:500]
+                                last_err = f"HTTP {r.status_code}: {msg}"
+                                continue
+                        if result:
+                            break
+                    if not result and last_err:
+                        result = f"DeepSeek attempts failed: {last_err}. Diagnostics: {' | '.join(diagnostics[-6:])}"
+                    elif not result:
+                        result = f"DeepSeek attempts produced no content. Diagnostics: {' | '.join(diagnostics[-6:])}"
+                except Exception as e:
+                    import traceback
+                    diagnostics.append(traceback.format_exc())
+                    result = f"DeepSeek error: {str(e)}; diagnostics: {' | '.join(diagnostics[-6:])}"
+            else:
+                result = "No DEEPSEEK_API_KEY configured."
+
+        elif provider == 'gemini' and genai:
+            try:
+                model = genai.GenerativeModel('gemini-1.5-mini')
+                r = model.generate_content(prompt)
+                result = getattr(r, 'text', None)
+                if not result and getattr(r, 'candidates', None):
+                    result = r.candidates[0].content.parts[0].text
+            except Exception as e:
+                diagnostics.append(f"Gemini error: {str(e)}")
+        else:
+            result = f"No client available for provider '{provider}' or provider not configured."
+    except Exception as e:
+        result = f"Error: {str(e)}"
+
+    if not result:
+        result = '(no response)'
+    if len(result) > 1500:
+        result = result[:1500] + '...'
+
+    return jsonify({'ok': True, 'result': result, 'diagnostics': diagnostics, 'provider': provider})
+
 @app.post('/admin/service-areas/add')
 def admin_service_area_add():
     auth_result = require_admin()
