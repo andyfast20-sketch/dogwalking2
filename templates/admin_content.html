@@ -801,7 +801,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const existing = breeds.find(b => (b.title||'').toLowerCase() === val.toLowerCase());
     if (existing) { selectBreed(existing); return; }
     addBtn.disabled = true; addBtn.textContent = 'Adding...';
-    fetch(addUrl, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({title: val, content: ''}) })
+    fetch(addUrl, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({title: val, content: ''}), credentials: 'include' })
       .then(r => r.json())
       .then(j => {
         addBtn.disabled = false; addBtn.textContent = 'Add';
@@ -830,7 +830,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const title = (modalTitle.value || '').trim(); const content = (modalContent.value || '').trim();
     if (!title) return alert('Title required');
     modalSave.disabled = true; modalSave.textContent = 'Saving...';
-    fetch(updateUrlBase + '/' + id, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({title: title, content: content}) })
+    fetch(updateUrlBase + '/' + id, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({title: title, content: content}), credentials: 'include' })
       .then(r => r.json()).then(j => {
         modalSave.disabled = false; modalSave.textContent = 'Save';
         if (j && j.ok && j.breed) {
@@ -849,7 +849,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const id = selBox.dataset.id; if (!id) return;
     if (!confirm('Delete this breed? This cannot be undone.')) return;
     selDelete.disabled = true; selDelete.textContent = 'Deleting...';
-    fetch(deleteUrlBase + '/' + id, { method: 'POST' })
+    fetch(deleteUrlBase + '/' + id, { method: 'POST', credentials: 'include' })
       .then(r => r.json()).then(j => {
         selDelete.disabled = false; selDelete.textContent = 'Delete';
         if (j && j.ok) {
@@ -884,7 +884,7 @@ document.addEventListener('DOMContentLoaded', () => {
       statusBtn.disabled = true; statusBtn.textContent = 'Checking...';
       statusInd.style.background = '#f59e0b'; // amber while checking
       statusMsg.textContent = '';
-      fetch('{{ url_for("admin_ai_status") }}')
+      fetch('{{ url_for("admin_ai_status") }}', { credentials: 'include' })
         .then(r => r.json())
         .then(j => {
           statusBtn.disabled = false; statusBtn.textContent = 'Check AI API';
