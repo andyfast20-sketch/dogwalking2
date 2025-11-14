@@ -389,6 +389,25 @@
       <button id="breed-add-btn" class="btn primary" type="button" style="padding:10px 18px;font-weight:700">Add</button>
     </div>
 
+    <!-- AI Guidance and Provider Status -->
+    <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap">
+      <form method="post" action="{{ url_for('admin_ai_breeds_guidance_update') }}" style="flex:1;min-width:320px">
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <strong style="font-size:.9rem">AI Answer Guidance (optional)</strong>
+          <textarea name="ai_breeds_guidance" rows="2" placeholder="Optional: instruct the AI how to choose breeds (e.g. 'Prefer family-friendly, non-shedding breeds; avoid toy breeds')" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:var(--text);font-size:.9rem">{{ ai_breeds_guidance }}</textarea>
+        </label>
+        <div style="text-align:right;margin-top:8px">
+          <button class="btn" type="submit" style="padding:8px 14px;font-weight:700">Save Guidance</button>
+        </div>
+      </form>
+
+      <div style="min-width:220px;display:flex;align-items:center;gap:10px">
+        <button id="ai-status-btn" class="btn" type="button" style="padding:8px 12px;font-weight:700;display:inline-flex;align-items:center;gap:8px">Check AI API</button>
+        <div id="ai-status-indicator" title="API status" style="width:18px;height:18px;border-radius:50%;background:#bdbdbd;border:2px solid rgba(0,0,0,.06)"></div>
+        <div id="ai-status-message" style="color:var(--muted);font-size:.9rem"></div>
+      </div>
+    </div>
+
     <div id="breed-selected" style="display:none;background:rgba(0,0,0,.12);border:1px solid rgba(255,255,255,.04);border-radius:12px;padding:12px;margin-bottom:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
         <div>
@@ -664,79 +683,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     items.forEach((b, i) => {
       const d = document.createElement('div');
+      d.textContent = b.title + (b.content ? ' — ' + b.content : '');
       d.dataset.index = i;
-      d.style.display = 'flex';
-      d.style.alignItems = 'center';
-      d.style.justifyContent = 'space-between';
       d.style.padding = '8px 12px';
-      d.style.cursor = 'default';
+      d.style.cursor = 'pointer';
       d.style.borderBottom = '1px solid rgba(0,0,0,.04)';
       d.style.background = '#fff';
-
-      const left = document.createElement('div');
-      left.style.flex = '1';
-      left.style.color = '#000';
-      left.style.paddingRight = '12px';
-      left.style.userSelect = 'none';
-      left.textContent = b.title + (b.content ? ' — ' + b.content : '');
-      left.addEventListener('click', () => { selectBreed(b); hideDropdown(); });
-
-      const actions = document.createElement('div');
-      actions.style.display = 'flex';
-      actions.style.gap = '6px';
-
-      const editBtn = document.createElement('button');
-      editBtn.type = 'button';
-      editBtn.title = 'Edit';
-      editBtn.style.padding = '6px 8px';
-      editBtn.style.borderRadius = '6px';
-      editBtn.style.border = '1px solid rgba(0,0,0,.06)';
-      editBtn.style.background = 'transparent';
-      editBtn.style.cursor = 'pointer';
-      editBtn.style.fontSize = '13px';
-      editBtn.textContent = 'Edit';
-      editBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        // open modal to edit this breed
-        modal.style.display = 'flex';
-        modalTitle.value = b.title || '';
-        modalContent.value = b.content || '';
-        modal.dataset.editId = b.id;
-      });
-
-      const delBtn = document.createElement('button');
-      delBtn.type = 'button';
-      delBtn.title = 'Delete';
-      delBtn.style.padding = '6px 8px';
-      delBtn.style.borderRadius = '6px';
-      delBtn.style.border = '1px solid rgba(0,0,0,.06)';
-      delBtn.style.background = '#fee2e2';
-      delBtn.style.cursor = 'pointer';
-      delBtn.style.fontSize = '13px';
-      delBtn.textContent = 'Delete';
-      delBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        if (!confirm('Delete this breed? This cannot be undone.')) return;
-        delBtn.disabled = true; delBtn.textContent = 'Deleting...';
-        fetch(deleteUrlBase + '/' + b.id, { method: 'POST' })
-          .then(r => r.json()).then(j => {
-            if (j && j.ok) {
-              // remove from local list and refresh dropdown
-              breeds = breeds.filter(x => String(x.id) !== String(b.id));
-              const items = filterBreeds(input.value || '');
-              renderDropdown(items);
-              clearSelection();
-            } else {
-              alert('Delete failed: ' + (j && j.error ? j.error : JSON.stringify(j)));
-            }
-          }).catch(err => { alert('Delete failed: ' + err); }).finally(()=>{ delBtn.disabled = false; delBtn.textContent = 'Delete'; });
-      });
-
-      actions.appendChild(editBtn);
-      actions.appendChild(delBtn);
-
-      d.appendChild(left);
-      d.appendChild(actions);
+      d.style.color = '#000';
+      d.addEventListener('click', () => { selectBreed(b); hideDropdown(); });
       d.addEventListener('mouseenter', () => { d.style.background = '#f3f4f6'; });
       d.addEventListener('mouseleave', () => { d.style.background = '#fff'; });
       dropdown.appendChild(d);
@@ -772,14 +726,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function loadBreeds() {
     fetch(listUrl).then(r => r.json()).then(j => {
       if (j && j.ok) {
-        // Ensure client-side alphabetical order (case-insensitive)
-        breeds = (j.breeds || []).slice().sort((a, b) => {
-          const A = (a.title || '').toLowerCase();
-          const B = (b.title || '').toLowerCase();
-          if (A < B) return -1;
-          if (A > B) return 1;
-          return 0;
-        });
+        breeds = j.breeds || [];
       } else {
         breeds = [];
       }
@@ -910,3 +857,40 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 {% endblock %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const statusBtn = document.getElementById('ai-status-btn');
+  const statusInd = document.getElementById('ai-status-indicator');
+  const statusMsg = document.getElementById('ai-status-message');
+  if (statusBtn) {
+    statusBtn.addEventListener('click', () => {
+      statusBtn.disabled = true; statusBtn.textContent = 'Checking...';
+      statusInd.style.background = '#f59e0b'; // amber while checking
+      statusMsg.textContent = '';
+      fetch('{{ url_for("admin_ai_status") }}')
+        .then(r => r.json())
+        .then(j => {
+          statusBtn.disabled = false; statusBtn.textContent = 'Check AI API';
+          try {
+            const ok = (j.openai && j.openai.model_ok) || (j.gemini && j.gemini.model_ok) || (j.provider && j.provider !== 'none' && (j.openai && j.openai.env_present));
+            if (ok) {
+              statusInd.style.background = '#10b981'; // green
+              statusMsg.textContent = 'API reachable';
+            } else {
+              statusInd.style.background = '#ef4444'; // red
+              statusMsg.textContent = j.openai && j.openai.error ? j.openai.error : (j.gemini && j.gemini.error ? j.gemini.error : 'No provider responded.');
+            }
+          } catch (e) {
+            statusInd.style.background = '#ef4444';
+            statusMsg.textContent = 'Error parsing status';
+          }
+        })
+        .catch(err => {
+          statusBtn.disabled = false; statusBtn.textContent = 'Check AI API';
+          statusInd.style.background = '#ef4444';
+          statusMsg.textContent = 'Network error';
+        });
+    });
+  }
+});
+</script>

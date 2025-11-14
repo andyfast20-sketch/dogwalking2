@@ -2388,7 +2388,9 @@ def admin_content():
     notif_sound = (get_site_setting('admin_notifications_sound') == 'true')
     # Provide full breed rows for admin editing
     breeds = fetch_breed_rows()
-    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, autopilot_enabled=autopilot, hero_imgs=hero_imgs, meet_andy=meet_andy, contact_info=contact_info, service_areas=service_areas, homepage_sections=homepage_sections, business_description=business_desc, ai_keys=ai_keys, ai_test_result=ai_test_result, autopilot_provider=autopilot_provider, admin_notifications_sound=notif_sound, breeds=breeds)
+    # Admin-provided guidance for AI breed responses
+    ai_breeds_guidance = get_site_setting('AI_BREEDS_GUIDANCE') or ''
+    return render_template('admin_content.html', services=services, maintenance_mode_enabled=maintenance_mode, autopilot_enabled=autopilot, hero_imgs=hero_imgs, meet_andy=meet_andy, contact_info=contact_info, service_areas=service_areas, homepage_sections=homepage_sections, business_description=business_desc, ai_keys=ai_keys, ai_test_result=ai_test_result, autopilot_provider=autopilot_provider, admin_notifications_sound=notif_sound, breeds=breeds, ai_breeds_guidance=ai_breeds_guidance)
 
 @app.post('/admin/content/service/<int:service_id>')
 def admin_content_update(service_id: int):
@@ -2445,6 +2447,16 @@ def admin_meet_andy_update():
     update_meet_andy(data)
     
     return redirect(url_for('admin_content') + '#meet-andy')
+
+
+@app.post('/admin/content/ai-breeds-guidance')
+def admin_ai_breeds_guidance_update():
+    auth_result = require_admin()
+    if isinstance(auth_result, Response):
+        return auth_result
+    guidance = (request.form.get('ai_breeds_guidance') or '').strip()
+    set_site_setting('AI_BREEDS_GUIDANCE', guidance)
+    return redirect(url_for('admin_content') + '#dog-breeds')
 
 @app.post('/admin/content/contact')
 def admin_contact_update():
