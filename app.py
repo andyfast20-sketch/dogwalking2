@@ -3100,9 +3100,47 @@ def admin_breeds_ai_update():
         except Exception:
             proposed_add, proposed_remove = _parse_prompt(ai_result_text or prompt)
 
-    # If AI not used or returned nothing, fallback to heuristic parsing of the original prompt
+    # If AI not used (no provider keys) then heuristic-parse the original prompt.
+    # If provider keys were present but providers returned no useful reply, prefer curated
+    # fallbacks for common categories (so admins get helpful suggestions) and
+    # return diagnostics rather than naively treating adjectives like "tall" as a breed.
     if not proposed_add and not proposed_remove:
-        proposed_add, proposed_remove = _parse_prompt(prompt)
+        if not (ds_key or openai_key or gemini_key):
+            proposed_add, proposed_remove = _parse_prompt(prompt)
+        else:
+            # Providers were present but returned nothing — try lightweight curated lists
+            low = prompt.lower()
+            curated_add = []
+            curated_remove = []
+            if any(k in low for k in ['small', 'toy', 'companion']):
+                curated_add = [
+                    'Chihuahua', 'Pomeranian', 'Shih Tzu', 'Cavalier King Charles Spaniel', 'French Bulldog',
+                    'Dachshund', 'Pug', 'Maltese', 'Yorkshire Terrier', 'Bichon Frise', 'Papillon', 'Miniature Schnauzer'
+                ]
+            if any(k in low for k in ['tall', 'large', 'giant', 'extra large', 'big']):
+                curated_add = curated_add + [
+                    'Great Dane', 'Irish Wolfhound', 'Saint Bernard', 'Newfoundland', 'Leonberger', 'Bernese Mountain Dog', 'Mastiff'
+                ]
+            if any(k in low for k in ['well behaved', 'well-behaved', 'calm', 'gentle', 'well behaved dogs']):
+                curated_add = curated_add + [
+                    'Labrador Retriever', 'Golden Retriever', 'Cavalier King Charles Spaniel', 'Basset Hound', 'Border Collie', 'Greyhound'
+                ]
+            if any(k in low for k in ['aggressive', 'aggression']):
+                curated_remove = ['American Pit Bull Terrier', 'Rottweiler', 'Doberman', 'Chow Chow']
+
+            proposed_add = curated_add
+            proposed_remove = curated_remove
+            # If admin requested preview, include diagnostics so they can see why provider text wasn't used
+            if not confirm:
+                resp = {'ok': True, 'raw': f"Proposed to add {len(proposed_add)} and remove {len(proposed_remove)} items.", 'proposed_add': proposed_add, 'proposed_remove': proposed_remove}
+                try:
+                    resp['diagnostics'] = diagnostics
+                except Exception:
+                    pass
+                return jsonify(resp)
+            # If admin attempted to apply but no curated or parsed proposals exist, return an error with diagnostics
+            if confirm and not (proposed_add or proposed_remove):
+                return jsonify({'ok': False, 'error': 'No AI proposals generated; check AI provider keys and diagnostics.', 'diagnostics': diagnostics}), 400
 
     raw = f"Proposed to add {len(proposed_add)} and remove {len(proposed_remove)} items."
     if not confirm:
