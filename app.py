@@ -2835,6 +2835,10 @@ def admin_breeds_ai_update():
 
     prompt = (request.form.get('prompt') or '').strip()
     confirm = request.form.get('confirm')
+    # Diagnostics container for visibility in responses
+    diagnostics = {}
+    # Allow guidance to be passed in the request or fall back to saved admin guidance
+    guidance = (request.form.get('guidance') or '').strip() or get_site_setting('AI_BREEDS_GUIDANCE') or ''
 
     # If no prompt provided, return a helpful error for the UI
     if not prompt:
@@ -2909,7 +2913,7 @@ def admin_breeds_ai_update():
         "You are a website admin assistant for a dog-walking site. "
         "Given the administrator instruction below, respond ONLY with a JSON object containing two arrays: \"add\" and \"remove\". "
         "Each array should contain breed names (strings). Example: {\"add\": [\"Labrador\"], \"remove\": [\"Pitbull\"]}.\n\n"
-        f"Instruction: {prompt}"
+        f"Admin guidance: {guidance}\n\nInstruction: {prompt}"
     )
     
 
@@ -3589,7 +3593,8 @@ def admin_ai_status():
             'error': None,
         }
     }
-    # OpenAI ping
+    # OpenAI ping — try the configured client first, fall back to a raw HTTP request if the
+    # client library raises an unexpected error (some versions pass unsupported kwargs).
     if openai_client:
         try:
             r = openai_client.chat.completions.create(
@@ -3597,9 +3602,36 @@ def admin_ai_status():
                 messages=[{"role":"user","content":"ping"}],
                 max_tokens=5
             )
-            status['openai']['model_ok'] = bool(r and r.choices)
+            status['openai']['model_ok'] = bool(r and getattr(r, 'choices', None))
         except Exception as e:
-            status['openai']['error'] = str(e)
+            # Attempt a safe HTTP fallback using requests and the raw API key if available.
+            fallback_err = str(e)
+            try:
+                import requests
+                key = get_site_setting('OPENAI_API_KEY') or os.environ.get('OPENAI_API_KEY') or globals().get('OPENAI_API_KEY')
+                if key:
+                    headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
+                    payload = {
+                        'model': 'gpt-3.5-turbo',
+                        'messages': [{'role': 'user', 'content': 'ping'}],
+                        'max_tokens': 5
+                    }
+                    try:
+                        resp = requests.post('https://api.openai.com/v1/chat/completions', json=payload, headers=headers, timeout=8)
+                        if resp.status_code == 200:
+                            j = resp.json()
+                            if isinstance(j, dict) and j.get('choices'):
+                                status['openai']['model_ok'] = True
+                            else:
+                                status['openai']['error'] = f'Fallback HTTP succeeded but no choices returned: {j}'
+                        else:
+                            status['openai']['error'] = f'Fallback HTTP status {resp.status_code}: {resp.text[:240]}'
+                    except Exception as e2:
+                        status['openai']['error'] = f"Client error: {fallback_err}; fallback failed: {str(e2)}"
+                else:
+                    status['openai']['error'] = fallback_err
+            except Exception as e2:
+                status['openai']['error'] = f"Client error: {fallback_err}; fallback setup failed: {str(e2)}"
     # Gemini ping
     if genai and GEMINI_API_KEY:
         try:

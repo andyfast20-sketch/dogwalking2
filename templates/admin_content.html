@@ -405,6 +405,7 @@
         <button id="ai-status-btn" class="btn" type="button" style="padding:8px 12px;font-weight:700;display:inline-flex;align-items:center;gap:8px">Check AI API</button>
         <div id="ai-status-indicator" title="API status" style="width:18px;height:18px;border-radius:50%;background:#bdbdbd;border:2px solid rgba(0,0,0,.06)"></div>
         <div id="ai-status-message" style="color:var(--muted);font-size:.9rem"></div>
+        <div id="ai-status-details" style="display:block;width:100%;margin-top:6px;color:var(--muted);font-size:.8rem;white-space:pre-wrap"></div>
       </div>
     </div>
 
@@ -577,6 +578,13 @@ document.addEventListener('DOMContentLoaded', () => {
   function showPreview(data) {
     resultPanel.style.display = '';
     resultSummary.textContent = (data.raw || '').slice(0, 300);
+    // Show diagnostics if present in the response
+    if (data.diagnostics) {
+      const diagEl = document.createElement('div');
+      diagEl.style.marginTop = '8px'; diagEl.style.padding = '8px'; diagEl.style.borderRadius = '8px'; diagEl.style.background = 'rgba(0,0,0,.04)'; diagEl.style.color = 'var(--muted)';
+      diagEl.textContent = 'Diagnostics: ' + JSON.stringify(data.diagnostics);
+      resultProposed.appendChild(diagEl);
+    }
     resultProposed.innerHTML = '';
     const adds = data.proposed_add || [];
     const removes = data.proposed_remove || [];
@@ -605,13 +613,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!prompt) return alert('Please enter a prompt.');
     runBtn.disabled = true; runBtn.textContent = 'Running...';
     const fd = new FormData(); fd.append('prompt', prompt);
-    fetch('{{ url_for("admin_breeds_ai_update") }}', { method: 'POST', body: fd })
+    // include admin guidance so AI respects configured guidance
+    const guidanceEl = document.querySelector('textarea[name="ai_breeds_guidance"]');
+    if (guidanceEl) fd.append('guidance', guidanceEl.value || '');
+    fetch('{{ url_for("admin_breeds_ai_update") }}', { method: 'POST', body: fd, credentials: 'include' })
       .then(r => r.json())
       .then(j => {
         runBtn.disabled = false; runBtn.textContent = 'Run (Preview)';
         if (!j || !j.ok) {
           resultPanel.style.display = '';
           resultSummary.textContent = j && j.raw ? j.raw : (j && j.error ? j.error : 'No result');
+          // show diagnostics when present
+          if (j && j.diagnostics) {
+            resultSummary.textContent += '\n\nDiagnostics: ' + JSON.stringify(j.diagnostics);
+          }
           applyBtn.style.display = 'none';
           return;
         }
@@ -627,7 +642,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!confirm('Apply the proposed changes to the breeds list? This will modify the database.')) return;
     applyBtn.disabled = true; applyBtn.textContent = 'Applying...';
     const fd = new FormData(); fd.append('prompt', promptEl.value || ''); fd.append('confirm', '1');
-    fetch('{{ url_for("admin_breeds_ai_update") }}', { method: 'POST', body: fd })
+    const guidanceEl = document.querySelector('textarea[name="ai_breeds_guidance"]');
+    if (guidanceEl) fd.append('guidance', guidanceEl.value || '');
+    fetch('{{ url_for("admin_breeds_ai_update") }}', { method: 'POST', body: fd, credentials: 'include' })
       .then(r => r.json())
       .then(j => {
         applyBtn.disabled = false; applyBtn.textContent = 'Apply Changes';
@@ -724,7 +741,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function loadBreeds() {
-    fetch(listUrl).then(r => r.json()).then(j => {
+    fetch(listUrl, {credentials: 'include'}).then(r => r.json()).then(j => {
       if (j && j.ok) {
         breeds = j.breeds || [];
       } else {
@@ -873,12 +890,16 @@ document.addEventListener('DOMContentLoaded', () => {
           statusBtn.disabled = false; statusBtn.textContent = 'Check AI API';
           try {
             const ok = (j.openai && j.openai.model_ok) || (j.gemini && j.gemini.model_ok) || (j.provider && j.provider !== 'none' && (j.openai && j.openai.env_present));
+            const detailsEl = document.getElementById('ai-status-details');
             if (ok) {
               statusInd.style.background = '#10b981'; // green
               statusMsg.textContent = 'API reachable';
             } else {
               statusInd.style.background = '#ef4444'; // red
               statusMsg.textContent = j.openai && j.openai.error ? j.openai.error : (j.gemini && j.gemini.error ? j.gemini.error : 'No provider responded.');
+            }
+            if (detailsEl) {
+              detailsEl.textContent = JSON.stringify(j, null, 2);
             }
           } catch (e) {
             statusInd.style.background = '#ef4444';
@@ -889,8 +910,16 @@ document.addEventListener('DOMContentLoaded', () => {
           statusBtn.disabled = false; statusBtn.textContent = 'Check AI API';
           statusInd.style.background = '#ef4444';
           statusMsg.textContent = 'Network error';
+          const detailsEl = document.getElementById('ai-status-details');
+          if (detailsEl) detailsEl.textContent = String(err);
         });
     });
+  }
+  // Auto-check AI API once on page load so indicator is visible immediately
+  try {
+    if (statusBtn && typeof statusBtn.click === 'function') statusBtn.click();
+  } catch (e) {
+    // ignore
   }
 });
 </script>
