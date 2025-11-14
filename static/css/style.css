@@ -82,3 +82,10 @@ h2 {
 .back-link:hover {
     text-decoration: underline;
 }
+
+.site-footer {
+    margin-top: 40px;
+    text-align: center;
+    color: #7f8c8d;
+    font-size: 0.9em;
+}
