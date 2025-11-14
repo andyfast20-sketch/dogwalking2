@@ -2921,7 +2921,8 @@ def admin_breeds_ai_update():
     # AI provider key and will return an explicit error if none are present. This ensures
     # responses come from the selected provider only (no local guesswork).
 
-    # Choose provider order: DeepSeek if present, else OpenAI, else Gemini
+    # Determine configured provider preference and keys
+    autopilot_provider = (get_site_setting('AUTOPILOT_PROVIDER') or 'auto').strip().lower()
     openai_key = get_site_setting('OPENAI_API_KEY') or os.environ.get('OPENAI_API_KEY') or globals().get('OPENAI_API_KEY') or ''
     ds_key = get_site_setting('DEEPSEEK_API_KEY') or globals().get('DEEPSEEK_API_KEY') or ''
     gemini_key = get_site_setting('GEMINI_API_KEY') or globals().get('GEMINI_API_KEY') or ''
@@ -3024,16 +3025,45 @@ def admin_breeds_ai_update():
         except Exception:
             return False
 
-    # Try providers in order
-    if ds_key:
-        tried.append('deepseek')
-        _try_deepseek_api(ds_key)
-    if not ai_result_text and openai_key:
-        tried.append('openai')
-        _try_openai_api(openai_key)
-    if not ai_result_text and gemini_key:
-        tried.append('gemini')
-        _try_gemini_api(gemini_key)
+    # Try providers in order, respecting admin preference when set
+    provider_order = []
+    if autopilot_provider and autopilot_provider != 'auto':
+        provider_order = [autopilot_provider]
+        for p in ('deepseek', 'openai', 'gemini'):
+            if p not in provider_order:
+                provider_order.append(p)
+    else:
+        # Default: prefer DeepSeek if available, then OpenAI, then Gemini
+        provider_order = ['deepseek', 'openai', 'gemini']
+
+    for p in provider_order:
+        if ai_result_text:
+            break
+        if p == 'deepseek' and ds_key:
+            tried.append('deepseek')
+            ok = _try_deepseek_api(ds_key)
+            if not ok:
+                # capture last HTTP error if any
+                try:
+                    diagnostics.setdefault('deepseek_error', 'no response')
+                except Exception:
+                    pass
+        elif p == 'openai' and openai_key:
+            tried.append('openai')
+            ok = _try_openai_api(openai_key)
+            if not ok:
+                try:
+                    diagnostics.setdefault('openai_error', 'no response')
+                except Exception:
+                    pass
+        elif p == 'gemini' and gemini_key:
+            tried.append('gemini')
+            ok = _try_gemini_api(gemini_key)
+            if not ok:
+                try:
+                    diagnostics.setdefault('gemini_error', 'no response')
+                except Exception:
+                    pass
 
     # If no reply, attach diagnostics for admin visibility (which providers tried, and a short note).
     if not ai_result_text:
@@ -3074,47 +3104,16 @@ def admin_breeds_ai_update():
         except Exception:
             proposed_add, proposed_remove = _parse_prompt(ai_result_text or prompt)
 
-    # If AI not used (no provider keys) then heuristic-parse the original prompt.
-    # If provider keys were present but providers returned no useful reply, prefer curated
-    # fallbacks for common categories (so admins get helpful suggestions) and
-    # return diagnostics rather than naively treating adjectives like "tall" as a breed.
+    # If providers were not configured, fallback to heuristic parsing of the prompt.
     if not proposed_add and not proposed_remove:
         if not (ds_key or openai_key or gemini_key):
             proposed_add, proposed_remove = _parse_prompt(prompt)
         else:
-            # Providers were present but returned nothing — try lightweight curated lists
-            low = prompt.lower()
-            curated_add = []
-            curated_remove = []
-            if any(k in low for k in ['small', 'toy', 'companion']):
-                curated_add = [
-                    'Chihuahua', 'Pomeranian', 'Shih Tzu', 'Cavalier King Charles Spaniel', 'French Bulldog',
-                    'Dachshund', 'Pug', 'Maltese', 'Yorkshire Terrier', 'Bichon Frise', 'Papillon', 'Miniature Schnauzer'
-                ]
-            if any(k in low for k in ['tall', 'large', 'giant', 'extra large', 'big']):
-                curated_add = curated_add + [
-                    'Great Dane', 'Irish Wolfhound', 'Saint Bernard', 'Newfoundland', 'Leonberger', 'Bernese Mountain Dog', 'Mastiff'
-                ]
-            if any(k in low for k in ['well behaved', 'well-behaved', 'calm', 'gentle', 'well behaved dogs']):
-                curated_add = curated_add + [
-                    'Labrador Retriever', 'Golden Retriever', 'Cavalier King Charles Spaniel', 'Basset Hound', 'Border Collie', 'Greyhound'
-                ]
-            if any(k in low for k in ['aggressive', 'aggression']):
-                curated_remove = ['American Pit Bull Terrier', 'Rottweiler', 'Doberman', 'Chow Chow']
-
-            proposed_add = curated_add
-            proposed_remove = curated_remove
-            # If admin requested preview, include diagnostics so they can see why provider text wasn't used
-            if not confirm:
-                resp = {'ok': True, 'raw': f"Proposed to add {len(proposed_add)} and remove {len(proposed_remove)} items.", 'proposed_add': proposed_add, 'proposed_remove': proposed_remove}
-                try:
-                    resp['diagnostics'] = diagnostics
-                except Exception:
-                    pass
-                return jsonify(resp)
-            # If admin attempted to apply but no curated or parsed proposals exist, return an error with diagnostics
-            if confirm and not (proposed_add or proposed_remove):
-                return jsonify({'ok': False, 'error': 'No AI proposals generated; check AI provider keys and diagnostics.', 'diagnostics': diagnostics}), 400
+            # Providers were present but returned nothing useful — return diagnostics so admin can fix keys.
+            diagnostics = diagnostics or {}
+            diagnostics['tried'] = tried
+            diagnostics['note'] = 'Providers were configured but returned no usable response. Check provider keys, models and API error messages via Quick AI Test.'
+            return jsonify({'ok': False, 'error': 'No AI response from configured providers.', 'diagnostics': diagnostics}), 502
 
     # Remove any proposals that are already stored, and only propose removals
     # for breeds that actually exist in the DB. This prevents echoing adjectives

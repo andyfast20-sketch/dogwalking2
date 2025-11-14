@@ -889,14 +889,16 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(j => {
           statusBtn.disabled = false; statusBtn.textContent = 'Check AI API';
           try {
-            const ok = (j.openai && j.openai.model_ok) || (j.gemini && j.gemini.model_ok) || (j.provider && j.provider !== 'none' && (j.openai && j.openai.env_present));
+            // Consider DeepSeek too when determining overall API health
+            const ok = (j.openai && j.openai.model_ok) || (j.deepseek && j.deepseek.model_ok) || (j.gemini && j.gemini.model_ok) || (j.provider && j.provider !== 'none' && ((j.openai && j.openai.env_present) || (j.deepseek && j.deepseek.env_present) || (j.gemini && j.gemini.env_present)));
             const detailsEl = document.getElementById('ai-status-details');
             if (ok) {
               statusInd.style.background = '#10b981'; // green
               statusMsg.textContent = 'API reachable';
             } else {
               statusInd.style.background = '#ef4444'; // red
-              statusMsg.textContent = j.openai && j.openai.error ? j.openai.error : (j.gemini && j.gemini.error ? j.gemini.error : 'No provider responded.');
+              // Prefer deepseek error when present, then openai, then gemini
+              statusMsg.textContent = (j.deepseek && j.deepseek.error) ? j.deepseek.error : (j.openai && j.openai.error ? j.openai.error : (j.gemini && j.gemini.error ? j.gemini.error : 'No provider responded.'));
             }
             if (detailsEl) {
               detailsEl.textContent = JSON.stringify(j, null, 2);
