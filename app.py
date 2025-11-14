@@ -2917,24 +2917,9 @@ def admin_breeds_ai_update():
     )
     
 
-    # If the prompt is a general instruction like "add generally small dog breeds",
-    # offer a curated deterministic list so admins get useful proposals even without API keys.
-    try:
-        low = prompt.lower()
-        if not proposed_add and ('small' in low or 'toy' in low or 'companion' in low):
-            curated_small = [
-                'Chihuahua', 'Pomeranian', 'Shih Tzu', 'Cavalier King Charles Spaniel', 'French Bulldog',
-                'Dachshund', 'Pug', 'Maltese', 'Yorkshire Terrier', 'Bichon Frise', 'Papillon', 'Miniature Schnauzer'
-            ]
-            # If user explicitly asked to "add", return curated list; if they asked to "remove" skip.
-            if 'add' in low or 'include' in low or 'suggest' in low or 'recommend' in low:
-                proposed_add = curated_small
-            # quick preview response
-            raw = f"Proposed to add {len(proposed_add)} and remove {len(proposed_remove)} items."
-            if not confirm:
-                return jsonify({'ok': True, 'raw': raw, 'proposed_add': proposed_add, 'proposed_remove': proposed_remove})
-    except Exception:
-        pass
+    # NOTE: Removed local heuristic/curated fallbacks — handler will require a configured
+    # AI provider key and will return an explicit error if none are present. This ensures
+    # responses come from the selected provider only (no local guesswork).
 
     # Choose provider order: DeepSeek if present, else OpenAI, else Gemini
     openai_key = get_site_setting('OPENAI_API_KEY') or os.environ.get('OPENAI_API_KEY') or globals().get('OPENAI_API_KEY') or ''
@@ -2947,37 +2932,10 @@ def admin_breeds_ai_update():
     except Exception:
         requests = None
 
-    # If no AI provider keys are configured, use the local heuristic/curated lists
-    # to provide a useful preview immediately (so admins don't need API keys for
-    # basic prompts). If any provider key is present, prefer calling the provider
-    # to get AI-generated suggestions.
+    # Require at least one configured provider key. If none are configured, return
+    # an explicit error so the admin must choose and configure a provider key.
     if not (ds_key or openai_key or gemini_key):
-        try:
-            parsed_add, parsed_remove = _parse_prompt(prompt)
-            if (parsed_add or parsed_remove):
-                proposed_add = parsed_add
-                proposed_remove = parsed_remove
-                raw = f"Proposed to add {len(proposed_add)} and remove {len(proposed_remove)} items."
-                if not confirm:
-                    return jsonify({'ok': True, 'raw': raw, 'proposed_add': proposed_add, 'proposed_remove': proposed_remove})
-                # If confirm present, fall through to persist parsed lists
-        except Exception:
-            pass
-
-        try:
-            low = prompt.lower()
-            if not proposed_add and ('small' in low or 'toy' in low or 'companion' in low):
-                curated_small = [
-                    'Chihuahua', 'Pomeranian', 'Shih Tzu', 'Cavalier King Charles Spaniel', 'French Bulldog',
-                    'Dachshund', 'Pug', 'Maltese', 'Yorkshire Terrier', 'Bichon Frise', 'Papillon', 'Miniature Schnauzer'
-                ]
-                if 'add' in low or 'include' in low or 'suggest' in low or 'recommend' in low or 'small' in low:
-                    proposed_add = curated_small
-                raw = f"Proposed to add {len(proposed_add)} and remove {len(proposed_remove)} items."
-                if not confirm:
-                    return jsonify({'ok': True, 'raw': raw, 'proposed_add': proposed_add, 'proposed_remove': proposed_remove})
-        except Exception:
-            pass
+        return jsonify({'ok': False, 'error': 'No AI provider configured. Please set an API key in Admin -> API Keys.'}), 400
 
     def _try_openai_api(key):
         nonlocal ai_result_text
