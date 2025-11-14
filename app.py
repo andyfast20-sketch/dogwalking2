@@ -2908,6 +2908,7 @@ def admin_breeds_ai_update():
     # We'll attempt the same proposal computation for both preview and apply so the server
     # always derives the same proposed_add/proposed_remove from the provided prompt.
     ai_result_text = None
+    provider_used = None
     # Build a strict instruction that asks for JSON output to simplify parsing
     ai_instruction = (
         "You are a website admin assistant for a dog-walking site. "
@@ -2940,6 +2941,7 @@ def admin_breeds_ai_update():
 
     def _try_openai_api(key):
         nonlocal ai_result_text
+        nonlocal provider_used
         if not key:
             return False
         try:
@@ -2955,6 +2957,7 @@ def admin_breeds_ai_update():
                         ai_result_text = resp.choices[0].message.content
                     except Exception:
                         ai_result_text = getattr(resp.choices[0], 'text', str(resp))
+                    provider_used = 'openai'
                     return True
             if requests:
                 api_key = key
@@ -2969,15 +2972,27 @@ def admin_breeds_ai_update():
                                 ai_result_text = j['choices'][0]['message']['content']
                             except Exception:
                                 ai_result_text = j['choices'][0].get('text') or str(j)
+                            provider_used = 'openai'
                             return True
                     except Exception:
                         pass
-        except Exception:
-            pass
+                else:
+                    # capture HTTP status/text for diagnostics
+                    try:
+                        diagnostics['openai_http_status'] = r.status_code
+                        diagnostics['openai_http_text'] = (r.text or '')[:400]
+                    except Exception:
+                        pass
+        except Exception as e:
+            try:
+                diagnostics['openai_exception'] = str(e)[:400]
+            except Exception:
+                pass
         return False
 
     def _try_deepseek_api(key):
         nonlocal ai_result_text
+        nonlocal provider_used
         if not key or not requests:
             return False
         endpoints = ['https://api.deepseek.com/v1/chat/completions', 'https://api.deepseek.com/v1/responses']
@@ -2987,14 +3002,23 @@ def admin_breeds_ai_update():
             try:
                 payload = {'model': model, 'messages': [{"role": "system", "content": ai_instruction}, {"role": "user", "content": prompt}], 'max_tokens': 400, 'temperature': 0.2}
                 r = requests.post(url, json=payload, headers=headers, timeout=12)
-            except Exception:
+            except Exception as e:
+                try:
+                    diagnostics.setdefault('deepseek_exceptions', []).append(str(e)[:400])
+                except Exception:
+                    pass
                 continue
             if r.status_code != 200:
+                try:
+                    diagnostics.setdefault('deepseek_http_statuses', []).append({'url': url, 'status': r.status_code, 'text': (r.text or '')[:240]})
+                except Exception:
+                    pass
                 continue
             try:
                 j = r.json()
             except Exception:
                 ai_result_text = (r.text or '').strip()
+                provider_used = 'deepseek'
                 return True
             if isinstance(j, dict):
                 if j.get('choices'):
@@ -3002,14 +3026,17 @@ def admin_breeds_ai_update():
                         ai_result_text = j['choices'][0]['message']['content']
                     except Exception:
                         ai_result_text = j['choices'][0].get('text') or str(j)
+                    provider_used = 'deepseek'
                     return True
                 if j.get('output') or j.get('output_text'):
                     ai_result_text = j.get('output') or j.get('output_text')
+                    provider_used = 'deepseek'
                     return True
         return False
 
     def _try_gemini_api(key):
         nonlocal ai_result_text
+        nonlocal provider_used
         if not key or not globals().get('genai'):
             return False
         try:
@@ -3021,8 +3048,14 @@ def admin_breeds_ai_update():
                     ai_result_text = r.candidates[0].content.parts[0].text
                 except Exception:
                     ai_result_text = None
+            if ai_result_text:
+                provider_used = 'gemini'
             return bool(ai_result_text)
-        except Exception:
+        except Exception as e:
+            try:
+                diagnostics.setdefault('gemini_exception', str(e)[:400])
+            except Exception:
+                pass
             return False
 
     # Try providers in order, respecting admin preference when set
@@ -3153,6 +3186,11 @@ def admin_breeds_ai_update():
             # Include diagnostics when available to help admins understand provider failures
             if 'diagnostics' in locals():
                 resp['diagnostics'] = diagnostics
+        except Exception:
+            pass
+        try:
+            if provider_used:
+                resp['provider_used'] = provider_used
         except Exception:
             pass
         return jsonify(resp)

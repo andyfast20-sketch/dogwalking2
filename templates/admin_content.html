@@ -404,7 +404,8 @@
       <div style="min-width:220px;display:flex;align-items:center;gap:10px">
         <button id="ai-status-btn" class="btn" type="button" style="padding:8px 12px;font-weight:700;display:inline-flex;align-items:center;gap:8px">Check AI API</button>
         <div id="ai-status-indicator" title="API status" style="width:18px;height:18px;border-radius:50%;background:#bdbdbd;border:2px solid rgba(0,0,0,.06)"></div>
-        <div id="ai-status-message" style="color:var(--muted);font-size:.9rem"></div>
+        <div id="ai-status-provider" style="font-weight:700;color:var(--text);font-size:.9rem;margin-left:6px">Provider: —</div>
+        <div id="ai-status-message" style="color:var(--muted);font-size:.9rem;margin-left:6px"></div>
         <div id="ai-status-details" style="display:block;width:100%;margin-top:6px;color:var(--muted);font-size:.8rem;white-space:pre-wrap"></div>
       </div>
     </div>
@@ -578,6 +579,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function showPreview(data) {
     resultPanel.style.display = '';
     resultSummary.textContent = (data.raw || '').slice(0, 300);
+    // Show which provider produced the result when available
+    if (data.provider_used) {
+      const prov = document.createElement('div');
+      prov.style.fontWeight = '700'; prov.style.marginBottom = '6px'; prov.textContent = 'Provider: ' + data.provider_used;
+      resultSummary.parentNode.insertBefore(prov, resultSummary);
+    }
     // Show diagnostics if present in the response
     if (data.diagnostics) {
       const diagEl = document.createElement('div');
