@@ -3537,10 +3537,16 @@ def admin_ai_status():
     if isinstance(auth_result, Response):
         return auth_result
     status = {
-        'provider': 'openai' if openai_client else ('gemini' if genai and GEMINI_API_KEY else 'none'),
+        'provider': 'openai' if openai_client else ('deepseek' if DEEPSEEK_API_KEY else ('gemini' if genai and GEMINI_API_KEY else 'none')),
         'openai': {
             'env_present': bool(OPENAI_API_KEY),
             'client_loaded': openai_client is not None,
+            'model_ok': False,
+            'error': None,
+        },
+        'deepseek': {
+            'env_present': bool(DEEPSEEK_API_KEY),
+            'client_loaded': deepseek_client is not None,
             'model_ok': False,
             'error': None,
         },
@@ -3590,6 +3596,63 @@ def admin_ai_status():
                     status['openai']['error'] = fallback_err
             except Exception as e2:
                 status['openai']['error'] = f"Client error: {fallback_err}; fallback setup failed: {str(e2)}"
+    # DeepSeek ping (OpenAI-compatible endpoints)
+    if DEEPSEEK_API_KEY:
+        try:
+            import requests
+            ds_ok = False
+            ds_err = None
+            endpoints = [
+                'https://api.deepseek.com/v1/chat/completions',
+                'https://api.deepseek.com/v1/responses'
+            ]
+            ds_model = get_site_setting('DEEPSEEK_MODEL') or get_site_setting('OPENAI_MODEL') or 'gpt-3.5-turbo'
+            headers = {'Authorization': f'Bearer {DEEPSEEK_API_KEY}', 'Content-Type': 'application/json'}
+            payload = {'model': ds_model, 'messages': [{'role': 'user', 'content': 'ping'}], 'max_tokens': 5}
+            for url in endpoints:
+                try:
+                    r = requests.post(url, json=payload, headers=headers, timeout=8)
+                except Exception as ee:
+                    ds_err = str(ee)
+                    continue
+                if r.status_code != 200:
+                    try:
+                        ds_err = f"HTTP {r.status_code}: {r.text[:300]}"
+                    except Exception:
+                        ds_err = f"HTTP {r.status_code}"
+                    continue
+                try:
+                    j = r.json()
+                except Exception:
+                    if (r.text or '').strip():
+                        ds_ok = True
+                        break
+                    ds_err = '200 non-JSON body'
+                    continue
+                got = None
+                if isinstance(j, dict):
+                    if j.get('choices'):
+                        try:
+                            got = j['choices'][0]['message']['content']
+                        except Exception:
+                            got = j['choices'][0].get('text') or None
+                    if not got:
+                        got = j.get('output') or j.get('output_text') or None
+                    if not got and j.get('data'):
+                        try:
+                            d0 = j['data'][0]
+                            if isinstance(d0, dict):
+                                got = d0.get('text') or d0.get('content') or None
+                        except Exception:
+                            pass
+                if got:
+                    ds_ok = True
+                    break
+            status['deepseek']['model_ok'] = bool(ds_ok)
+            if not ds_ok and ds_err:
+                status['deepseek']['error'] = ds_err
+        except Exception as e:
+            status['deepseek']['error'] = str(e)
     # Gemini ping
     if genai and GEMINI_API_KEY:
         try:
