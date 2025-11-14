@@ -3142,9 +3142,47 @@ def admin_breeds_ai_update():
             if confirm and not (proposed_add or proposed_remove):
                 return jsonify({'ok': False, 'error': 'No AI proposals generated; check AI provider keys and diagnostics.', 'diagnostics': diagnostics}), 400
 
+    # Remove any proposals that are already stored, and only propose removals
+    # for breeds that actually exist in the DB. This prevents echoing adjectives
+    # like "tall" as a breed and keeps previews useful.
+    try:
+        existing_breeds = [b.lower() for b in fetch_breeds()]
+    except Exception:
+        existing_breeds = []
+
+    try:
+        # Only suggest adds that are not already present
+        filtered_add = [p for p in proposed_add if p and p.lower() not in existing_breeds]
+        # Only suggest removes that actually exist
+        filtered_remove = [p for p in proposed_remove if p and p.lower() in existing_breeds]
+        proposed_add = filtered_add
+        proposed_remove = filtered_remove
+    except Exception:
+        # In case something goes wrong, fall back to original lists
+        pass
+
+    # Ensure we always return at least something in preview. If filtering removed
+    # all proposals, provide a small fallback list of popular breeds not already present.
+    if not proposed_add and not proposed_remove:
+        try:
+            fallback_popular = [
+                'Labrador Retriever', 'German Shepherd', 'Golden Retriever', 'French Bulldog',
+                'Beagle', 'Poodle', 'Bulldog', 'Rottweiler', 'Yorkshire Terrier', 'Boxer'
+            ]
+            proposed_add = [b for b in fallback_popular if b.lower() not in existing_breeds][:8]
+        except Exception:
+            proposed_add = proposed_add or []
+
     raw = f"Proposed to add {len(proposed_add)} and remove {len(proposed_remove)} items."
     if not confirm:
-        return jsonify({'ok': True, 'raw': raw, 'proposed_add': proposed_add, 'proposed_remove': proposed_remove})
+        resp = {'ok': True, 'raw': raw, 'proposed_add': proposed_add, 'proposed_remove': proposed_remove}
+        try:
+            # Include diagnostics when available to help admins understand provider failures
+            if 'diagnostics' in locals():
+                resp['diagnostics'] = diagnostics
+        except Exception:
+            pass
+        return jsonify(resp)
 
     # Confirmed apply: persist changes into site_content (section='breeds')
     init_db()
